@@ -1,13 +1,25 @@
 import ControlView from './ControlView.jsx'
-import { contentBottom, MARGIN } from '../document.js'
+import { contentBottom, inputNodes, MARGIN } from '../document.js'
+import { screenStyle } from './styles.js'
 
 // A saved screen, drawn. Presentation only — everything comes from
 // useFactoryScreen.
 //
 // NO MEASURING. Positions are CSS: x and w as percentages of the width, y and h
 // in container-query units (cqw = 1% of the screen's width) times the aspect.
-// So the screen keeps exactly its proportions at any width, renders on the
-// server, and never flashes at the wrong size while a ResizeObserver catches up.
+// The screen is never wider than the width it was designed at, so what was
+// designed at 800px is shown at 800px, and only a narrower screen scales it.
+//
+// NO SUBMIT. The status line says what the background save is doing.
+
+const STATUS = {
+  idle: '',
+  pending: 'Unsaved changes…',
+  saving: 'Saving…',
+  saved: 'All changes saved',
+  incomplete: 'Fill in the required fields to save',
+  invalid: 'Fix the highlighted fields to save'
+}
 
 export default function ScreenSample({ ctrl, className, style }) {
   const { document: doc } = ctrl
@@ -25,13 +37,23 @@ export default function ScreenSample({ ctrl, className, style }) {
 
   const aspect = doc.aspect
   const pageHeight = (contentBottom(doc) + MARGIN) * aspect * 100
+  const fieldNodes = inputNodes(doc)
+  const statusText = ctrl.status === 'error' ? `Not saved — ${ctrl.saveError}` : STATUS[ctrl.status]
 
   return (
-    <div className={'xeplr-factory-screen' + (className ? ' ' + className : '')} style={style}>
+    <div
+      className={'xeplr-factory-screen' + (className ? ' ' + className : '')}
+      style={{ maxWidth: doc.width, ...screenStyle(doc), ...style }}
+    >
+      <div className={`xeplr-factory-status xeplr-factory-status--${ctrl.status}`} role="status" aria-live="polite">
+        <span>{ctrl.recordId !== null && ctrl.recordId !== undefined ? 'Editing record' : 'New record'}</span>
+        <span>{statusText}</span>
+      </div>
       <form
         className="xeplr-factory-page"
         style={{ height: `${pageHeight}cqw` }}
-        onSubmit={ctrl.submit}
+        // Enter in a field saves now rather than posting a page.
+        onSubmit={(e) => { e.preventDefault(); ctrl.saveNow() }}
         noValidate
         aria-label={doc.name}
       >
@@ -53,13 +75,24 @@ export default function ScreenSample({ ctrl, className, style }) {
               error={node.props?.name ? ctrl.errors[node.props.name] : undefined}
               options={node.type === 'dropdown' ? ctrl.optionsFor(node) : undefined}
               onChange={(raw) => ctrl.setValue(node, raw)}
-              onAction={(action) => { if (action === 'reset') ctrl.reset() }}
-              disabled={ctrl.submitting}
+              onBlur={() => ctrl.touch(node)}
+              list={node.type === 'list' ? {
+                doc,
+                list: ctrl.listFor(node),
+                fieldNodes,
+                optionsFor: ctrl.optionsFor,
+                currentId: ctrl.recordId,
+                recordKey: ctrl.recordKey,
+                canDelete: ctrl.canDelete,
+                onEdit: (rec) => ctrl.openRecord(rec),
+                // eslint-disable-next-line no-alert
+                onDelete: (rec) => ctrl.deleteRecord(node, rec).catch((err) => window.alert(err.message || 'Could not delete')),
+                onNew: () => ctrl.newRecord()
+              } : undefined}
             />
           </div>
         ))}
       </form>
-      {ctrl.submitError && <div className="xeplr-factory-submit-error" role="alert">{ctrl.submitError}</div>}
     </div>
   )
 }

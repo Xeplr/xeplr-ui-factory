@@ -1,7 +1,8 @@
 // THE CONTROLS a screen is made of — one entry per type, and nothing about any
 // control lives anywhere else. The palette lists these, the property panel is
-// generated from `properties`, the document checker reads `props`, and the
-// form schema reads `valueType`. Adding a control is adding an entry.
+// generated from `properties`, the document checker reads `props`, `validation`
+// and `styles`, and the form schema reads `valueType`. Adding a control is
+// adding an entry.
 //
 // Pure data: no React. The renderers are in designs/ControlView.jsx, keyed by
 // the same `type`, so this file also runs in node — the CLI and the tests read
@@ -13,6 +14,73 @@
 /** A dropdown binds `id` and shows `name` — always. */
 export const OPTION_ID = 'id'
 export const OPTION_LABEL = 'name'
+
+// ── styles ───────────────────────────────────────────────────────────────
+// Every look a control can have is a key under `props.style`, described once
+// here: its editor, and the values it accepts. Sizes are PIXELS at the screen's
+// design width; a screen shown narrower shrinks them in proportion, and never
+// enlarges them.
+
+export const FONT_FAMILIES = [
+  { value: 'system-ui, -apple-system, "Segoe UI", sans-serif', label: 'System' },
+  { value: 'Arial, Helvetica, sans-serif', label: 'Arial' },
+  { value: 'Verdana, Geneva, sans-serif', label: 'Verdana' },
+  { value: 'Tahoma, Geneva, sans-serif', label: 'Tahoma' },
+  { value: '"Trebuchet MS", sans-serif', label: 'Trebuchet MS' },
+  { value: 'Georgia, serif', label: 'Georgia' },
+  { value: '"Times New Roman", Times, serif', label: 'Times New Roman' },
+  { value: '"Courier New", Courier, monospace', label: 'Courier New' },
+  { value: 'ui-monospace, SFMono-Regular, Menlo, monospace', label: 'Monospace' }
+]
+
+const WEIGHTS = [
+  { value: 300, label: 'Light' },
+  { value: 400, label: 'Regular' },
+  { value: 500, label: 'Medium' },
+  { value: 600, label: 'Semibold' },
+  { value: 700, label: 'Bold' },
+  { value: 800, label: 'Extra bold' }
+]
+
+/**
+ * key → { label, type (editor), check }. `check` is what the document checker
+ * accepts; `hint` is what it says when a value is refused.
+ */
+export const STYLE_KEYS = {
+  fontFamily: { label: 'Font', type: 'font', hint: 'a CSS font-family, e.g. "Georgia, serif"' },
+  fontSize: { label: 'Font size (px)', type: 'number', min: 8, max: 96, hint: 'a number of pixels from 8 to 96' },
+  fontWeight: { label: 'Weight', type: 'select', options: WEIGHTS, hint: 'one of 300, 400, 500, 600, 700, 800' },
+  fontStyle: { label: 'Italic', type: 'toggleValue', on: 'italic', hint: '"normal" or "italic"' },
+  textAlign: { label: 'Align', type: 'select', options: [
+    { value: 'left', label: 'Left' }, { value: 'center', label: 'Centre' }, { value: 'right', label: 'Right' }
+  ], hint: '"left", "center" or "right"' },
+  color: { label: 'Text colour', type: 'color', hint: 'a colour as #rgb or #rrggbb' },
+  background: { label: 'Background', type: 'color', hint: 'a colour as #rgb or #rrggbb, or "transparent"' },
+  borderColor: { label: 'Border colour', type: 'color', hint: 'a colour as #rgb or #rrggbb, or "transparent"' },
+  borderWidth: { label: 'Border width (px)', type: 'number', min: 0, max: 10, hint: 'a number of pixels from 0 to 10' },
+  borderRadius: { label: 'Corner radius (px)', type: 'number', min: 0, max: 40, hint: 'a number of pixels from 0 to 40' },
+  labelFontSize: { label: 'Label size (px)', type: 'number', min: 8, max: 48, hint: 'a number of pixels from 8 to 48' },
+  labelFontWeight: { label: 'Label weight', type: 'select', options: WEIGHTS, hint: 'one of 300, 400, 500, 600, 700, 800' },
+  labelColor: { label: 'Label colour', type: 'color', hint: 'a colour as #rgb or #rrggbb' }
+}
+
+/** The screen-wide defaults every control inherits. */
+export const SCREEN_STYLE_KEYS = ['fontFamily', 'fontSize', 'color', 'background']
+
+const INPUT_STYLES = ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'textAlign', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius', 'labelFontSize', 'labelFontWeight', 'labelColor']
+
+/** Property-panel groups for a control's styles, split the way people look for them. */
+function styleGroups(keys) {
+  const field = (k) => ({ path: `props.style.${k}`, label: STYLE_KEYS[k].label, type: STYLE_KEYS[k].type, options: STYLE_KEYS[k].options, on: STYLE_KEYS[k].on, min: STYLE_KEYS[k].min, max: STYLE_KEYS[k].max })
+  const groups = [
+    { key: 'text', title: 'Text', keys: ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'textAlign', 'color'] },
+    { key: 'box', title: 'Box', keys: ['background', 'borderColor', 'borderWidth', 'borderRadius'] },
+    { key: 'labelStyle', title: 'Label', keys: ['labelFontSize', 'labelFontWeight', 'labelColor'] }
+  ]
+  return groups
+    .map((g) => ({ key: g.key, title: g.title, fields: g.keys.filter((k) => keys.includes(k)).map(field) }))
+    .filter((g) => g.fields.length)
+}
 
 // ── property panel contract ──────────────────────────────────────────────
 // { key, title, fields: [{ path, label, type, options?, help? }] }
@@ -42,8 +110,9 @@ export const CONTROLS = {
     valueType: 'string',
     defaultSize: { w: 0.44, h: 0.08 },
     defaults: { label: 'Text' },
-    props: ['name', 'label', 'placeholder', 'required', 'default', 'validation'],
+    props: ['name', 'label', 'placeholder', 'required', 'default', 'validation', 'style'],
     validation: ['minLength', 'maxLength', 'pattern', 'patternMessage'],
+    styles: INPUT_STYLES,
     properties: [
       FIELD_BASICS([PLACEHOLDER, { path: 'props.default', label: 'Default value', type: 'text' }]),
       {
@@ -55,7 +124,8 @@ export const CONTROLS = {
           { path: 'props.validation.pattern', label: 'Pattern (regex)', type: 'text' },
           { path: 'props.validation.patternMessage', label: 'Pattern message', type: 'text', help: 'Shown when the pattern does not match' }
         ]
-      }
+      },
+      ...styleGroups(INPUT_STYLES)
     ]
   },
 
@@ -67,8 +137,9 @@ export const CONTROLS = {
     valueType: 'string',
     defaultSize: { w: 0.92, h: 0.18 },
     defaults: { label: 'Notes' },
-    props: ['name', 'label', 'placeholder', 'required', 'default', 'validation'],
+    props: ['name', 'label', 'placeholder', 'required', 'default', 'validation', 'style'],
     validation: ['minLength', 'maxLength'],
+    styles: INPUT_STYLES,
     properties: [
       FIELD_BASICS([PLACEHOLDER, { path: 'props.default', label: 'Default value', type: 'textarea' }]),
       {
@@ -78,7 +149,8 @@ export const CONTROLS = {
           { path: 'props.validation.minLength', label: 'Min length', type: 'number' },
           { path: 'props.validation.maxLength', label: 'Max length', type: 'number' }
         ]
-      }
+      },
+      ...styleGroups(INPUT_STYLES)
     ]
   },
 
@@ -90,8 +162,9 @@ export const CONTROLS = {
     valueType: 'number',
     defaultSize: { w: 0.44, h: 0.08 },
     defaults: { label: 'Number' },
-    props: ['name', 'label', 'placeholder', 'required', 'default', 'validation'],
+    props: ['name', 'label', 'placeholder', 'required', 'default', 'validation', 'style'],
     validation: ['min', 'max', 'integer'],
+    styles: INPUT_STYLES,
     properties: [
       FIELD_BASICS([PLACEHOLDER, { path: 'props.default', label: 'Default value', type: 'number' }]),
       {
@@ -102,7 +175,8 @@ export const CONTROLS = {
           { path: 'props.validation.max', label: 'Maximum', type: 'number' },
           { path: 'props.validation.integer', label: 'Whole numbers only', type: 'toggle' }
         ]
-      }
+      },
+      ...styleGroups(INPUT_STYLES)
     ]
   },
 
@@ -114,8 +188,9 @@ export const CONTROLS = {
     valueType: 'date',
     defaultSize: { w: 0.44, h: 0.08 },
     defaults: { label: 'Date' },
-    props: ['name', 'label', 'required', 'default', 'validation'],
+    props: ['name', 'label', 'required', 'default', 'validation', 'style'],
     validation: ['min', 'max'],
+    styles: INPUT_STYLES,
     properties: [
       FIELD_BASICS([{ path: 'props.default', label: 'Default value', type: 'date' }]),
       {
@@ -125,7 +200,8 @@ export const CONTROLS = {
           { path: 'props.validation.min', label: 'Earliest', type: 'date' },
           { path: 'props.validation.max', label: 'Latest', type: 'date' }
         ]
-      }
+      },
+      ...styleGroups(INPUT_STYLES)
     ]
   },
 
@@ -135,13 +211,15 @@ export const CONTROLS = {
     group: 'Inputs',
     input: true,
     valueType: 'boolean',
-    defaultSize: { w: 0.44, h: 0.06 },
+    defaultSize: { w: 0.44, h: 0.05 },
     defaults: { label: 'Checkbox', default: false },
     // `required` on a checkbox means it must be ticked — "I accept".
-    props: ['name', 'label', 'required', 'default'],
+    props: ['name', 'label', 'required', 'default', 'style'],
     validation: [],
+    styles: ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'color'],
     properties: [
-      FIELD_BASICS([{ path: 'props.default', label: 'Ticked by default', type: 'toggle' }])
+      FIELD_BASICS([{ path: 'props.default', label: 'Ticked by default', type: 'toggle' }]),
+      ...styleGroups(['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'color'])
     ]
   },
 
@@ -154,8 +232,9 @@ export const CONTROLS = {
     valueType: null,
     defaultSize: { w: 0.44, h: 0.08 },
     defaults: { label: 'Dropdown', placeholder: 'Select…', data: { source: 'static', options: [] } },
-    props: ['name', 'label', 'placeholder', 'required', 'default', 'data'],
+    props: ['name', 'label', 'placeholder', 'required', 'default', 'data', 'style'],
     validation: [],
+    styles: INPUT_STYLES.filter((k) => k !== 'textAlign'),
     properties: [
       FIELD_BASICS([PLACEHOLDER]),
       {
@@ -164,7 +243,8 @@ export const CONTROLS = {
         fields: [
           { path: 'props.data', label: 'Options come from', type: 'dataSource' }
         ]
-      }
+      },
+      ...styleGroups(INPUT_STYLES.filter((k) => k !== 'textAlign'))
     ]
   },
 
@@ -173,53 +253,67 @@ export const CONTROLS = {
     label: 'Label',
     group: 'Content',
     input: false,
-    defaultSize: { w: 0.92, h: 0.06 },
+    defaultSize: { w: 0.92, h: 0.05 },
     defaults: { text: 'Label', variant: 'text' },
-    props: ['text', 'variant'],
+    props: ['text', 'variant', 'style'],
     validation: [],
+    styles: ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'textAlign', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'],
     properties: [
       {
         key: 'content',
         title: 'Content',
         fields: [
           { path: 'props.text', label: 'Text', type: 'textarea' },
-          { path: 'props.variant', label: 'Style', type: 'select', options: [
+          { path: 'props.variant', label: 'Preset', type: 'select', options: [
             { value: 'heading', label: 'Heading' },
             { value: 'subheading', label: 'Subheading' },
             { value: 'text', label: 'Text' }
-          ] }
+          ], help: 'A starting size and weight — the Text settings below override it' }
         ]
-      }
-    ]
-  },
-
-  button: {
-    type: 'button',
-    label: 'Button',
-    group: 'Actions',
-    input: false,
-    defaultSize: { w: 0.18, h: 0.07 },
-    defaults: { label: 'Save', action: 'submit' },
-    props: ['label', 'action'],
-    validation: [],
-    properties: [
-      {
-        key: 'button',
-        title: 'Button',
-        fields: [
-          { path: 'props.label', label: 'Label', type: 'text' },
-          { path: 'props.action', label: 'Does', type: 'select', options: [
-            { value: 'submit', label: 'Submit the form' },
-            { value: 'reset', label: 'Reset the form' }
-          ] }
-        ]
-      }
+      },
+      ...styleGroups(['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'textAlign', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'])
     ]
   }
 }
 
+/** What a list's rows can offer. */
+export const LIST_ACTIONS = ['new', 'edit', 'delete']
+
+CONTROLS.list = {
+  type: 'list',
+  label: 'List',
+  group: 'Data',
+  input: false,
+  defaultSize: { w: 0.92, h: 0.42 },
+  // No columns → the screen's own fields, in reading order.
+  defaults: { title: 'Saved records', pageSize: 10, actions: ['new', 'edit', 'delete'] },
+  props: ['title', 'source', 'columns', 'pageSize', 'actions', 'style'],
+  validation: [],
+  styles: ['fontFamily', 'fontSize', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'],
+  properties: [
+    {
+      key: 'list',
+      title: 'List',
+      fields: [
+        { path: 'props.title', label: 'Title', type: 'text' },
+        { path: 'props.source', label: 'Records from', type: 'table', help: 'Blank → the table this screen saves to' },
+        { path: 'props.pageSize', label: 'Rows per page', type: 'number' }
+      ]
+    },
+    { key: 'columns', title: 'Columns', fields: [{ path: 'props.columns', label: 'Columns', type: 'columns' }] },
+    { key: 'actions', title: 'Actions', fields: [{ path: 'props.actions', label: 'Actions', type: 'actions' }] },
+    ...styleGroups(['fontFamily', 'fontSize', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'])
+  ]
+}
+
 export const LABEL_VARIANTS = ['heading', 'subheading', 'text']
-export const BUTTON_ACTIONS = ['submit', 'reset']
+
+/** The sizes a label preset starts from, in px at the design width. */
+export const LABEL_PRESETS = {
+  heading: { fontSize: 26, fontWeight: 700 },
+  subheading: { fontSize: 18, fontWeight: 600 },
+  text: { fontSize: 14, fontWeight: 400 }
+}
 
 /** Palette order: grouped, in declaration order. */
 export function controlGroups(controls = CONTROLS) {

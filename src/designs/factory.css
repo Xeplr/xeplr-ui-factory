@@ -2,14 +2,15 @@
    Colours come from the xeplr theme variables, each with a light fallback, so
    a host that defines none still gets a finished look.
 
-   ONE SIZE UNIT, --xf-u: one design pixel on an 800px-wide screen. It is in
-   container-query units, so text and controls scale with the screen exactly as
-   their positions do — the whole screen keeps its proportions at any width. */
+   ONE SIZE UNIT, --xf-u: one pixel at the screen's design width (--xf-width,
+   set from the document). At that width or wider it IS a pixel — text is
+   exactly the size chosen, and a screen never stretches. On a narrower screen
+   it shrinks, so the layout keeps its proportions. */
 
 .xeplr-factory-screen,
 .xeplr-factory-canvas {
   container-type: inline-size;
-  --xf-u: calc(100cqw / 800);
+  --xf-u: min(1px, calc(100cqw / var(--xf-width, 800)));
   --xf-accent: var(--xeplr-accent, #2563eb);
   --xf-ink: var(--xeplr-text, #1a1a19);
   --xf-muted: var(--xeplr-muted, #6b6a63);
@@ -20,6 +21,12 @@
 
 /* ── the screen ─────────────────────────────────────────────────────────── */
 .xeplr-factory-screen { position: relative; width: 100%; color: var(--xf-ink); }
+.xeplr-factory-status {
+  display: flex; justify-content: space-between; gap: 12px; min-height: 18px;
+  padding: 4px 2px 8px; font-size: 12px; color: var(--xf-muted);
+}
+.xeplr-factory-status--saved { color: var(--xeplr-status-good, #1d7a4c); }
+.xeplr-factory-status--invalid, .xeplr-factory-status--error { color: var(--xf-danger); }
 .xeplr-factory-page { position: relative; width: 100%; margin: 0; }
 .xeplr-factory-node { position: absolute; box-sizing: border-box; }
 
@@ -36,10 +43,10 @@
   position: relative;
   display: flex; flex-direction: column; gap: calc(4 * var(--xf-u));
   width: 100%; height: 100%; box-sizing: border-box;
-  font-size: max(11px, calc(14 * var(--xf-u)));
+  font-size: max(10px, calc(var(--xf-font, 14) * var(--xf-u)));
 }
 .xeplr-factory-field--inline { justify-content: center; }
-.xeplr-factory-label { font-weight: 600; font-size: max(11px, calc(13 * var(--xf-u))); color: var(--xf-ink); line-height: 1.2; }
+.xeplr-factory-label { font-weight: 600; font-size: max(10px, calc((var(--xf-font, 14) - 1) * var(--xf-u))); color: var(--xf-ink); line-height: 1.2; }
 .xeplr-factory-required { color: var(--xf-danger); }
 .xeplr-factory-input {
   flex: 1; min-height: 0; width: 100%; box-sizing: border-box;
@@ -61,20 +68,30 @@
 .xeplr-factory-check { display: flex; align-items: center; gap: calc(8 * var(--xf-u)); cursor: pointer; font-weight: 500; }
 .xeplr-factory-check input { width: calc(18 * var(--xf-u)); height: calc(18 * var(--xf-u)); min-width: 12px; min-height: 12px; margin: 0; accent-color: var(--xf-accent); }
 
-.xeplr-factory-text { margin: 0; color: var(--xf-ink); height: 100%; overflow: hidden; line-height: 1.25; }
-.xeplr-factory-text--heading { font-size: max(16px, calc(26 * var(--xf-u))); font-weight: 700; }
-.xeplr-factory-text--subheading { font-size: max(13px, calc(18 * var(--xf-u))); font-weight: 600; }
-.xeplr-factory-text--text { font-size: max(11px, calc(14 * var(--xf-u))); color: var(--xf-muted); }
+/* A label's size and weight are inline — its preset, overridden by its style. */
+.xeplr-factory-text { margin: 0; color: var(--xf-ink); height: 100%; overflow: hidden; line-height: 1.25; box-sizing: border-box; }
+.xeplr-factory-text--text { color: var(--xf-muted); }
 
-.xeplr-factory-button {
-  width: 100%; height: 100%; box-sizing: border-box; cursor: pointer;
-  padding: 0 calc(8 * var(--xf-u)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  font: inherit; font-weight: 600; font-size: max(12px, calc(14 * var(--xf-u)));
-  border-radius: calc(6 * var(--xf-u)); border: 1px solid var(--xf-accent);
+/* ── list ───────────────────────────────────────────────────────────────── */
+.xeplr-factory-list {
+  display: flex; flex-direction: column; width: 100%; height: 100%; box-sizing: border-box; overflow: auto;
+  font-size: max(10px, calc(var(--xf-font, 14) * var(--xf-u)));
+  border: 1px solid var(--xf-border); border-radius: calc(8 * var(--xf-u)); background: var(--xf-surface);
 }
-.xeplr-factory-button--submit { background: var(--xf-accent); color: #fff; }
-.xeplr-factory-button--reset { background: var(--xf-surface); color: var(--xf-accent); }
-.xeplr-factory-button:disabled { opacity: .6; cursor: default; }
+.xeplr-factory-list-head { display: flex; align-items: center; gap: 10px; padding: calc(8 * var(--xf-u)) calc(10 * var(--xf-u)); border-bottom: 1px solid var(--xf-border); }
+.xeplr-factory-list-title { font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xeplr-factory-list-new {
+  font: inherit; font-weight: 600; font-size: .9em; padding: 3px 10px; border-radius: 5px; cursor: pointer;
+  color: var(--xf-accent); background: transparent; border: 1px solid var(--xf-accent);
+}
+.xeplr-factory-list-empty { padding: 16px; color: var(--xf-muted); text-align: center; }
+.xeplr-factory-error-inline { color: var(--xf-danger); font-size: .9em; }
+.xeplr-factory-list-mock { width: 100%; border-collapse: collapse; }
+.xeplr-factory-list-mock th { text-align: left; font-weight: 600; font-size: .9em; padding: calc(6 * var(--xf-u)) calc(10 * var(--xf-u)); border-bottom: 1px solid var(--xf-border); color: var(--xf-muted); }
+.xeplr-factory-list-mock td { padding: calc(8 * var(--xf-u)) calc(10 * var(--xf-u)); border-bottom: 1px solid var(--xf-border); }
+.xeplr-factory-list-bar { display: block; height: calc(8 * var(--xf-u)); width: 70%; border-radius: 4px; background: var(--xeplr-border-secondary, #ecebe4); }
+.xeplr-factory-list .xeplr-table-row.xeplr-factory-row-open td,
+.xeplr-factory-list tr.xeplr-factory-row-open td { background: color-mix(in srgb, var(--xf-accent) 10%, transparent); }
 
 /* ── the builder ────────────────────────────────────────────────────────── */
 .xeplr-factory-builder {
@@ -107,6 +124,8 @@
 .xeplr-factory-save-error { padding: 6px 12px; color: var(--xf-danger); background: color-mix(in srgb, var(--xf-danger) 7%, transparent); font-size: 12px; }
 
 .xeplr-factory-body { flex: 1; min-height: 0; display: flex; }
+.xeplr-factory-bar-status--saved { color: var(--xeplr-status-good, #1d7a4c); }
+.xeplr-factory-bar-status--invalid, .xeplr-factory-bar-status--error { color: var(--xf-danger); }
 .xeplr-factory-preview { flex: 1; min-height: 0; overflow: auto; padding: 16px; background: var(--xeplr-plane, #f7f7f5); }
 .xeplr-factory-preview > .xeplr-factory-screen { max-width: 960px; margin: 0 auto; background: var(--xeplr-surface, #fff); border: 1px solid var(--xf-border); border-radius: 8px; }
 
@@ -123,11 +142,13 @@
 .xeplr-factory-palette-icon { width: 14px; height: 10px; border: 1.5px solid var(--xf-muted); border-radius: 2px; flex: 0 0 auto; }
 .xeplr-factory-palette-icon--checkbox { width: 10px; }
 .xeplr-factory-palette-icon--label { border: none; border-top: 2px solid var(--xf-muted); border-bottom: 2px solid var(--xf-muted); height: 6px; }
-.xeplr-factory-palette-icon--button { background: var(--xf-muted); }
+.xeplr-factory-palette-icon--list { height: 12px; background: repeating-linear-gradient(to bottom, var(--xf-muted) 0 1.5px, transparent 1.5px 4px); border: none; }
 .xeplr-factory-palette-icon--textarea { height: 14px; }
 
 /* canvas */
-.xeplr-factory-stage { flex: 1; min-width: 0; min-height: 0; display: flex; background: var(--xeplr-plane, #f7f7f5); }
+.xeplr-factory-stage { flex: 1; min-width: 0; min-height: 0; display: flex; justify-content: center; padding: 12px; box-sizing: border-box; background: var(--xeplr-plane, #f7f7f5); }
+/* Exactly the screen's design width, never wider: what you design is the size it is shown at. */
+.xeplr-factory-frame { flex: 1; min-width: 0; height: 100%; display: flex; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
 .xeplr-factory-canvas {
   flex: 1; height: 100%;
   background:
@@ -175,3 +196,8 @@
 .xeplr-factory-option-error { grid-column: 1 / -1; margin-top: 0; }
 .xeplr-factory-icon-button { border: none; background: none; cursor: pointer; font-size: 16px; color: var(--xf-muted); padding: 0; }
 .xeplr-factory-add { font: inherit; font-size: 12px; background: none; border: 1px dashed var(--xf-border); border-radius: 5px; padding: 5px; width: 100%; cursor: pointer; color: var(--xf-accent); }
+
+.xeplr-factory-color { display: grid; grid-template-columns: 32px 1fr 20px; gap: 4px; align-items: center; }
+.xeplr-factory-color input[type="color"] { width: 32px; height: 28px; padding: 0; border: 1px solid var(--xf-border); border-radius: 5px; background: none; cursor: pointer; }
+.xeplr-factory-checklist { display: flex; flex-direction: column; gap: 5px; }
+.xeplr-factory-checklist .xeplr-factory-toggle { font-weight: 500; }

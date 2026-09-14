@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CONTROLS, controlGroups } from './controls.js'
 import {
-  createScreen, renameScreen, addControl as addControlTo, moveNode, setNodeProperty,
+  createScreen, renameScreen, setScreenProperty, addControl as addControlTo, moveNode, setNodeProperty,
   removeNodes
 } from './document.js'
 import { validateDocument } from './validateDocument.js'
@@ -14,23 +14,27 @@ import { validateDocument } from './validateDocument.js'
 // the `document` it is handed and gives the result to `onSave`. A document
 // handed in LATER (Claude regenerated the screen, another record was opened)
 // replaces what is being edited.
+//
+// NO SAVE BUTTON. Every edit is saved a moment after the last one, whenever the
+// screen is valid; while it is not, the problems are shown and nothing is sent.
 
 /**
  * @param document    the screen to edit; omitted → a new empty screen
  * @param name        the name for a new screen (when no document)
- * @param onSave      async (document) → void; called only with a valid document
+ * @param onSave      async (document) → void; called automatically, only with a valid document
+ * @param autosaveDelay ms of quiet after the last edit before saving (default 800)
  * @param onChange    (document) → void; every edit, for hosts that autosave or preview
  * @param listTables  async () → [{ id, name }] | string[]; offered in a dropdown's
  *                    "from a table" picker. Omitted → table sources can still be typed.
  * @param controls    the control registry (default: the built-ins)
  */
-export function useFactoryBuilder({ document: given, name, onSave, onChange, listTables, controls = CONTROLS } = {}) {
+export function useFactoryBuilder({ document: given, name, onSave, onChange, listTables, controls = CONTROLS, autosaveDelay = 800 } = {}) {
   const [doc, setDoc] = useState(() => given || createScreen({ name }))
   const [selected, setSelected] = useState(() => new Set())
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(null)
-  const [showErrors, setShowErrors] = useState(false)
+  const [savedAt, setSavedAt] = useState(null)
   const docRef = useRef(doc); docRef.current = doc
 
   // A NEW document from outside replaces the draft. Compared by identity: the
@@ -43,7 +47,6 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, lis
     setDoc(given)
     setSelected(new Set())
     setDirty(false)
-    setShowErrors(false)
   }, [given])
 
   // Every edit goes through here. It works on a REF of the current document,
@@ -82,6 +85,8 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, lis
 
   // ── edits ─────────────────────────────────────────────────────────────
   const rename = useCallback((value) => update((d) => renameScreen(d, value)), [update])
+  /** A screen property by path — `source`, `width`, `style.fontSize`. */
+  const setScreen = useCallback((path, value) => update((d) => setScreenProperty(d, path, value)), [update])
 
   /** Adds a control and selects it, so its properties are open straight away. */
   const addControl = useCallback((type, at) => {
@@ -144,24 +149,43 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, lis
   }, [validation, doc.nodes])
 
   const onSaveRef = useRef(onSave); onSaveRef.current = onSave
+  const savingRef = useRef(false)
   const save = useCallback(async () => {
-    setShowErrors(true)
-    setSaveError(null)
-    if (!validation.ok) return { ok: false, errors: validation.errors }
+    const current = docRef.current
+    const check = validateDocument(current, controls)
+    if (!check.ok) return { ok: false, errors: check.errors }
     if (!onSaveRef.current) return { ok: false, errors: [{ path: '', message: 'No onSave was provided' }] }
+    if (savingRef.current) return { ok: false, busy: true }
+    savingRef.current = true
     setSaving(true)
+    setSaveError(null)
     try {
-      await onSaveRef.current(doc)
-      setDirty(false)
-      setShowErrors(false)
+      await onSaveRef.current(current)
+      // Only clean if nothing changed while the save was out.
+      if (docRef.current === current) setDirty(false)
+      setSavedAt(new Date())
       return { ok: true }
     } catch (err) {
       setSaveError(err.message || 'Could not save')
       return { ok: false, errors: [{ path: '', message: err.message }] }
     } finally {
+      savingRef.current = false
       setSaving(false)
     }
-  }, [doc, validation])
+  }, [controls])
+
+  // AUTOSAVE: a quiet moment after the last edit, if the screen is valid.
+  useEffect(() => {
+    if (!dirty || !validation.ok || !onSaveRef.current) return undefined
+    const t = setTimeout(save, autosaveDelay)
+    return () => clearTimeout(t)
+  }, [doc, dirty, validation.ok, save, autosaveDelay, saving])
+
+  const status = saveError ? 'error'
+    : saving ? 'saving'
+    : !validation.ok ? 'invalid'
+    : dirty ? 'pending'
+    : savedAt ? 'saved' : 'idle'
 
   // ── keyboard: Delete / Backspace removes, Cmd/Ctrl+D duplicates ────────
   useEffect(() => {
@@ -192,6 +216,7 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, lis
     selectedNode,
     selectedControl: selectedNode ? controls[selectedNode.type] : null,
     rename,
+    setScreen,
     addControl,
     moveControl,
     setProperty,
@@ -200,10 +225,11 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, lis
     tables,
     validation,
     errorsByNode,
-    showErrors,
     dirty,
     saving,
     saveError,
+    savedAt,
+    status,
     save
   }
 }

@@ -1,13 +1,17 @@
+import { LABEL_PRESETS } from '../controls.js'
+import ListView from './ListView.jsx'
+import { fieldStyle, labelStyle, boxStyle } from './styles.js'
+
 // How each control LOOKS — the one renderer, used both on the builder's
 // canvas (mode 'design': inert, so a press drags it) and on a live screen
 // (mode 'live'). Sharing it is what makes the builder honest: what you place is
-// what the form shows.
+// what the form shows, fonts and colours included.
 //
-// Presentation only. Values, options and errors arrive as props.
+// Presentation only. Values, options, errors and list data arrive as props.
 
 const ids = (node) => `xeplr-factory-${node.id}`
 
-export default function ControlView({ node, mode = 'live', value, error, options, onChange, onAction, disabled }) {
+export default function ControlView({ node, mode = 'live', value, error, options, onChange, onBlur, disabled, list }) {
   const View = VIEWS[node.type]
   if (!View) {
     return <div className="xeplr-factory-unknown">Unknown control “{node.type}”</div>
@@ -22,17 +26,18 @@ export default function ControlView({ node, mode = 'live', value, error, options
       error={design ? null : error}
       options={options || { loading: false, items: [], error: null }}
       onChange={onChange || (() => {})}
-      onAction={onAction || (() => {})}
+      onBlur={onBlur || (() => {})}
       disabled={design || disabled}
+      list={list}
     />
   )
 }
 
 function Field({ node, p, error, children, inline }) {
   return (
-    <div className={`xeplr-factory-field${inline ? ' xeplr-factory-field--inline' : ''}${error ? ' has-error' : ''}`}>
+    <div className={`xeplr-factory-field${inline ? ' xeplr-factory-field--inline' : ''}${error ? ' has-error' : ''}`} style={fieldStyle(p.style)}>
       {!inline && (
-        <label className="xeplr-factory-label" htmlFor={ids(node)}>
+        <label className="xeplr-factory-label" htmlFor={ids(node)} style={labelStyle(p.style)}>
           {p.label}{p.required && <span className="xeplr-factory-required" aria-hidden="true"> *</span>}
         </label>
       )}
@@ -42,19 +47,21 @@ function Field({ node, p, error, children, inline }) {
   )
 }
 
-function inputProps(node, p, error, disabled) {
+function inputProps(node, p, error, disabled, onBlur) {
   return {
     id: ids(node),
     name: p.name,
     disabled,
-    required: undefined, // validation is ours, with our messages — not the browser's bubbles
     'aria-invalid': error ? true : undefined,
     'aria-describedby': error ? `${ids(node)}-error` : undefined,
-    tabIndex: disabled ? -1 : undefined
+    'aria-required': p.required ? true : undefined,
+    tabIndex: disabled ? -1 : undefined,
+    onBlur,
+    style: boxStyle(p.style)
   }
 }
 
-function TextView({ node, p, value, error, onChange, disabled }) {
+function TextView({ node, p, value, error, onChange, onBlur, disabled }) {
   return (
     <Field node={node} p={p} error={error}>
       <input
@@ -63,13 +70,13 @@ function TextView({ node, p, value, error, onChange, disabled }) {
         placeholder={p.placeholder || ''}
         value={value ?? ''}
         onChange={(e) => onChange(e.target.value)}
-        {...inputProps(node, p, error, disabled)}
+        {...inputProps(node, p, error, disabled, onBlur)}
       />
     </Field>
   )
 }
 
-function TextareaView({ node, p, value, error, onChange, disabled }) {
+function TextareaView({ node, p, value, error, onChange, onBlur, disabled }) {
   return (
     <Field node={node} p={p} error={error}>
       <textarea
@@ -77,13 +84,13 @@ function TextareaView({ node, p, value, error, onChange, disabled }) {
         placeholder={p.placeholder || ''}
         value={value ?? ''}
         onChange={(e) => onChange(e.target.value)}
-        {...inputProps(node, p, error, disabled)}
+        {...inputProps(node, p, error, disabled, onBlur)}
       />
     </Field>
   )
 }
 
-function NumberView({ node, p, value, error, onChange, disabled }) {
+function NumberView({ node, p, value, error, onChange, onBlur, disabled }) {
   const v = p.validation || {}
   return (
     <Field node={node} p={p} error={error}>
@@ -95,13 +102,13 @@ function NumberView({ node, p, value, error, onChange, disabled }) {
         placeholder={p.placeholder || ''}
         value={value ?? ''}
         onChange={(e) => onChange(e.target.value)}
-        {...inputProps(node, p, error, disabled)}
+        {...inputProps(node, p, error, disabled, onBlur)}
       />
     </Field>
   )
 }
 
-function DateView({ node, p, value, error, onChange, disabled }) {
+function DateView({ node, p, value, error, onChange, onBlur, disabled }) {
   const v = p.validation || {}
   return (
     <Field node={node} p={p} error={error}>
@@ -112,21 +119,23 @@ function DateView({ node, p, value, error, onChange, disabled }) {
         max={v.max}
         value={value ?? ''}
         onChange={(e) => onChange(e.target.value)}
-        {...inputProps(node, p, error, disabled)}
+        {...inputProps(node, p, error, disabled, onBlur)}
       />
     </Field>
   )
 }
 
-function CheckboxView({ node, p, value, error, onChange, disabled }) {
+function CheckboxView({ node, p, value, error, onChange, onBlur, disabled }) {
+  const text = boxStyle(p.style)
   return (
     <Field node={node} p={p} error={error} inline>
-      <label className="xeplr-factory-check" htmlFor={ids(node)}>
+      <label className="xeplr-factory-check" htmlFor={ids(node)} style={{ fontSize: text.fontSize, fontWeight: text.fontWeight, fontStyle: text.fontStyle, color: text.color }}>
         <input
           type="checkbox"
           checked={Boolean(value ?? p.default)}
           onChange={(e) => onChange(e.target.checked)}
-          {...inputProps(node, p, error, disabled)}
+          {...inputProps(node, p, error, disabled, onBlur)}
+          style={undefined}
         />
         <span>{p.label}{p.required && <span className="xeplr-factory-required" aria-hidden="true"> *</span>}</span>
       </label>
@@ -134,7 +143,7 @@ function CheckboxView({ node, p, value, error, onChange, disabled }) {
   )
 }
 
-function DropdownView({ node, p, design, value, error, options, onChange, disabled }) {
+function DropdownView({ node, p, design, value, error, options, onChange, onBlur, disabled }) {
   const data = p.data || {}
   const items = data.source === 'static' ? (data.options || []) : options.items
   return (
@@ -143,7 +152,7 @@ function DropdownView({ node, p, design, value, error, options, onChange, disabl
         className="xeplr-factory-input xeplr-factory-select"
         value={value === undefined || value === null ? '' : String(value)}
         onChange={(e) => onChange(e.target.value)}
-        {...inputProps(node, p, error, disabled || (!design && options.loading))}
+        {...inputProps(node, p, error, disabled || (!design && options.loading), onBlur)}
       >
         <option value="">{!design && options.loading ? 'Loading…' : (p.placeholder || 'Select…')}</option>
         {!design && items.map((o) => <option key={String(o.id)} value={String(o.id)}>{o.name}</option>)}
@@ -161,23 +170,21 @@ function DropdownView({ node, p, design, value, error, options, onChange, disabl
 
 function LabelView({ p }) {
   const variant = p.variant || 'text'
+  const preset = LABEL_PRESETS[variant] || LABEL_PRESETS.text
   const Tag = variant === 'heading' ? 'h2' : variant === 'subheading' ? 'h3' : 'p'
-  return <Tag className={`xeplr-factory-text xeplr-factory-text--${variant}`}>{p.text}</Tag>
+  const s = { fontSize: preset.fontSize, fontWeight: preset.fontWeight, ...(p.style || {}) }
+  return (
+    <Tag
+      className={`xeplr-factory-text xeplr-factory-text--${variant}`}
+      style={{ ...fieldStyle(s), ...boxStyle(s) }}
+    >
+      {p.text}
+    </Tag>
+  )
 }
 
-function ButtonView({ p, design, onAction, disabled }) {
-  const action = p.action || 'submit'
-  return (
-    <button
-      className={`xeplr-factory-button xeplr-factory-button--${action}`}
-      type={design ? 'button' : action === 'reset' ? 'button' : 'submit'}
-      disabled={disabled}
-      tabIndex={design ? -1 : undefined}
-      onClick={action === 'reset' && !design ? () => onAction('reset') : undefined}
-    >
-      {p.label}
-    </button>
-  )
+function ListControl({ node, design, list }) {
+  return <ListView node={node} design={design} {...(list || {})} />
 }
 
 export const VIEWS = {
@@ -188,5 +195,5 @@ export const VIEWS = {
   checkbox: CheckboxView,
   dropdown: DropdownView,
   label: LabelView,
-  button: ButtonView
+  list: ListControl
 }

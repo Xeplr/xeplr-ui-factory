@@ -5,7 +5,8 @@ import { createRequire } from 'node:module'
 import {
   CONTROLS, createScreen, addControl, moveNode, setNodeProperty, removeNodes, inputNodes,
   camelName, uniqueFieldName, validateDocument, assertValidDocument, formSchema, initialValues,
-  parseInput, validateValues, fieldError, optionValue, screenFromSpec, getAtPath, setAtPath
+  parseInput, validateValues, fieldError, optionValue, screenFromSpec, getAtPath, setAtPath,
+  saveState, recordValues, displayValue, listColumns, listSource, setScreenProperty
 } from '../src/model.js'
 import { normaliseOptions } from '../src/useFactoryScreen.js'
 
@@ -27,7 +28,8 @@ const EMPLOYEE = {
     { label: 'Remote', type: 'checkbox' },
     { label: 'Notes', type: 'textarea', validation: { maxLength: 10 } }
   ],
-  reset: 'Clear'
+  source: 'employees',
+  list: { title: 'Employees' }
 }
 
 console.log('\na new screen')
@@ -36,6 +38,7 @@ console.log('\na new screen')
   check('is named', doc.name === 'New employee')
   check('gets an id from its name', doc.id === 'new_employee')
   check('is proportional, a page as tall as it is wide', doc.units === 'fraction' && doc.aspect === 1)
+  check('is designed at 800px unless told otherwise', doc.width === 800)
   check('starts empty and valid', doc.nodes.length === 0 && validateDocument(doc).ok)
   check('an empty name still makes a valid screen', validateDocument(createScreen({ name: '   ' })).ok)
 }
@@ -154,8 +157,11 @@ console.log('\nspec → screen')
   check('string options become { id, name }', JSON.stringify(byName.employmentType.props.data.options[0]) === '{"id":"full_time","name":"Full time"}')
   check('no control overlaps another', noOverlaps(doc.nodes))
   check('nothing runs off the right edge', doc.nodes.every((n) => n.x + n.w <= 1.0001))
-  const buttons = doc.nodes.filter((n) => n.type === 'button')
-  check('submit and reset buttons, side by side, below the fields', buttons.length === 2 && buttons[0].y === buttons[1].y && buttons[0].y > byName.notes.y)
+  check('there are no buttons — the screen saves itself', !doc.nodes.some((n) => n.type === 'button') && !CONTROLS.button)
+  const list = doc.nodes.find((n) => n.type === 'list')
+  check('a list of saved records goes below the fields, full width', list && list.y > byName.notes.y && list.w > 0.9)
+  check('...reading the table the screen saves to', listSource(doc, list) === 'employees')
+  check('submit/reset in a spec are refused now', throws(() => screenFromSpec({ ...EMPLOYEE, submit: 'Save' }), /unknown key\(s\) submit/))
   check('one column stacks every field', noOverlaps(screenFromSpec({ ...EMPLOYEE, columns: 1 }).nodes) &&
     screenFromSpec({ ...EMPLOYEE, columns: 1 }).nodes.filter((n) => n.props.name).every((n) => n.x === 0.04))
   check('an unknown key is refused with the allowed list', throws(() => screenFromSpec({ name: 'X', fields: [{ label: 'A', colour: 'red' }] }), /unknown key\(s\) colour — allowed/))
@@ -201,6 +207,66 @@ console.log('\nvalues')
   check('...a fraction where whole numbers are required', serverRejects({ ...good, salary: 1.5 }))
   check('...a pattern mismatch', serverRejects({ ...good, email: 'nope' }))
   check('...text over maxLength', serverRejects({ ...good, notes: 'far too long for ten' }))
+}
+
+console.log('\nstyles')
+{
+  let doc = addControl(createScreen({ name: 'S' }), 'text', { props: { label: 'Email' } }).document
+  const id = doc.nodes[0].id
+  doc = setNodeProperty(doc, id, 'props.style.fontSize', 18)
+  doc = setNodeProperty(doc, id, 'props.style.color', '#1d4ed8')
+  doc = setNodeProperty(doc, id, 'props.style.fontFamily', 'Georgia, serif')
+  doc = setNodeProperty(doc, id, 'props.style.labelFontWeight', 700)
+  check('a text box takes font, size, colour and label weight', validateDocument(doc).ok && doc.nodes[0].props.style.fontSize === 18)
+  doc = setNodeProperty(doc, id, 'props.style.fontSize', undefined)
+  check('clearing a style returns it to the default', doc.nodes[0].props.style.fontSize === undefined)
+  const bad = setNodeProperty(setNodeProperty(setNodeProperty(doc, id, 'props.style.fontSize', 400), id, 'props.style.color', 'blue'), id, 'props.style.shadow', '1px')
+  const errs = validateDocument(bad).errors
+  check('a size out of range is refused with the range', errs.some((e) => e.path === 'nodes[0].props.style.fontSize' && /8 to 96/.test(e.message)))
+  check('a colour must be #hex', errs.some((e) => e.path === 'nodes[0].props.style.color' && /#rgb/.test(e.message)))
+  check('an unknown style lists the allowed ones', errs.some((e) => e.path === 'nodes[0].props.style.shadow' && /allowed: fontFamily/.test(e.message)))
+  const lbl = addControl(createScreen({}), 'label').document
+  check('a label has no label-styles (it IS the text)', !validateDocument(setNodeProperty(lbl, lbl.nodes[0].id, 'props.style.labelColor', '#000')).ok)
+  check('a font with CSS injection is refused', !validateDocument(setNodeProperty(doc, id, 'props.style.fontFamily', 'x; } body { display:none')).ok)
+  let screen = setScreenProperty(createScreen({ name: 'S' }), 'style.fontSize', 16)
+  screen = setScreenProperty(screen, 'source', 'employees')
+  check('the screen has its own font size and target table', validateDocument(screen).ok && screen.style.fontSize === 16 && screen.source === 'employees')
+  check('a screen width out of range is refused', !validateDocument(setScreenProperty(screen, 'width', 100)).ok)
+  check('an unknown screen property is refused', validateDocument({ ...screen, theme: 'dark' }).errors.some((e) => e.path === 'theme'))
+  check('setScreenProperty will not touch nodes', throws(() => setScreenProperty(screen, 'nodes', [])))
+}
+
+console.log('\nlists')
+{
+  const doc = screenFromSpec(EMPLOYEE)
+  const list = doc.nodes.find((n) => n.type === 'list')
+  check('with no columns chosen, a list shows every field in reading order', listColumns(doc, list).map((c) => c.field).join() === inputNodes(doc).map((n) => n.props.name).join())
+  const picked = { ...list, props: { ...list.props, columns: [{ field: 'lastName', label: 'Surname' }] } }
+  check('chosen columns win', listColumns(doc, picked)[0].label === 'Surname')
+  const noSource = { ...doc, source: undefined }
+  delete noSource.source
+  check('a list with no table anywhere is refused', validateDocument(noSource).errors.some((e) => /props\.source/.test(e.path)))
+  check('an unknown action is refused', validateDocument({ ...doc, nodes: doc.nodes.map((n) => (n.type === 'list' ? { ...n, props: { ...n.props, actions: ['edit', 'archive'] } } : n)) }).errors.some((e) => /actions\[1\]/.test(e.path)))
+  const node = (name) => doc.nodes.find((n) => n.props.name === name)
+  check('a static dropdown shows its name in a list', displayValue(node('employmentType'), 'part_time') === 'Part time')
+  check('a table dropdown shows the loaded name', displayValue(node('department'), 2, [{ id: 2, name: 'Finance' }]) === 'Finance')
+  check('a checkbox reads Yes / No', displayValue(node('remote'), true) === 'Yes' && displayValue(node('remote'), false) === 'No')
+  const rec = recordValues(doc, { id: 9, firstName: 'Ada', startDate: '2026-10-01T00:00:00Z', unknownColumn: 1 })
+  check('Edit takes the screen\'s fields from a record', rec.firstName === 'Ada' && rec.startDate === '2026-10-01')
+  check('...leaves out columns the screen does not have', !('unknownColumn' in rec) && !('id' in rec))
+  check('...and an absent checkbox is unticked', rec.remote === false)
+}
+
+console.log('\nautosave')
+{
+  const doc = screenFromSpec(EMPLOYEE)
+  const empty = saveState(doc, initialValues(doc), new Set())
+  check('an untouched empty form does not save, and shows no errors', !empty.canSave && empty.status === 'incomplete' && Object.keys(empty.shown).length === 0)
+  const typed = saveState(doc, { firstName: 'Ada', salary: 1.5 }, new Set(['firstName', 'salary']))
+  check('a touched field that is wrong is shown and blocks saving', !typed.canSave && typed.status === 'invalid' && typed.shown.salary && !typed.shown.lastName)
+  const good = { firstName: 'Ada', lastName: 'L', email: 'a@b', department: 3, employmentType: 'part_time', startDate: '2026-09-14', remote: false }
+  const ready = saveState(doc, good, new Set(['firstName']))
+  check('a complete, valid form is ready to save', ready.canSave && ready.status === 'ready')
 }
 
 console.log('\noptions from the host')

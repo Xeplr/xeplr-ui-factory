@@ -11,6 +11,9 @@ Design a screen on the shared canvas, save it as metadata, render it as a workin
 | First use | **Data-entry forms** (e.g. "New employee"). |
 | Linking objects together | **Phase 2**, with workflow. Phase 1 has no cross-object links. |
 | Property panel | Built in the factory, using BI's contract shape `{ key, title, fields: [{ path, label, type }] }`. |
+| Saving | **Automatic, no submit.** A screen saves itself (host `onSave`, AJAX) a moment after a valid change; the builder saves the design the same way. |
+| Styles | **Every look is a property** — font, size, weight, italic, alignment, colours, border, radius, label style; screen-wide defaults. Sizes are px at the design `width`; never enlarged. |
+| Records | **List control** — saved records in `@xeplr/ui-table`, with New / Edit / Delete; host `fetchRecords` / `onDelete`. |
 | Authoring | **Claude drafts, people refine.** A short spec → `screenFromSpec` lays it out; `xeplr-factory validate` checks it; [AUTHORING.md](./AUTHORING.md) is the guide. |
 
 ## Phase 1 — the designer
@@ -22,9 +25,9 @@ Design a screen on the shared canvas, save it as metadata, render it as a workin
    - control type
    - validation — required, min/max, min/max length, pattern
    - for a dropdown, its **data source** (below)
-4. **Save** → `onSave(document)`; the app persists it.
+4. **Saved automatically** → `onSave(document)`; the app persists it.
 
-And the renderer: `<FactoryScreen document fetchOptions onSubmit />` draws the saved screen, validates, and calls `onSubmit(values)`.
+And the renderer: `<FactoryScreen document onSave fetchRecords onDelete fetchOptions />` draws the screen, validates, and saves in the background — `onSave(values, { id, source })` returns the saved record, so the first save creates it and later ones update it.
 
 ### Controls
 
@@ -37,7 +40,7 @@ And the renderer: `<FactoryScreen document fetchOptions onSubmit />` draws the s
 | `checkbox` | boolean | |
 | `dropdown` | id | data source: static or table |
 | `label` | — | static text on the screen |
-| `button` | — | `submit` or `reset` |
+| `list` | — | saved records: New / Edit / Delete |
 
 ### Dropdown data sources
 

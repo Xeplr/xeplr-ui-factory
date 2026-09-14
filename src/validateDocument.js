@@ -10,10 +10,13 @@
 // Loud by design: a screen that half-renders — a dropdown with no options, two
 // fields writing the same key — looks like a data problem to whoever uses it.
 
-import { CONTROLS, LABEL_VARIANTS, BUTTON_ACTIONS } from './controls.js'
+import { CONTROLS, LABEL_VARIANTS, LIST_ACTIONS, STYLE_KEYS, SCREEN_STYLE_KEYS } from './controls.js'
 import { DOCUMENT_KIND, DOCUMENT_VERSION } from './document.js'
 
 const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
+const TABLE_NAME = /^[A-Za-z_][A-Za-z0-9_.$-]*$/
+const DOCUMENT_KEYS = ['kind', 'version', 'id', 'name', 'source', 'units', 'aspect', 'width', 'style', 'nodes']
+const COLOR = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i
 
 /**
  * @returns {{ ok: boolean, errors: Array<{ path: string, message: string }> }}
@@ -32,6 +35,12 @@ export function validateDocument(doc, controls = CONTROLS) {
   if (!nonEmptyString(doc.name)) err('name', 'must be a non-empty string — the screen\'s title, e.g. "New employee"')
   if (doc.units !== 'fraction') err('units', 'must be "fraction"')
   if (!(typeof doc.aspect === 'number' && doc.aspect > 0)) err('aspect', 'must be a number greater than 0 (1 = page as tall as it is wide)')
+  if (!(Number.isInteger(doc.width) && doc.width >= 320 && doc.width <= 1920)) err('width', 'must be a whole number of pixels from 320 to 1920 — the width the screen is designed at')
+  if (doc.source !== undefined && !(nonEmptyString(doc.source) && TABLE_NAME.test(doc.source))) err('source', 'must name the table records are saved to, e.g. "employees"')
+  checkStyle(doc.style, SCREEN_STYLE_KEYS, 'style', err, 'the screen')
+  Object.keys(doc).forEach((k) => {
+    if (!DOCUMENT_KEYS.includes(k)) err(k, `is not a screen property — allowed: ${DOCUMENT_KEYS.join(', ')}`)
+  })
   if (!Array.isArray(doc.nodes)) {
     err('nodes', 'must be an array of controls')
     return { ok: false, errors }
@@ -78,14 +87,12 @@ export function validateDocument(doc, controls = CONTROLS) {
       checkValidation(node, def, at, err)
     }
 
+    checkStyle(props.style, def.styles || [], `${at}.props.style`, err, `"${node.type}"`)
     if (node.type === 'dropdown') checkDataSource(props.data, `${at}.props.data`, err)
+    if (node.type === 'list') checkList(props, doc, at, err)
     if (node.type === 'label') {
       if (typeof props.text !== 'string') err(`${at}.props.text`, 'must be a string')
       if (props.variant !== undefined && !LABEL_VARIANTS.includes(props.variant)) err(`${at}.props.variant`, `must be one of: ${LABEL_VARIANTS.join(', ')}`)
-    }
-    if (node.type === 'button') {
-      if (!nonEmptyString(props.label)) err(`${at}.props.label`, 'is required — the text on the button')
-      if (props.action !== undefined && !BUTTON_ACTIONS.includes(props.action)) err(`${at}.props.action`, `must be one of: ${BUTTON_ACTIONS.join(', ')}`)
     }
   })
 
@@ -190,6 +197,61 @@ function checkDataSource(data, at, err) {
     if (extra.length) err(at, `a table source takes only "table" — remove: ${extra.join(', ')}`)
   } else {
     err(`${at}.source`, 'must be "static" or "table"')
+  }
+}
+
+/** `props.style` / the screen's `style`: only known keys, each in range. */
+function checkStyle(style, allowed, at, err, owner) {
+  if (style === undefined) return
+  if (!style || typeof style !== 'object' || Array.isArray(style)) { err(at, 'must be an object'); return }
+  Object.keys(style).forEach((key) => {
+    const path = `${at}.${key}`
+    const spec = STYLE_KEYS[key]
+    if (!spec || !allowed.includes(key)) {
+      err(path, `is not a style of ${owner} — allowed: ${allowed.join(', ')}`)
+      return
+    }
+    const v = style[key]
+    let ok
+    switch (spec.type) {
+      case 'number': ok = typeof v === 'number' && Number.isFinite(v) && v >= spec.min && v <= spec.max; break
+      case 'select': ok = spec.options.some((o) => o.value === v); break
+      case 'toggleValue': ok = v === 'normal' || v === spec.on; break
+      case 'color': ok = typeof v === 'string' && (COLOR.test(v) || (key !== 'color' && key !== 'labelColor' && v === 'transparent')); break
+      case 'font': ok = typeof v === 'string' && v.trim() !== '' && v.length <= 200 && !/[;{}<>]/.test(v); break
+      default: ok = true
+    }
+    if (!ok) err(path, `must be ${spec.hint}`)
+  })
+}
+
+/**
+ * A list of saved records: where they come from, which columns, which actions.
+ * With no `source` it reads the table the screen saves to, so one of the two
+ * must be set.
+ */
+function checkList(props, doc, at, err) {
+  if (props.title !== undefined && typeof props.title !== 'string') err(`${at}.props.title`, 'must be a string')
+  if (props.source !== undefined && !(nonEmptyString(props.source) && TABLE_NAME.test(props.source))) err(`${at}.props.source`, 'must name the table to list records from')
+  if (props.source === undefined && doc.source === undefined) err(`${at}.props.source`, 'is required when the screen has no "source" — which table should the list read?')
+  if (props.pageSize !== undefined && !(Number.isInteger(props.pageSize) && props.pageSize >= 1 && props.pageSize <= 200)) err(`${at}.props.pageSize`, 'must be a whole number from 1 to 200')
+  if (props.actions !== undefined) {
+    if (!Array.isArray(props.actions)) err(`${at}.props.actions`, `must be an array of: ${LIST_ACTIONS.join(', ')}`)
+    else props.actions.forEach((a, j) => { if (!LIST_ACTIONS.includes(a)) err(`${at}.props.actions[${j}]`, `must be one of: ${LIST_ACTIONS.join(', ')}`) })
+  }
+  if (props.columns !== undefined) {
+    if (!Array.isArray(props.columns)) { err(`${at}.props.columns`, 'must be an array of { field, label }'); return }
+    const seen = new Set()
+    props.columns.forEach((c, j) => {
+      const p = `${at}.props.columns[${j}]`
+      if (!c || typeof c !== 'object') { err(p, 'must be { field, label }'); return }
+      if (!(nonEmptyString(c.field) && FIELD_NAME.test(c.field))) err(`${p}.field`, 'must be a field name — letters, digits and _')
+      else if (seen.has(c.field)) err(`${p}.field`, `"${c.field}" appears twice`)
+      else seen.add(c.field)
+      if (!nonEmptyString(c.label)) err(`${p}.label`, 'must be a non-empty string — the column heading')
+      const extra = Object.keys(c).filter((k) => k !== 'field' && k !== 'label')
+      if (extra.length) err(p, `only "field" and "label" are used — remove: ${extra.join(', ')}`)
+    })
   }
 }
 

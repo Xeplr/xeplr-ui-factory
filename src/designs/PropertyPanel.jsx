@@ -1,11 +1,12 @@
 import { getAtPath } from '../propertyPath.js'
-import { slugify } from '../document.js'
+import { slugify, inputNodes } from '../document.js'
+import { FONT_FAMILIES, STYLE_KEYS, SCREEN_STYLE_KEYS, LIST_ACTIONS } from '../controls.js'
 
 // The selected control's properties, GENERATED from its entry in controls.js:
 // each field there names a path and an editor type, and this file owns only
 // what each editor type looks like. A new property is a line in controls.js.
 
-export default function PropertyPanel({ node, control, errors, tables, onChange, onRemove, selectionCount }) {
+export default function PropertyPanel({ doc, node, control, errors, tables, onChange, onScreenChange, onRemove, selectionCount }) {
   if (selectionCount > 1) {
     return (
       <aside className="xeplr-factory-panel">
@@ -15,13 +16,7 @@ export default function PropertyPanel({ node, control, errors, tables, onChange,
     )
   }
   if (!node || !control) {
-    return (
-      <aside className="xeplr-factory-panel">
-        <p className="xeplr-factory-panel-empty">
-          Select a control to set its label, validation and options — or drag one in from the left.
-        </p>
-      </aside>
-    )
+    return <ScreenPanel doc={doc} errors={errors || []} tables={tables} onChange={onScreenChange} />
   }
 
   const nodeErrors = errors || []
@@ -45,7 +40,7 @@ export default function PropertyPanel({ node, control, errors, tables, onChange,
             const id = `xf-prop-${node.id}-${field.path.replace(/\W+/g, '-')}`
             return (
               <div key={field.path} className={`xeplr-factory-prop${errs.length ? ' has-error' : ''}`}>
-                {field.type !== 'toggle' && <label className="xeplr-factory-prop-label" htmlFor={id}>{field.label}</label>}
+                {field.type !== 'toggle' && field.type !== 'toggleValue' && field.type !== 'columns' && field.type !== 'actions' && <label className="xeplr-factory-prop-label" htmlFor={id}>{field.label}</label>}
                 <Editor
                   id={id}
                   field={field}
@@ -53,6 +48,7 @@ export default function PropertyPanel({ node, control, errors, tables, onChange,
                   onChange={(v) => onChange(field.path, v)}
                   tables={tables}
                   node={node}
+                  doc={doc}
                   errors={errs}
                 />
                 {field.help && <div className="xeplr-factory-prop-help">{field.help}</div>}
@@ -75,6 +71,47 @@ export default function PropertyPanel({ node, control, errors, tables, onChange,
           ))}
         </div>
       )}
+    </aside>
+  )
+}
+
+/**
+ * Nothing selected: the SCREEN's own properties — where records are saved,
+ * how wide it is designed, and the font and colours every control inherits.
+ */
+function ScreenPanel({ doc, errors, tables, onChange }) {
+  const errorFor = (path) => errors.filter((e) => e.path === path || e.path.startsWith(path + '.')).map((e) => e.message)[0]
+  const styleFields = SCREEN_STYLE_KEYS.map((k) => ({ path: `style.${k}`, label: k === 'fontSize' ? 'Base font size (px)' : STYLE_KEYS[k].label, ...STYLE_KEYS[k] }))
+  const row = (field, Editor, extra) => {
+    const id = `xf-screen-${field.path.replace(/\W+/g, '-')}`
+    const msg = errorFor(field.path)
+    return (
+      <div key={field.path} className={`xeplr-factory-prop${msg ? ' has-error' : ''}`}>
+        {field.type !== 'toggle' && field.type !== 'toggleValue' && <label className="xeplr-factory-prop-label" htmlFor={id}>{field.label}</label>}
+        <Editor id={id} field={field} value={getAtPath(doc, field.path)} onChange={(v) => onChange(field.path, v)} tables={tables} errors={[]} {...extra} />
+        {field.help && <div className="xeplr-factory-prop-help">{field.help}</div>}
+        {msg && <div className="xeplr-factory-prop-error">{msg}</div>}
+      </div>
+    )
+  }
+  return (
+    <aside className="xeplr-factory-panel" aria-label="Screen properties">
+      <header className="xeplr-factory-panel-head">
+        <span className="xeplr-factory-panel-type">Screen</span>
+      </header>
+      <p className="xeplr-factory-panel-empty">Select a control to change it, or drag one in from the left.</p>
+      <fieldset className="xeplr-factory-group">
+        <legend>Data</legend>
+        {row({ path: 'source', label: 'Saves to', type: 'table', help: 'The table this screen\'s records are saved in' }, TableEditor)}
+      </fieldset>
+      <fieldset className="xeplr-factory-group">
+        <legend>Size</legend>
+        {row({ path: 'width', label: 'Width (px)', type: 'number', help: 'The width it is designed at. Narrower screens scale it down; wider ones never stretch it.' }, NumberEditor)}
+      </fieldset>
+      <fieldset className="xeplr-factory-group">
+        <legend>Text</legend>
+        {styleFields.map((f) => row(f, EDITORS[f.type] || TextEditor))}
+      </fieldset>
     </aside>
   )
 }
@@ -106,6 +143,102 @@ function DateEditor({ id, value, onChange }) {
   return <input id={id} className="xeplr-factory-prop-input" type="date" value={value ?? ''} onChange={(e) => onChange(e.target.value)} />
 }
 
+/** A font family: the common ones, or anything typed. */
+function FontEditor({ id, value, onChange }) {
+  const known = FONT_FAMILIES.some((f) => f.value === value)
+  return (
+    <select id={id} className="xeplr-factory-prop-input" value={value == null ? '' : known ? value : '__custom'} onChange={(e) => {
+      const v = e.target.value
+      if (v === '__custom') return
+      onChange(v === '' ? undefined : v)
+    }} style={{ fontFamily: value || undefined }}>
+      <option value="">Same as the screen</option>
+      {FONT_FAMILIES.map((f) => <option key={f.label} value={f.value} style={{ fontFamily: f.value }}>{f.label}</option>)}
+      {!known && value && <option value="__custom">{value}</option>}
+    </select>
+  )
+}
+
+/** A colour: a swatch, and the hex beside it. Clearing it goes back to the default. */
+function ColorEditor({ id, value, onChange }) {
+  const hex = typeof value === 'string' && /^#([0-9a-f]{6})$/i.test(value) ? value
+    : typeof value === 'string' && /^#([0-9a-f]{3})$/i.test(value) ? '#' + value.slice(1).split('').map((c) => c + c).join('')
+    : '#000000'
+  return (
+    <div className="xeplr-factory-color">
+      <input type="color" aria-label="Pick colour" value={hex} onChange={(e) => onChange(e.target.value)} />
+      <input id={id} className="xeplr-factory-prop-input xeplr-factory-mono" type="text" placeholder="default" value={value ?? ''} onChange={(e) => onChange(e.target.value.trim())} />
+      {value && <button type="button" className="xeplr-factory-icon-button" aria-label="Reset colour" onClick={() => onChange(undefined)}>×</button>}
+    </div>
+  )
+}
+
+/** A style that is either on (e.g. italic) or not set. */
+function ToggleValueEditor({ id, field, value, onChange }) {
+  return (
+    <label className="xeplr-factory-toggle" htmlFor={id}>
+      <input id={id} type="checkbox" checked={value === field.on} onChange={(e) => onChange(e.target.checked ? field.on : undefined)} />
+      <span>{field.label}</span>
+    </label>
+  )
+}
+
+/** A table name: picked from the app's tables when it lists them, typed otherwise. */
+function TableEditor({ id, value, onChange, tables }) {
+  if (tables && tables.items.length > 0) {
+    return (
+      <select id={id} className="xeplr-factory-prop-input" value={value ?? ''} onChange={(e) => onChange(e.target.value || undefined)}>
+        <option value="">{tables.loading ? 'Loading tables…' : '—'}</option>
+        {tables.items.map((t) => <option key={String(t.id)} value={String(t.id)}>{t.name}</option>)}
+      </select>
+    )
+  }
+  return <input id={id} className="xeplr-factory-prop-input" type="text" placeholder={tables?.loading ? 'Loading tables…' : 'table name'} value={value ?? ''} onChange={(e) => onChange(e.target.value.trim() || undefined)} />
+}
+
+/**
+ * A list's columns: tick which of the screen's fields to show, in reading
+ * order. Nothing ticked means all of them.
+ */
+function ColumnsEditor({ value, onChange, doc }) {
+  const fields = doc ? inputNodes(doc).map((n) => ({ field: n.props.name, label: n.props.label || n.props.name })) : []
+  const chosen = Array.isArray(value) ? value : null
+  const isOn = (f) => (chosen ? chosen.some((c) => c.field === f.field) : true)
+  const toggle = (f) => {
+    const current = chosen || fields
+    const next = isOn(f) ? current.filter((c) => c.field !== f.field) : fields.filter((x) => x.field === f.field || current.some((c) => c.field === x.field))
+    // All of them again is the same as "not set" — keep the document clean.
+    onChange(next.length === fields.length || next.length === 0 ? undefined : next.map((c) => ({ field: c.field, label: (current.find((x) => x.field === c.field) || c).label })))
+  }
+  if (!fields.length) return <div className="xeplr-factory-prop-help">Add fields to the screen first — the list shows them as columns.</div>
+  return (
+    <div className="xeplr-factory-checklist">
+      {fields.map((f) => (
+        <label key={f.field} className="xeplr-factory-toggle">
+          <input type="checkbox" checked={isOn(f)} onChange={() => toggle(f)} />
+          <span>{f.label}</span>
+        </label>
+      ))}
+    </div>
+  )
+}
+
+const ACTION_LABELS = { new: 'New — clear the form for a new record', edit: 'Edit — open a row in the form', delete: 'Delete — remove a row' }
+
+function ActionsEditor({ value, onChange }) {
+  const on = Array.isArray(value) ? value : LIST_ACTIONS
+  return (
+    <div className="xeplr-factory-checklist">
+      {LIST_ACTIONS.map((a) => (
+        <label key={a} className="xeplr-factory-toggle">
+          <input type="checkbox" checked={on.includes(a)} onChange={(e) => onChange(e.target.checked ? LIST_ACTIONS.filter((x) => x === a || on.includes(x)) : on.filter((x) => x !== a))} />
+          <span>{ACTION_LABELS[a]}</span>
+        </label>
+      ))}
+    </div>
+  )
+}
+
 function ToggleEditor({ id, field, value, onChange }) {
   return (
     <label className="xeplr-factory-toggle" htmlFor={id}>
@@ -116,8 +249,14 @@ function ToggleEditor({ id, field, value, onChange }) {
 }
 
 function SelectEditor({ id, field, value, onChange }) {
+  // Style selects may be unset ("inherit"); numeric option values stay numbers.
+  const optional = String(field.path || '').includes('.style.') || String(field.path || '').startsWith('style.')
   return (
-    <select id={id} className="xeplr-factory-prop-input" value={value ?? ''} onChange={(e) => onChange(e.target.value)}>
+    <select id={id} className="xeplr-factory-prop-input" value={value ?? ''} onChange={(e) => {
+      const hit = field.options.find((o) => String(o.value) === e.target.value)
+      onChange(hit ? hit.value : undefined)
+    }}>
+      {optional && <option value="">Default</option>}
       {field.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
   )
@@ -223,6 +362,12 @@ export const EDITORS = {
   number: NumberEditor,
   date: DateEditor,
   toggle: ToggleEditor,
+  toggleValue: ToggleValueEditor,
   select: SelectEditor,
+  font: FontEditor,
+  color: ColorEditor,
+  table: TableEditor,
+  columns: ColumnsEditor,
+  actions: ActionsEditor,
   dataSource: DataSourceEditor
 }

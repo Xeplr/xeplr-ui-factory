@@ -1,6 +1,6 @@
 # @xeplr/ui-factory
 
-**Design data-entry screens, save them as JSON, run them as working forms.** Drag controls onto a canvas, set their labels, validation and options, and save. The same document renders as a live form in your app.
+**Design data-entry screens, save them as JSON, run them as working forms.** Drag controls onto a canvas, set their labels, validation, options, fonts and colours. The same document renders as a live form in your app that **saves itself** as it is filled in, with a list of the saved records to open, edit or delete.
 
 It is built to work with Claude: ask for *"a form for a new employee with name, email, department and start date"*, Claude drafts the screen, and a person refines it in the builder.
 
@@ -19,10 +19,10 @@ Most internal apps are a long tail of forms, and every one of them is hand-built
 ## Install
 
 ```sh
-npm i @xeplr/ui-factory @xeplr/ui-canvas
+npm i @xeplr/ui-factory @xeplr/ui-canvas @xeplr/ui-table @tanstack/react-table
 ```
 
-Peer dependencies: `react ^18 || ^19` and [`@xeplr/ui-canvas`](https://www.npmjs.com/package/@xeplr/ui-canvas) (the canvas the builder places controls on). Your bundler must compile JSX and import CSS from the package (Vite does both).
+Peer dependencies: `react ^18 || ^19`, [`@xeplr/ui-canvas`](https://www.npmjs.com/package/@xeplr/ui-canvas) (the canvas the builder places controls on) and [`@xeplr/ui-table`](https://www.npmjs.com/package/@xeplr/ui-table) (lists of saved records). Your bundler must compile JSX and import CSS from the package (Vite does both).
 
 ## The builder
 
@@ -32,9 +32,10 @@ import { FactoryBuilder } from '@xeplr/ui-factory'
 <div style={{ height: '100vh' }}>
   <FactoryBuilder
     document={screen}                                  // omit to start a new one
-    onSave={async (doc) => api.saveScreen(doc)}        // your storage
-    listTables={async () => api.listTables()}          // offered for "dropdown from a table"
-    fetchOptions={async ({ table }) => api.options(table)}  // enables Preview with real options
+    onSave={async (doc) => api.saveScreen(doc)}        // your storage — called automatically
+    listTables={async () => api.listTables()}          // for "Saves to", lists and table dropdowns
+    fetchOptions={async ({ table }) => api.options(table)}  // Preview with real options
+    fetchRecords={async ({ source }) => api.records(source)} // Preview with real records
   />
 </div>
 ```
@@ -42,7 +43,9 @@ import { FactoryBuilder } from '@xeplr/ui-factory'
 - Drag controls from the palette onto the screen, or click one to add it at the bottom.
 - Move, resize, align with guides; drag a box to select several; <kbd>Delete</kbd> removes, <kbd>Ctrl/⌘ D</kbd> duplicates.
 - Select a control to set its label, field name, placeholder, required, default, validation, and — for a dropdown — where its options come from.
-- **Save** checks the whole screen first; problems are shown on the controls that have them, and `onSave` is only called with a valid document.
+- **Every look is a property:** font, size, weight, italic, alignment, text colour, background, border colour/width, corner radius — and for an input, its label's size, weight and colour.
+- With nothing selected, the panel shows the **screen**: the table it saves to, its width, and the font and colours every control inherits.
+- **No Save button.** Edits are saved a moment after you stop, whenever the screen is valid; problems are marked on the controls that have them until they are fixed.
 
 ## The screen
 
@@ -51,13 +54,23 @@ import { FactoryScreen } from '@xeplr/ui-factory'
 
 <FactoryScreen
   document={screen}
-  values={employee}                                   // optional: the record being edited
+  record={employee}                                   // optional: open an existing record
+  onSave={async (values, { id, source }) => api.save(source, id, values)}  // returns the saved record, with its id
+  fetchRecords={async ({ source }) => api.records(source)}
+  onDelete={async ({ id, source }) => api.remove(source, id)}
   fetchOptions={async ({ table }) => api.options(table)}
-  onSubmit={async (values) => api.saveEmployee(values)}
 />
 ```
 
+**There is no submit.** The screen saves itself in the background (one AJAX call to your `onSave`) a moment after a change, once the entered values are acceptable. Until then it says what is missing — "Fill in the required fields to save" — and a field's message appears once the person has been in it. The first save of a new record creates it: return the saved record and its `id` makes every later save an update.
+
 Values arrive typed: numbers as numbers, checkboxes as booleans, dates as `"YYYY-MM-DD"`, and a dropdown as the option's own `id` (a table's numeric id stays a number).
+
+### Lists of saved records
+
+A **List** control shows the records of the table the screen saves to (or another), in `@xeplr/ui-table`, with the columns you tick. **Edit** opens a row in the form — changes then save to that record — **Delete** removes it after a confirmation, and **New** clears the form. The list refreshes after every save. Dropdown columns show names, not ids.
+
+`@xeplr/ui-table` reads the xeplr theme tokens (`--xeplr-bg-*`, `--xeplr-text-*`, `--xeplr-border-*`) and defaults to a dark look; define them for a light app.
 
 On your server, check the submission against the same rules with [`@xeplr/schema-handler`](https://www.npmjs.com/package/@xeplr/schema-handler):
 
@@ -78,8 +91,10 @@ const clean = schemaHandler.applySchema(formSchema(screen), req.body)   // throw
 | `date` | `"YYYY-MM-DD"` | `min`, `max` |
 | `checkbox` | boolean | `required` = must be ticked |
 | `dropdown` | option id | — |
-| `label` | — | heading, subheading or text |
-| `button` | — | submit or reset |
+| `label` | — | text with a heading, subheading or text preset |
+| `list` | — | saved records, with New / Edit / Delete |
+
+Every control also takes `style` — see [AUTHORING.md](./AUTHORING.md#styles) for the keys. Sizes are pixels at the screen's design `width` (default 800): a screen is shown at that size, never stretched, and scaled down only on a narrower display.
 
 ### Dropdown options
 
@@ -107,7 +122,9 @@ const screen = screenFromSpec({
     { label: 'Department', type: 'dropdown', table: 'departments', required: true },
     { label: 'Employment type', type: 'dropdown', options: ['Full time', 'Part time'] },
     { label: 'Start date', type: 'date' }
-  ]
+  ],
+  source: 'employees',
+  list: true
 })
 ```
 
@@ -127,7 +144,8 @@ npx xeplr-factory controls                   # controls, props and rules
 {
   "kind": "xeplr-screen", "version": 1,
   "id": "new_employee", "name": "New employee",
-  "units": "fraction", "aspect": 1,
+  "source": "employees",
+  "units": "fraction", "aspect": 1, "width": 800,
   "nodes": [
     { "id": "firstName", "type": "text", "x": 0.04, "y": 0.15, "w": 0.4475, "h": 0.08, "z": 2,
       "props": { "label": "First name", "name": "firstName", "required": true, "validation": { "maxLength": 80 } } }
@@ -135,7 +153,7 @@ npx xeplr-factory controls                   # controls, props and rules
 }
 ```
 
-Layout is **proportional**, like `@xeplr/ui-canvas` dashboards: `x` and `w` are fractions of the width, `y` and `h` fractions of a page (`width × aspect`). Text and controls scale with it, so a screen looks the same at any width.
+Layout is **proportional**, like `@xeplr/ui-canvas` dashboards: `x` and `w` are fractions of the width, `y` and `h` fractions of a page (`width × aspect`). The screen is shown at its design `width`; on a narrower display everything — positions and text — scales down together.
 
 ## Three ways to use it
 
@@ -151,7 +169,7 @@ Styles are namespaced `.xeplr-factory-*` and read the xeplr theme variables with
 
 ```sh
 npm install
-npm run dev     # http://localhost:19006 — builder + saved screen, with an in-memory stand-in app
+npm run dev     # http://localhost:19006 — builder + screen, with a stand-in app that keeps records in localStorage
 ```
 
 ## Files
@@ -161,12 +179,12 @@ src/
   controls.js            ─ the control registry: palette, property panel contract, rules
   document.js            ─ create and edit screen documents
   validateDocument.js    ─ the document checker
-  values.js              ─ initial values, parsing, field validation, formSchema
+  values.js              ─ values, validation, autosave readiness, records and list columns, formSchema
   generate.js            ─ screenFromSpec
   model.js               ─ everything above, React-free
   useFactoryBuilder.js   ─ builder controller
   useFactoryScreen.js    ─ screen controller
-  designs/               ─ BuilderSample, ScreenSample, ControlView, Palette, PropertyPanel, factory.css
+  designs/               ─ BuilderSample, ScreenSample, ControlView, ListView, Palette, PropertyPanel, styles.js, factory.css
   pages.jsx              ─ FactoryBuilder, FactoryScreen
 bin/xeplr-factory.js     ─ generate / validate / controls / schema
 examples/                ─ new-employee spec and screen

@@ -1,7 +1,7 @@
 {
   "name": "@xeplr/ui-factory",
   "version": "1.0.0",
-  "description": "Design data-entry screens on @xeplr/ui-canvas, save them as JSON, render them as working forms — built for Claude to draft and people to refine",
+  "description": "Design data-entry screens on @xeplr/ui-canvas, save them as JSON, run them as auto-saving forms with lists of saved records — built for Claude to draft and people to refine",
   "type": "module",
   "main": "src/index.js",
   "exports": {
@@ -45,13 +45,17 @@
     "access": "public"
   },
   "peerDependencies": {
+    "@tanstack/react-table": "^8.0.0",
     "@xeplr/ui-canvas": "^1.0.2",
+    "@xeplr/ui-table": "^1.0.6",
     "react": "^18.0.0 || ^19.0.0"
   },
   "devDependencies": {
+    "@tanstack/react-table": "^8.21.3",
     "@vitejs/plugin-react": "^5.2.0",
     "@xeplr/schema-handler": "^1.0.5",
     "@xeplr/ui-canvas": "^1.0.1",
+    "@xeplr/ui-table": "^1.0.6",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "vite": "^7.3.1"

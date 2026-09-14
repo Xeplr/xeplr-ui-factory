@@ -3,14 +3,25 @@ import { XeplrCanvas } from '@xeplr/ui-canvas'
 import ControlView from './ControlView.jsx'
 import Palette, { DRAG_TYPE } from './Palette.jsx'
 import PropertyPanel from './PropertyPanel.jsx'
+import { screenStyle } from './styles.js'
 
-// The builder, drawn: name and Save on top, controls on the left, the screen
-// on the canvas in the middle, the selection's properties on the right.
-// Presentation only — everything comes from useFactoryBuilder.
+// The builder, drawn: name and save status on top, controls on the left, the
+// screen on the canvas in the middle, properties on the right — the selected
+// control's, or the screen's own when nothing is selected. Presentation only —
+// everything comes from useFactoryBuilder.
 //
-// The canvas is @xeplr/ui-canvas in fraction units with pageAspect set to the
-// screen's aspect, which is exactly the geometry ScreenSample renders with — so
-// the builder shows the screen at its real proportions.
+// The canvas is exactly the screen's design width (never wider), in fraction
+// units with pageAspect = the screen's aspect: the same geometry ScreenSample
+// renders with, so the builder shows the screen at its real size.
+
+const STATUS = {
+  idle: '',
+  pending: 'Unsaved changes…',
+  saving: 'Saving…',
+  saved: 'All changes saved',
+  invalid: 'Not saved — fix the problems',
+  error: 'Not saved'
+}
 
 export default function BuilderSample({ ctrl, renderPreview, className, style }) {
   const { document: doc } = ctrl
@@ -44,30 +55,23 @@ export default function BuilderSample({ ctrl, renderPreview, className, style })
           placeholder="Screen name, e.g. New employee"
           aria-label="Screen name"
         />
-        <div className="xeplr-factory-bar-status" aria-live="polite">
-          {ctrl.saving ? 'Saving…' : ctrl.dirty ? 'Unsaved changes' : ''}
+        <div className={`xeplr-factory-bar-status xeplr-factory-bar-status--${ctrl.status}`} role="status" aria-live="polite">
+          {ctrl.status === 'error' ? `Not saved — ${ctrl.saveError}` : STATUS[ctrl.status]}
         </div>
         {problemCount > 0 && (
-          <span className={`xeplr-factory-problems${ctrl.showErrors ? ' is-loud' : ''}`} title={ctrl.validation.errors.map((x) => `${x.path}: ${x.message}`).join('\n')}>
+          <span className="xeplr-factory-problems" title={ctrl.validation.errors.map((x) => `${x.path}: ${x.message}`).join('\n')}>
             {problemCount} problem{problemCount === 1 ? '' : 's'}
           </span>
+        )}
+        {ctrl.status === 'error' && (
+          <button type="button" className="xeplr-factory-secondary" onClick={ctrl.save}>Retry</button>
         )}
         {renderPreview && (
           <button type="button" className="xeplr-factory-secondary" aria-pressed={preview} onClick={() => setPreview((p) => !p)}>
             {preview ? 'Back to design' : 'Preview'}
           </button>
         )}
-        <button type="button" className="xeplr-factory-primary" onClick={ctrl.save} disabled={ctrl.saving}>
-          Save
-        </button>
       </header>
-
-      {ctrl.saveError && <div className="xeplr-factory-save-error" role="alert">{ctrl.saveError}</div>}
-      {ctrl.showErrors && ctrl.errorsByNode._document && (
-        <div className="xeplr-factory-save-error" role="alert">
-          {ctrl.errorsByNode._document.map((e, i) => <div key={i}><code>{e.path}</code> {e.message}</div>)}
-        </div>
-      )}
 
       {preview && renderPreview ? (
         <div className="xeplr-factory-preview">{renderPreview(doc)}</div>
@@ -80,34 +84,39 @@ export default function BuilderSample({ ctrl, renderPreview, className, style })
             onDragOver={(e) => { if ([...e.dataTransfer.types].includes(DRAG_TYPE)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy' } }}
             onDrop={onDrop}
           >
-            <XeplrCanvas
-              className="xeplr-factory-canvas"
-              items={doc.nodes}
-              units="fraction"
-              pageAspect={doc.aspect}
-              features={{ resize: true, marquee: true }}
-              selection={ctrl.selected}
-              onSelectionChange={ctrl.setSelected}
-              onItemChange={ctrl.moveControl}
-              minSizeFor={() => ({ minWidth: 16, minHeight: 12 })}
-              renderItem={(node, { selected }) => (
-                <div className={`xeplr-factory-design-node${ctrl.showErrors && ctrl.errorsByNode[node.id] ? ' has-error' : ''}${selected ? ' is-selected' : ''}`}>
-                  <ControlView node={node} mode="design" />
-                </div>
-              )}
-              underlay={doc.nodes.length === 0 && (
-                <div className="xeplr-factory-empty">Drag controls here from the left</div>
-              )}
-            />
+            <div className="xeplr-factory-frame" style={{ maxWidth: doc.width }}>
+              <XeplrCanvas
+                className="xeplr-factory-canvas"
+                style={screenStyle(doc)}
+                items={doc.nodes}
+                units="fraction"
+                pageAspect={doc.aspect}
+                features={{ resize: true, marquee: true }}
+                selection={ctrl.selected}
+                onSelectionChange={ctrl.setSelected}
+                onItemChange={ctrl.moveControl}
+                minSizeFor={() => ({ minWidth: 16, minHeight: 12 })}
+                renderItem={(node, { selected }) => (
+                  <div className={`xeplr-factory-design-node${ctrl.errorsByNode[node.id] ? ' has-error' : ''}${selected ? ' is-selected' : ''}`}>
+                    <ControlView node={node} mode="design" list={node.type === 'list' ? { doc } : undefined} />
+                  </div>
+                )}
+                underlay={doc.nodes.length === 0 && (
+                  <div className="xeplr-factory-empty">Drag controls here from the left</div>
+                )}
+              />
+            </div>
           </div>
 
           <PropertyPanel
+            doc={doc}
             node={ctrl.selectedNode}
             control={ctrl.selectedControl}
             selectionCount={ctrl.selected.size}
-            errors={ctrl.selectedNode ? ctrl.errorsByNode[ctrl.selectedNode.id] : null}
+            errors={ctrl.selectedNode ? ctrl.errorsByNode[ctrl.selectedNode.id] : ctrl.errorsByNode._document}
             tables={ctrl.tables}
             onChange={(path, value) => ctrl.setProperty(ctrl.selectedNode.id, path, value)}
+            onScreenChange={ctrl.setScreen}
             onRemove={ctrl.removeSelected}
           />
         </div>

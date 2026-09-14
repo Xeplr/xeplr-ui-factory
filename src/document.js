@@ -5,7 +5,10 @@
 //   {
 //     kind: 'xeplr-screen', version: 1,
 //     id: 'new_employee', name: 'New employee',
+//     source?: 'employees',          ← the table records are saved to (the app's)
 //     units: 'fraction', aspect: 1,
+//     width: 800,                    ← design width in px: styles are px at this width
+//     style?: { fontFamily, fontSize, color, background },   ← screen-wide defaults
 //     nodes: [ { id, type, x, y, w, h, z?, groupId?, props } ]
 //   }
 //
@@ -22,27 +25,42 @@ import { getAtPath, setAtPath } from './propertyPath.js'
 export const DOCUMENT_KIND = 'xeplr-screen'
 export const DOCUMENT_VERSION = 1
 export const DEFAULT_ASPECT = 1
+/** Px. Styles are sizes at this width; narrower shrinks them, wider never grows them. */
+export const DEFAULT_WIDTH = 800
 
 /** Space kept around and between controls, as fractions. */
 export const MARGIN = 0.04
 export const GAP = 0.025
 
 /** A new, empty screen. */
-export function createScreen({ name, id, aspect } = {}) {
+export function createScreen({ name, id, aspect, width, source, style } = {}) {
   const title = String(name || 'Untitled screen').trim() || 'Untitled screen'
-  return {
+  const doc = {
     kind: DOCUMENT_KIND,
     version: DOCUMENT_VERSION,
     id: id || slugify(title, '_') || 'screen',
     name: title,
     units: 'fraction',
     aspect: aspect > 0 ? aspect : DEFAULT_ASPECT,
+    width: width > 0 ? width : DEFAULT_WIDTH,
     nodes: []
   }
+  if (source) doc.source = source
+  if (style && Object.keys(style).length) doc.style = style
+  return doc
 }
 
 export function renameScreen(doc, name) {
   return { ...doc, name: String(name == null ? '' : name) }
+}
+
+/**
+ * Sets a SCREEN property by path — `source`, `width`, `style.fontSize`. A blank
+ * value removes the key, like a control's properties.
+ */
+export function setScreenProperty(doc, path, value) {
+  if (path === 'nodes' || path.startsWith('nodes.')) throw new Error('setScreenProperty cannot change nodes')
+  return setAtPath(doc, path, value)
 }
 
 /**

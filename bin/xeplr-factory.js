@@ -80,6 +80,7 @@ switch (cmd) {
       process.stdout.write(`${c.type.padEnd(9)} ${c.label}${c.input ? ` — value: ${c.valueType || 'option id'}` : ''}\n`)
       process.stdout.write(`          props: ${c.props.join(', ')}\n`)
       if (c.validation.length) process.stdout.write(`          validation: ${c.validation.join(', ')}\n`)
+      if (c.styles && c.styles.length) process.stdout.write(`          style: ${c.styles.join(', ')}\n`)
     })
     break
   }

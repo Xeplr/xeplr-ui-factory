@@ -31,8 +31,8 @@ import { assertValidDocument } from './validateDocument.js'
 export const SPEC_HEIGHTS = {
   text: 0.08, number: 0.08, date: 0.08, dropdown: 0.08,
   textarea: 0.18,
-  checkbox: 0.06,
-  button: 0.07,
+  checkbox: 0.05,
+  list: 0.42,
   label: { heading: 0.07, subheading: 0.055, text: 0.045 }
 }
 
@@ -42,8 +42,9 @@ export const SPEC_HEIGHTS = {
  */
 export const ROW_GAP = 0.04
 
-const FIELD_KEYS = ['type', 'label', 'name', 'required', 'placeholder', 'default', 'validation', 'data', 'options', 'table', 'width', 'text', 'variant']
-const SPEC_KEYS = ['name', 'id', 'columns', 'heading', 'fields', 'submit', 'reset', 'aspect']
+const FIELD_KEYS = ['type', 'label', 'name', 'required', 'placeholder', 'default', 'validation', 'data', 'options', 'table', 'width', 'text', 'variant', 'style']
+const SPEC_KEYS = ['name', 'id', 'source', 'columns', 'heading', 'fields', 'list', 'aspect', 'width', 'style']
+const LIST_KEYS = ['title', 'source', 'columns', 'pageSize', 'actions', 'style']
 
 /**
  * @param spec
@@ -55,8 +56,13 @@ const SPEC_KEYS = ['name', 'id', 'columns', 'heading', 'fields', 'submit', 'rese
  *             default?, validation?, width?: 'half'|'full' }
  *             dropdown: options: ['Full time', …] or [{ id, name }]  —or—  table: 'departments'
  *             section heading: { type: 'label', text, variant?: 'subheading' }
- *   submit?   button label (default 'Save'); false for no submit button
- *   reset?    reset button label; omitted/false for none
+ *   source?   the table records are saved to, e.g. 'employees'
+ *   width?    design width in px (default 800) — style sizes are px at this width
+ *   style?    screen-wide defaults: { fontFamily, fontSize, color, background }
+ *   list?     true, or { title, source, columns: [{ field, label }], pageSize, actions } —
+ *             a list of the saved records below the fields, with New / Edit / Delete
+ *
+ * There is no submit button: a screen saves itself as it is filled in.
  */
 export function screenFromSpec(spec, controls = CONTROLS) {
   if (!spec || typeof spec !== 'object') throw new Error('screenFromSpec: spec must be an object')
@@ -66,7 +72,7 @@ export function screenFromSpec(spec, controls = CONTROLS) {
   const columns = spec.columns === undefined ? 2 : spec.columns
   if (columns !== 1 && columns !== 2) throw new Error('screenFromSpec: spec.columns must be 1 or 2')
 
-  let doc = createScreen({ name: spec.name, id: spec.id, aspect: spec.aspect })
+  let doc = createScreen({ name: spec.name, id: spec.id, aspect: spec.aspect, width: spec.width, source: spec.source, style: spec.style })
   const full = 1 - 2 * MARGIN
   const colW = round((full - (columns - 1) * GAP) / columns)
   let y = MARGIN
@@ -75,7 +81,7 @@ export function screenFromSpec(spec, controls = CONTROLS) {
 
   const place = (type, props, width) => {
     const h = heightOf(type, props)
-    const isFull = width === 'full' || columns === 1 || type === 'textarea' || type === 'label'
+    const isFull = width === 'full' || columns === 1 || type === 'textarea' || type === 'label' || type === 'list'
     if (isFull) {
       if (col > 0) { y += rowH + ROW_GAP; col = 0; rowH = 0 }
       ;({ document: doc } = addControl(doc, type, { at: { x: MARGIN, y: round(y) }, size: { w: round(full), h }, props }, controls))
@@ -105,30 +111,26 @@ export function screenFromSpec(spec, controls = CONTROLS) {
 
   if (col > 0) { y += rowH + ROW_GAP; col = 0; rowH = 0 }
 
-  // One row of buttons, left-aligned. Narrow on purpose: a full-width Save
-  // reads as a banner, not a button.
-  const buttons = []
-  if (spec.submit !== false) buttons.push({ label: typeof spec.submit === 'string' ? spec.submit : 'Save', action: 'submit' })
-  if (spec.reset) buttons.push({ label: typeof spec.reset === 'string' ? spec.reset : 'Reset', action: 'reset' })
-  const buttonW = 0.18
-  buttons.forEach((props, i) => {
-    const at = { x: round(MARGIN + i * (buttonW + GAP)), y: round(y) }
-    ;({ document: doc } = addControl(doc, 'button', { at, size: { w: buttonW, h: SPEC_HEIGHTS.button }, props }, controls))
-  })
+  if (spec.list) {
+    const list = spec.list === true ? {} : spec.list
+    if (typeof list !== 'object') throw new Error('screenFromSpec: spec.list must be true or an object')
+    unknownKeys(list, LIST_KEYS, 'spec.list')
+    const props = { title: 'Saved records', pageSize: 10, actions: ['new', 'edit', 'delete'], ...list }
+    place('list', props, 'full')
+  }
 
   return assertValidDocument(doc, controls)
 }
 
 function propsFromField(type, field, at) {
   if (type === 'label') {
-    return { text: field.text ?? field.label ?? '', variant: field.variant || 'subheading' }
-  }
-  if (type === 'button') {
-    return { label: field.label || 'Save', action: 'submit' }
+    const props = { text: field.text ?? field.label ?? '', variant: field.variant || 'subheading' }
+    if (field.style) props.style = field.style
+    return props
   }
   if (!field.label) throw new Error(`screenFromSpec: ${at}.label is required`)
   const props = { label: field.label }
-  ;['name', 'required', 'placeholder', 'default', 'validation'].forEach((k) => {
+  ;['name', 'required', 'placeholder', 'default', 'validation', 'style'].forEach((k) => {
     if (field[k] !== undefined) props[k] = field[k]
   })
   if (type === 'dropdown' && props.placeholder === undefined) props.placeholder = 'Select…'

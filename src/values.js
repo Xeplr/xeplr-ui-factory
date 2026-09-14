@@ -146,3 +146,64 @@ export function optionValue(options, raw) {
 function safeRegExp(pattern) {
   try { return new RegExp(pattern) } catch (_) { return { test: () => true } }
 }
+
+// ── autosave ─────────────────────────────────────────────────────────────
+// There is no submit. A screen saves itself a moment after a change, as long
+// as what is entered is acceptable. This decides whether it can, and which
+// messages to SHOW: a field nobody has touched is not shouted at for being
+// empty — it only holds the save back.
+
+/**
+ * @param touched   Set of field names the person has changed or left
+ * @returns {{ canSave, status, errors, shown }}
+ *   status  'ready' | 'incomplete' (only untouched required fields are empty) | 'invalid'
+ *   errors  every failing field → message
+ *   shown   the ones to display now
+ */
+export function saveState(doc, values, touched, loadedOptions = {}, controls = CONTROLS) {
+  const errors = validateValues(doc, values, controls, loadedOptions)
+  const names = Object.keys(errors)
+  const shown = {}
+  names.forEach((n) => { if (touched && touched.has(n)) shown[n] = errors[n] })
+  if (!names.length) return { canSave: true, status: 'ready', errors, shown }
+  const onlyUntouched = names.every((n) => !(touched && touched.has(n)))
+  return { canSave: false, status: onlyUntouched ? 'incomplete' : 'invalid', errors, shown }
+}
+
+/** A saved record → the screen's values, for Edit. Fields the screen does not have are left out. */
+export function recordValues(doc, record, controls = CONTROLS) {
+  const out = {}
+  inputNodes(doc, controls).forEach((node) => {
+    const name = node.props.name
+    const v = record ? record[name] : undefined
+    if (v !== undefined && v !== null) out[name] = node.type === 'date' && typeof v === 'string' ? v.slice(0, 10) : v
+    else if (node.type === 'checkbox') out[name] = false
+  })
+  return out
+}
+
+// ── lists ────────────────────────────────────────────────────────────────
+
+/** The table a list reads: its own, else the one the screen saves to. */
+export function listSource(doc, node) {
+  return (node && node.props && node.props.source) || doc.source || null
+}
+
+/** A list's columns: the ones chosen, else the screen's fields in reading order. */
+export function listColumns(doc, node, controls = CONTROLS) {
+  if (node && Array.isArray(node.props?.columns) && node.props.columns.length) return node.props.columns
+  return inputNodes(doc, controls).map((n) => ({ field: n.props.name, label: n.props.label || n.props.name }))
+}
+
+/** How a stored value reads in a list: a dropdown's name, not its id; Yes/No for a checkbox. */
+export function displayValue(node, value, options) {
+  if (value === undefined || value === null || value === '') return ''
+  if (!node) return typeof value === 'object' ? JSON.stringify(value) : value
+  if (node.type === 'checkbox') return value ? 'Yes' : 'No'
+  if (node.type === 'dropdown') {
+    const opts = node.props.data?.source === 'static' ? node.props.data.options : options
+    const hit = (opts || []).find((o) => sameId(o.id, value))
+    return hit ? hit.name : String(value)
+  }
+  return value
+}

@@ -5,6 +5,7 @@
   "name": "New employee",
   "units": "fraction",
   "aspect": 1,
+  "width": 800,
   "nodes": [
     {
       "id": "label",
@@ -188,7 +189,7 @@
       "x": 0.04,
       "y": 0.725,
       "w": 0.4475,
-      "h": 0.06,
+      "h": 0.05,
       "z": 11,
       "props": {
         "label": "Remote",
@@ -200,7 +201,7 @@
       "id": "notes",
       "type": "textarea",
       "x": 0.04,
-      "y": 0.825,
+      "y": 0.815,
       "w": 0.92,
       "h": 0.18,
       "z": 12,
@@ -213,30 +214,45 @@
       }
     },
     {
-      "id": "button",
-      "type": "button",
+      "id": "list",
+      "type": "list",
       "x": 0.04,
-      "y": 1.045,
-      "w": 0.18,
-      "h": 0.07,
+      "y": 1.035,
+      "w": 0.92,
+      "h": 0.42,
       "z": 13,
       "props": {
-        "label": "Create employee",
-        "action": "submit"
-      }
-    },
-    {
-      "id": "button2",
-      "type": "button",
-      "x": 0.245,
-      "y": 1.045,
-      "w": 0.18,
-      "h": 0.07,
-      "z": 14,
-      "props": {
-        "label": "Clear",
-        "action": "reset"
+        "title": "Employees",
+        "pageSize": 10,
+        "actions": [
+          "new",
+          "edit",
+          "delete"
+        ],
+        "columns": [
+          {
+            "field": "firstName",
+            "label": "First name"
+          },
+          {
+            "field": "lastName",
+            "label": "Last name"
+          },
+          {
+            "field": "workEmail",
+            "label": "Email"
+          },
+          {
+            "field": "department",
+            "label": "Department"
+          },
+          {
+            "field": "startDate",
+            "label": "Start date"
+          }
+        ]
       }
     }
-  ]
+  ],
+  "source": "employees"
 }

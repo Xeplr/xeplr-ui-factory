@@ -15,7 +15,9 @@ This guide is for whoever **writes** a screen definition — usually Claude, fro
    npx xeplr-factory validate screen.json
    ```
    Every problem names a path (`nodes[3].props.data.table`) and what belongs there. Fix and re-run until it prints `ok`.
-4. **Hand the document to the app.** The app stores it and opens it in `<FactoryBuilder>`, where the person moves, resizes and adjusts controls.
+4. **Hand the document to the app.** The app stores it and opens it in `<FactoryBuilder>`, where the person moves, resizes and restyles controls.
+
+There is **no submit button** to add: a screen saves itself as it is filled in. If the request mentions seeing or editing what was entered ("…and show the employees below"), add a `list`.
 
 Changing an existing screen: edit the document's `props` directly (labels, validation, options), validate, and hand it back. Regenerate from a spec only when the layout should start over.
 
@@ -24,6 +26,7 @@ Changing an existing screen: edit the document's `props` directly (labels, valid
 ```json
 {
   "name": "New employee",
+  "source": "employees",
   "columns": 2,
   "fields": [
     { "label": "First name", "required": true, "validation": { "maxLength": 80 } },
@@ -38,20 +41,21 @@ Changing an existing screen: edit the document's `props` directly (labels, valid
     { "label": "Remote", "type": "checkbox" },
     { "label": "Notes", "type": "textarea", "validation": { "maxLength": 1000 } }
   ],
-  "submit": "Create employee",
-  "reset": "Clear"
+  "list": { "title": "Employees" }
 }
 ```
 
 | key | meaning |
 |---|---|
 | `name` | **required** — the screen's title |
+| `source` | the table records are saved to, e.g. `"employees"` — use the app's real table name |
 | `id` | document id; defaults to the name in snake_case |
 | `columns` | `1` or `2` (default `2`) |
 | `heading` | `true` (default) puts the name at the top; a string uses that text; `false` for none |
 | `fields` | **required** — in reading order |
-| `submit` | submit button label (default `"Save"`); `false` for none |
-| `reset` | reset button label; omit for none |
+| `list` | `true`, or `{ title, source, columns: [{ field, label }], pageSize, actions: ["new","edit","delete"] }` — saved records below the fields |
+| `width` | design width in px (default `800`) |
+| `style` | screen-wide defaults: `{ fontFamily, fontSize, color, background }` |
 
 Each field:
 
@@ -68,6 +72,7 @@ Each field:
 | `options` | dropdown: `["Full time", "Part time"]` (ids are made from the names: `full_time`) or `[{ "id": "ft", "name": "Full time" }]` |
 | `table` | dropdown: read options from this table in the app's database |
 | `text`, `variant` | `label` only — `variant` is `heading`, `subheading` (default for a section) or `text` |
+| `style` | how it looks — see Styles |
 
 ## Validation rules
 
@@ -80,6 +85,35 @@ Each field:
 | `checkbox`, `dropdown` | none (use `required`) |
 
 Anything else is rejected, with the list of what is allowed.
+
+## Styles
+
+Every control takes `style`. Sizes are **pixels at the screen's `width`**.
+
+| key | controls | value |
+|---|---|---|
+| `fontFamily` | all | a CSS font family, e.g. `"Georgia, serif"` |
+| `fontSize` | all | 8–96 |
+| `fontWeight` | all but list | 300, 400, 500, 600, 700, 800 |
+| `fontStyle` | all but list | `"normal"` or `"italic"` |
+| `textAlign` | text, textarea, number, date, label | `"left"`, `"center"`, `"right"` |
+| `color` | all | `#rgb` or `#rrggbb` |
+| `background`, `borderColor` | inputs (not checkbox), label, list | `#rgb`, `#rrggbb` or `"transparent"` |
+| `borderWidth` | inputs (not checkbox), label, list | 0–10 |
+| `borderRadius` | inputs (not checkbox), label, list | 0–40 |
+| `labelFontSize`, `labelFontWeight`, `labelColor` | inputs (not checkbox) | the label above the field |
+
+Only style when the request asks for a look ("make the heading blue", "bigger labels"); otherwise leave the defaults.
+
+## Lists
+
+A `list` shows the saved records of the screen's `source` (or its own `source`) with **New**, **Edit** and **Delete**. Columns default to every field; name the few that identify a record instead:
+
+```json
+{ "title": "Employees", "columns": [{ "field": "firstName", "label": "First name" }, { "field": "department", "label": "Department" }] }
+```
+
+A list needs a table: set the screen's `source` or the list's own.
 
 ## Dropdowns
 
@@ -109,7 +143,7 @@ Keep labels short and in sentence case ("Start date", not "START DATE:"). Mark o
 {
   "kind": "xeplr-screen", "version": 1,
   "id": "new_employee", "name": "New employee",
-  "units": "fraction", "aspect": 1,
+  "units": "fraction", "aspect": 1, "width": 800,
   "nodes": [
     { "id": "firstName", "type": "text", "x": 0.04, "y": 0.15, "w": 0.4475, "h": 0.08, "z": 2,
       "props": { "label": "First name", "name": "firstName", "required": true } }
