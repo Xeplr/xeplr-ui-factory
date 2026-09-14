@@ -54,11 +54,13 @@ export function createFactoryApi({ fetch: doFetch, base = '' } = {}) {
 
     // records
     fetchRecords: ({ screen }) => call('GET', `/records/${enc(screen)}`),
+    // One record, through the screen's get hooks — what Edit opens.
+    fetchRecord: async ({ screen, id }) => one(await call('GET', `/records/${enc(screen)}/${enc(id)}`)),
     onSave: async (values, { id, screen }) => one(await call('POST', `/records/${enc(screen)}/save`, { id, values })),
     onDelete: ({ id, screen }) => call('POST', `/records/${enc(screen)}/delete`, { id }),
     fetchOptions: ({ table }) => call('GET', `/options/${enc(table)}`)
   }
-  api.screenProps = { loadScreen: api.loadScreen, onSave: api.onSave, fetchRecords: api.fetchRecords, onDelete: api.onDelete, fetchOptions: api.fetchOptions }
+  api.screenProps = { loadScreen: api.loadScreen, onSave: api.onSave, fetchRecords: api.fetchRecords, fetchRecord: api.fetchRecord, onDelete: api.onDelete, fetchOptions: api.fetchOptions }
   api.builderProps = { onSave: api.saveDraft, onPublish: api.publish, listTables: api.listTables, fetchOptions: api.fetchOptions, fetchRecords: api.fetchRecords }
   return api
 }

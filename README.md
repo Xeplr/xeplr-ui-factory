@@ -17,6 +17,7 @@ It is built to work with Claude: ask for *"a form for employees with name, email
 npx xeplr-factory screens employee.entity.json -o src/screens/employee
 #  employee-list.screen.json   EmployeeList.jsx
 #  employee-edit.screen.json   EditEmployee.jsx
+#  employee.hooks.js           server hooks for its records: save / get / delete × before / after / error / override
 ```
 
 See [examples/](./examples) for exactly what it writes.
@@ -78,6 +79,7 @@ import { FactoryScreen } from '@xeplr/ui-factory'
   record={employee}                                   // optional: open an existing record
   onSave={async (values, { id, source }) => api.save(source, id, values)}  // returns the saved record, with its id
   fetchRecords={async ({ source }) => api.records(source)}
+  fetchRecord={async ({ screen, id }) => api.record(screen, id)}   // optional: Edit loads the record fresh
   onDelete={async ({ id, source }) => api.remove(source, id)}
   fetchOptions={async ({ table }) => api.options(table)}
   screens={{ employee_edit: editScreen }}             // what a list's Edit / New open in a popup
@@ -85,6 +87,8 @@ import { FactoryScreen } from '@xeplr/ui-factory'
 ```
 
 **There is no submit.** The screen saves itself in the background (one AJAX call to your `onSave`) a moment after a change, once the entered values are acceptable. Until then it says what is missing — "Fill in the required fields to save" — and a field's message appears once the person has been in it. The first save of a new record creates it: return the saved record and its `id` makes every later save an update.
+
+If `onSave` throws an error with `fields: [{ field, message }]` (what `createFactoryApi` does with the server's 422 — a rule, or a hook's `reject`), each message shows on its field until that field is changed.
 
 Values arrive typed: numbers as numbers, checkboxes as booleans, dates as `"YYYY-MM-DD"`, and a dropdown as the option's own `id` (a table's numeric id stays a number).
 
@@ -207,7 +211,7 @@ src/
   validateDocument.js    ─ the document checker
   values.js              ─ values, validation, autosave readiness, records and list columns, formSchema
   generate.js            ─ screenFromSpec, screensFromSpec (list + edit), entity names
-  scaffold.js            ─ an entity → its screen JSON and .jsx pages
+  scaffold.js            ─ an entity → its screen JSON, .jsx pages and hooks stub
   tableSchema.js         ─ a form → its table; the publish plan (create / add / widen / confirmed drops)
   remote.js              ─ createFactoryApi: the calls to @xeplr/factory's routes
   model.js               ─ everything above, React-free

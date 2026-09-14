@@ -39,10 +39,21 @@ const api = {
     await wait(120)
     return read('dev-records', {})[source] || []
   },
+  // One record, as Edit opens it — @xeplr/factory runs the get hooks here.
+  fetchRecord: async ({ id }) => {
+    await wait(120)
+    const row = (read('dev-records', {}).employees || []).find((r) => r.id === id)
+    if (!row) throw new Error(`No record ${id}`)
+    return row
+  },
   // Creates when there is no id, updates when there is — and returns the saved
   // record, whose id the screen keeps for its next save.
   onSave: async (values, { id, source }) => {
     await wait(200)
+    // Stands in for a save.before hook's ctx.reject(message, { field }) — a 422 with fields.
+    if (values.firstName === 'Blocked') {
+      throw Object.assign(new Error('Could not save'), { fields: [{ field: 'firstName', message: 'This name is not allowed' }] })
+    }
     const store = read('dev-records', {})
     const rows = store[source] || []
     let saved

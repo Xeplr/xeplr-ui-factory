@@ -5,6 +5,7 @@
 //
 //   employee-list.screen.json   EmployeeList.jsx   — the list; Edit / New open a popup
 //   employee-edit.screen.json   EditEmployee.jsx   — the add / edit form, also a page on its own
+//   employee.hooks.js                              — the server's hooks for its records (all empty)
 //
 // The pages are thin on purpose: a screen document and the app's data calls,
 // nothing else. Changing what a screen shows is editing its JSON in the
@@ -28,7 +29,8 @@ export function scaffoldEntity(spec, controls) {
     [listJson]: JSON.stringify(list, null, 2) + '\n',
     [editJson]: JSON.stringify(edit, null, 2) + '\n',
     [`${names.listComponent}.jsx`]: listPage(names, listJson, editJson, list, edit),
-    [`${names.editComponent}.jsx`]: editPage(names, editJson, edit)
+    [`${names.editComponent}.jsx`]: editPage(names, editJson, edit),
+    [`${names.file}.hooks.js`]: hooksFile(names, edit)
   }
   return { files, names, list, edit }
 }
@@ -54,6 +56,47 @@ export default function ${n.listComponent}({ api }) {
       {...api}
     />
   )
+}
+`
+}
+
+function hooksFile(n, edit) {
+  return `// Server hooks for ${n.singular} records — screen "${edit.id}" (and "${n.key}_list", which edits in it).
+//
+// Register with @xeplr/factory:
+//   factory.init({ knex, hooks: { ${edit.id}: require('./${n.file}.hooks') } })
+//
+// Each operation has four hooks. Delete the ones you do not need.
+//   before(ctx)       first — save: return new values to replace them (they are then checked
+//                     against the screen's rules); get: narrow ctx.query; any: ctx.reject(message, { field })
+//   after(ctx)        once it succeeded — ctx.id, ctx.result; return a value to replace the result.
+//                     If it throws, the operation still happened (and error is told).
+//   error(ctx, err)   when the operation failed
+//   override(ctx)     does the WHOLE operation instead — no rules, no before / after / error,
+//                     no generic query. What it returns is the response.
+//
+// ctx: op, screenKey, screen, table, id, isNew (save), many (get), input (what the UI sent, read-only),
+//      values (save), previous (save / delete: the row before), result, user, tenant, knex, query (get), reject
+
+module.exports = {
+  save: {
+    // before: async function(ctx) { return ctx.values },
+    // after: async function(ctx) {},
+    // error: async function(ctx, err) {},
+    // override: async function(ctx) { return savedRecord },
+  },
+  get: {
+    // before: async function(ctx) { /* ctx.query.where(...) */ },
+    // after: async function(ctx) { return ctx.result },
+    // error: async function(ctx, err) {},
+    // override: async function(ctx) { return ctx.id ? record : records },
+  },
+  delete: {
+    // before: async function(ctx) {},
+    // after: async function(ctx) {},
+    // error: async function(ctx, err) {},
+    // override: async function(ctx) { return { id: ctx.id } },
+  }
 }
 `
 }

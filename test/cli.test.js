@@ -27,7 +27,9 @@ console.log('\nscreens: an entity becomes a list screen and an edit screen')
   check('the list page passes the edit screen to the popup', /screens=\{\{ \[editScreen\.id\]: editScreen \}\}/.test(readFileSync(path.join(out, 'EmployeeList.jsx'), 'utf8')))
   const again = run(['screens', example, '-o', out])
   check('refuses to overwrite a screen that may have been refined since', again.status === 1 && /--force/.test(again.stderr))
+  writeFileSync(path.join(out, 'employee.hooks.js'), '// my hooks\n')
   check('...unless forced', run(['screens', example, '-o', out, '--force']).status === 0)
+  check('...and even forced, the hooks file is kept', readFileSync(path.join(out, 'employee.hooks.js'), 'utf8') === '// my hooks\n')
 }
 
 console.log('\ngenerate')

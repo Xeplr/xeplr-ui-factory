@@ -36,13 +36,14 @@ export const AUTOSAVE_DELAY = 700
  * @param fetchRecords  async ({ source, node }) → records, for lists
  * @param onDelete      async ({ id, source, record }) → void
  * @param onChange      (values) → void — every change, before any save
+ * @param fetchRecord   async ({ screen, id }) → record — Edit loads the record fresh (through the server's get hooks)
  * @param screens       { id → document } — screens a list's Edit / New can open
  * @param loadScreen    async (id) → document — for screens not in `screens`
  * @param autosaveDelay ms (default 700)
  * @param controls      the control registry (default: the built-ins)
  */
 export function useFactoryScreen({
-  document: doc, record, recordKey = 'id', onSave, fetchOptions, fetchRecords, onDelete, onChange, screens, loadScreen,
+  document: doc, record, recordKey = 'id', onSave, fetchOptions, fetchRecords, fetchRecord, onDelete, onChange, screens, loadScreen,
   autosaveDelay = AUTOSAVE_DELAY, controls = CONTROLS
 } = {}) {
   const check = useMemo(() => validateDocument(doc, controls), [doc, controls])
@@ -76,6 +77,9 @@ export function useFactoryScreen({
   const [saveError, setSaveError] = useState(null)
   const [savedAt, setSavedAt] = useState(null)
   const [listVersion, setListVersion] = useState(0)
+  // Messages the SERVER put on fields — a hook's reject, a rule only it knows.
+  // Shown like the form's own, and cleared as soon as that field is changed.
+  const [serverErrors, setServerErrors] = useState({})
 
   // Latest of everything a delayed save needs, read at the moment it runs.
   const live = useRef({})
@@ -155,8 +159,15 @@ export function useFactoryScreen({
         setStatus('saved')
         return { ok: true, record: saved }
       } catch (err) {
-        setSaveError(err.message || 'Could not save')
-        setStatus('error')
+        const onFields = Array.isArray(err.fields) ? err.fields.filter((f) => f && f.field && f.message) : []
+        if (onFields.length) {
+          setServerErrors(Object.fromEntries(onFields.map((f) => [f.field, f.message])))
+          setStatus('invalid')
+          setSaveError(null)
+        } else {
+          setSaveError(err.message || 'Could not save')
+          setStatus('error')
+        }
         return { ok: false, error: err }
       } finally {
         inFlight.current = null
@@ -193,6 +204,12 @@ export function useFactoryScreen({
     else next[name] = value
     live.current.values = next
     setValues(next)
+    setServerErrors((e) => {
+      if (!(name in e)) return e
+      const rest = { ...e }
+      delete rest[name]
+      return rest
+    })
     if (!live.current.touched.has(name)) {
       const t = new Set(live.current.touched); t.add(name)
       live.current.touched = t
@@ -222,6 +239,7 @@ export function useFactoryScreen({
     setRecordId(live.current.recordId)
     setTouched(new Set())
     setSaveError(null)
+    setServerErrors({})
     setStatus('idle')
   }, [flush, startValues, recordKey])
 
@@ -273,6 +291,7 @@ export function useFactoryScreen({
   // ── popup: a list's Edit / New in its edit screen ─────────────────────
   const [popup, setPopup] = useState(null)   // { node, screenId, record, document, loading, error }
   const screensRef = useRef(screens); screensRef.current = screens
+  const fetchRecordRef = useRef(fetchRecord); fetchRecordRef.current = fetchRecord
   const loadScreenRef = useRef(loadScreen); loadScreenRef.current = loadScreen
 
   /** Edit (a record) or New (null) in the list's edit screen. */
@@ -286,7 +305,13 @@ export function useFactoryScreen({
       if (!found) throw new Error(`Screen "${screenId}" was not provided — pass it in \`screens\` or supply loadScreen`)
       const checked = validateDocument(found, live.current.controls)
       if (!checked.ok) throw new Error(`Screen "${screenId}" is not valid: ${checked.errors[0].path} ${checked.errors[0].message}`)
-      setPopup((p) => (p && p.screenId === screenId ? { ...p, document: found, loading: false } : p))
+      // Edit opens the record as it is NOW, through the server's get hooks —
+      // not the list's copy, which may be stale or shaped for the list.
+      let fresh = rec || null
+      if (rec && fetchRecordRef.current && rec[live.current.recordKey] !== undefined) {
+        fresh = await fetchRecordRef.current({ screen: screenId, id: rec[live.current.recordKey] })
+      }
+      setPopup((p) => (p && p.screenId === screenId ? { ...p, document: found, record: fresh, loading: false } : p))
     } catch (err) {
       setPopup((p) => (p && p.screenId === screenId ? { ...p, loading: false, error: err.message } : p))
     }
@@ -315,7 +340,7 @@ export function useFactoryScreen({
     popupSave,
     values,
     recordId,
-    errors: state.shown,
+    errors: { ...state.shown, ...serverErrors },
     allErrors: state.errors,
     status,
     saveError,

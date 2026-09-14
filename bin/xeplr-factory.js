@@ -5,7 +5,7 @@
 // turn a short spec into a laid-out document, and check a document before
 // handing it to an app, with errors precise enough to fix without guessing.
 //
-//   xeplr-factory screens entity.json [-o dir]           an entity → list + edit screens and their .jsx pages
+//   xeplr-factory screens entity.json [-o dir]           an entity → list + edit screens, their .jsx pages, a hooks stub
 //   xeplr-factory migration edit.screen.json [--from previous.screen.json] [-o migrations/]
 //                                                        the SQL that makes the table match the form
 //   xeplr-factory generate spec.json [-o screen.json]   spec → laid-out document
@@ -81,13 +81,18 @@ switch (cmd) {
     } catch (err) {
       fail(err.message)
     }
-    const targets = Object.keys(result.files).map((f) => path.join(dir, f))
+    // The hooks file is the app's own code — kept as it is, even with --force.
+    const hooksFile = Object.keys(result.files).find((f) => f.endsWith('.hooks.js'))
+    const keptHooks = hooksFile && existsSync(path.join(dir, hooksFile)) ? hooksFile : null
+    const writing = Object.keys(result.files).filter((f) => f !== keptHooks)
+    const targets = writing.map((f) => path.join(dir, f))
     // Never overwrite a screen someone has since refined in the designer.
     const existing = targets.filter((t) => existsSync(t))
     if (existing.length && !force) fail(`would overwrite ${existing.join(', ')} — pass --force to replace them`)
     mkdirSync(dir, { recursive: true })
-    Object.entries(result.files).forEach(([f, text]) => writeFileSync(path.join(dir, f), text))
+    writing.forEach((f) => writeFileSync(path.join(dir, f), result.files[f]))
     process.stderr.write(`wrote ${targets.join(', ')}\n`)
+    if (keptHooks) process.stderr.write(`kept ${path.join(dir, keptHooks)} — it is your code\n`)
     process.stderr.write(`list screen "${result.list.id}" opens "${result.edit.id}" for Edit / New; both use table "${result.edit.source}"\n`)
     break
   }

@@ -47,6 +47,7 @@ export function FactoryBuilder(props) {
  * @prop onSave       async (values, { id, source, document }) → the saved record, with its id
  * @prop fetchOptions async ({ table }) → [{ id, name }] — rows for table dropdowns
  * @prop fetchRecords async ({ source }) → records — rows for lists
+ * @prop fetchRecord  async ({ screen, id }) → record — Edit loads the record fresh
  * @prop onDelete     async ({ id, source, record }) → void
  * @prop onChange     (values) → void
  * @prop screens      { id → document } — the screens a list's Edit / New open in a popup
@@ -78,6 +79,7 @@ export function FactoryScreen(props) {
               recordKey={props.recordKey}
               onSave={ctrl.popupSave}
               fetchOptions={props.fetchOptions}
+              fetchRecord={props.fetchRecord}
               fetchRecords={props.fetchRecords}
               onDelete={props.onDelete}
               screens={props.screens}
