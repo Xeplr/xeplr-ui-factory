@@ -1,0 +1,202 @@
+// Checks a screen document BEFORE anything renders it, and says exactly what
+// is wrong and where.
+//
+// Two readers matter. A person saving from the builder needs to know which
+// control to fix. And Claude, which writes these documents from a plain-English
+// request, needs errors precise enough to correct its own output without
+// guessing — so every error names a path (`nodes[3].props.data.table`) and
+// what was expected there.
+//
+// Loud by design: a screen that half-renders — a dropdown with no options, two
+// fields writing the same key — looks like a data problem to whoever uses it.
+
+import { CONTROLS, LABEL_VARIANTS, BUTTON_ACTIONS } from './controls.js'
+import { DOCUMENT_KIND, DOCUMENT_VERSION } from './document.js'
+
+const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
+
+/**
+ * @returns {{ ok: boolean, errors: Array<{ path: string, message: string }> }}
+ */
+export function validateDocument(doc, controls = CONTROLS) {
+  const errors = []
+  const err = (path, message) => errors.push({ path, message })
+
+  if (!doc || typeof doc !== 'object' || Array.isArray(doc)) {
+    err('', 'A screen document must be an object')
+    return { ok: false, errors }
+  }
+  if (doc.kind !== DOCUMENT_KIND) err('kind', `must be "${DOCUMENT_KIND}"`)
+  if (doc.version !== DOCUMENT_VERSION) err('version', `must be ${DOCUMENT_VERSION}`)
+  if (!nonEmptyString(doc.id)) err('id', 'must be a non-empty string')
+  if (!nonEmptyString(doc.name)) err('name', 'must be a non-empty string — the screen\'s title, e.g. "New employee"')
+  if (doc.units !== 'fraction') err('units', 'must be "fraction"')
+  if (!(typeof doc.aspect === 'number' && doc.aspect > 0)) err('aspect', 'must be a number greater than 0 (1 = page as tall as it is wide)')
+  if (!Array.isArray(doc.nodes)) {
+    err('nodes', 'must be an array of controls')
+    return { ok: false, errors }
+  }
+
+  const ids = new Map()
+  const names = new Map()
+
+  doc.nodes.forEach((node, i) => {
+    const at = `nodes[${i}]`
+    if (!node || typeof node !== 'object') { err(at, 'must be an object'); return }
+
+    if (!nonEmptyString(node.id)) err(`${at}.id`, 'must be a non-empty string')
+    else if (ids.has(node.id)) err(`${at}.id`, `"${node.id}" is already used by nodes[${ids.get(node.id)}]`)
+    else ids.set(node.id, i)
+
+    const def = controls[node.type]
+    if (!def) {
+      err(`${at}.type`, `unknown control "${node.type}" — one of: ${Object.keys(controls).join(', ')}`)
+      return
+    }
+
+    checkGeometry(node, at, err)
+
+    const props = node.props
+    if (!props || typeof props !== 'object' || Array.isArray(props)) {
+      err(`${at}.props`, 'must be an object')
+      return
+    }
+    Object.keys(props).forEach((key) => {
+      if (!def.props.includes(key)) err(`${at}.props.${key}`, `is not a property of "${node.type}" — allowed: ${def.props.join(', ')}`)
+    })
+
+    if (def.input) {
+      if (!nonEmptyString(props.name)) err(`${at}.props.name`, 'is required — the key the value is saved under')
+      else if (!FIELD_NAME.test(props.name)) err(`${at}.props.name`, `"${props.name}" must start with a letter or _ and contain only letters, digits and _`)
+      else if (names.has(props.name)) err(`${at}.props.name`, `"${props.name}" is already used by nodes[${names.get(props.name)}] — two fields cannot save to one key`)
+      else names.set(props.name, i)
+
+      if (!nonEmptyString(props.label)) err(`${at}.props.label`, 'is required — the text shown above the field')
+      if (props.required !== undefined && typeof props.required !== 'boolean') err(`${at}.props.required`, 'must be true or false')
+      if (props.placeholder !== undefined && typeof props.placeholder !== 'string') err(`${at}.props.placeholder`, 'must be a string')
+      checkDefault(node, def, at, err)
+      checkValidation(node, def, at, err)
+    }
+
+    if (node.type === 'dropdown') checkDataSource(props.data, `${at}.props.data`, err)
+    if (node.type === 'label') {
+      if (typeof props.text !== 'string') err(`${at}.props.text`, 'must be a string')
+      if (props.variant !== undefined && !LABEL_VARIANTS.includes(props.variant)) err(`${at}.props.variant`, `must be one of: ${LABEL_VARIANTS.join(', ')}`)
+    }
+    if (node.type === 'button') {
+      if (!nonEmptyString(props.label)) err(`${at}.props.label`, 'is required — the text on the button')
+      if (props.action !== undefined && !BUTTON_ACTIONS.includes(props.action)) err(`${at}.props.action`, `must be one of: ${BUTTON_ACTIONS.join(', ')}`)
+    }
+  })
+
+  return { ok: errors.length === 0, errors }
+}
+
+/** Throws with every error listed. For code that must not continue with a bad document. */
+export function assertValidDocument(doc, controls) {
+  const { ok, errors } = validateDocument(doc, controls)
+  if (!ok) {
+    const e = new Error('Invalid screen document:\n' + errors.map((x) => `  ${x.path || '(document)'}: ${x.message}`).join('\n'))
+    e.errors = errors
+    throw e
+  }
+  return doc
+}
+
+function checkGeometry(node, at, err) {
+  ;['x', 'y', 'w', 'h'].forEach((k) => {
+    if (typeof node[k] !== 'number' || !Number.isFinite(node[k])) err(`${at}.${k}`, 'must be a number (a fraction — see "units")')
+  })
+  if (typeof node.x === 'number' && (node.x < 0 || node.x > 1)) err(`${at}.x`, 'must be between 0 and 1 (fraction of the width)')
+  if (typeof node.w === 'number' && (node.w <= 0 || node.w > 1)) err(`${at}.w`, 'must be greater than 0 and at most 1 (fraction of the width)')
+  if (typeof node.x === 'number' && typeof node.w === 'number' && node.x + node.w > 1.0001) err(`${at}.w`, `x + w is ${round(node.x + node.w)} — the control runs off the right edge (must be ≤ 1)`)
+  if (typeof node.y === 'number' && node.y < 0) err(`${at}.y`, 'must be 0 or more (fraction of a page)')
+  if (typeof node.h === 'number' && node.h <= 0) err(`${at}.h`, 'must be greater than 0 (fraction of a page)')
+  if (node.z !== undefined && !Number.isInteger(node.z)) err(`${at}.z`, 'must be a whole number')
+}
+
+function checkDefault(node, def, at, err) {
+  const v = node.props.default
+  if (v === undefined) return
+  const ok = {
+    string: () => typeof v === 'string',
+    number: () => typeof v === 'number' && Number.isFinite(v),
+    boolean: () => typeof v === 'boolean',
+    date: () => typeof v === 'string' && ISO_DATE.test(v)
+  }[def.valueType]
+  if (ok && !ok()) err(`${at}.props.default`, `must be a ${def.valueType === 'date' ? 'date as "YYYY-MM-DD"' : def.valueType}`)
+}
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+
+function checkValidation(node, def, at, err) {
+  const v = node.props.validation
+  if (v === undefined) return
+  if (!v || typeof v !== 'object' || Array.isArray(v)) { err(`${at}.props.validation`, 'must be an object'); return }
+  Object.keys(v).forEach((key) => {
+    const path = `${at}.props.validation.${key}`
+    if (!def.validation.includes(key)) {
+      err(path, def.validation.length
+        ? `is not a rule for "${node.type}" — allowed: ${def.validation.join(', ')}`
+        : `"${node.type}" takes no validation rules`)
+      return
+    }
+    const val = v[key]
+    if (key === 'minLength' || key === 'maxLength') {
+      if (!(Number.isInteger(val) && val >= 0)) err(path, 'must be a whole number, 0 or more')
+    } else if (key === 'integer') {
+      if (typeof val !== 'boolean') err(path, 'must be true or false')
+    } else if (key === 'pattern') {
+      try { new RegExp(val) } catch (_) { err(path, `"${val}" is not a valid regular expression`) }
+      if (typeof val !== 'string') err(path, 'must be a string')
+    } else if (key === 'patternMessage') {
+      if (typeof val !== 'string') err(path, 'must be a string')
+    } else if (def.valueType === 'number') {
+      if (!(typeof val === 'number' && Number.isFinite(val))) err(path, 'must be a number')
+    } else if (def.valueType === 'date') {
+      if (!(typeof val === 'string' && ISO_DATE.test(val))) err(path, 'must be a date as "YYYY-MM-DD"')
+    }
+  })
+  if (v.minLength != null && v.maxLength != null && v.minLength > v.maxLength) err(`${at}.props.validation`, 'minLength is greater than maxLength — nothing could pass')
+  if (typeof v.min === 'number' && typeof v.max === 'number' && v.min > v.max) err(`${at}.props.validation`, 'min is greater than max — nothing could pass')
+  if (typeof v.min === 'string' && typeof v.max === 'string' && v.min > v.max) err(`${at}.props.validation`, 'min is after max — no date could pass')
+}
+
+/**
+ * A dropdown's options: typed in, or read from a table. Either way each option
+ * is { id, name } — the id is what is saved, the name is what is shown.
+ */
+function checkDataSource(data, at, err) {
+  if (!data || typeof data !== 'object') {
+    err(at, 'is required — { "source": "static", "options": [{ "id", "name" }] } or { "source": "table", "table": "<name>" }')
+    return
+  }
+  if (data.source === 'static') {
+    if (!Array.isArray(data.options)) { err(`${at}.options`, 'must be an array of { id, name }'); return }
+    const seen = new Set()
+    data.options.forEach((o, j) => {
+      const p = `${at}.options[${j}]`
+      if (!o || typeof o !== 'object') { err(p, 'must be { id, name }'); return }
+      if (!(typeof o.id === 'string' || typeof o.id === 'number') || o.id === '') err(`${p}.id`, 'must be a non-empty string or a number')
+      else if (seen.has(o.id)) err(`${p}.id`, `"${o.id}" appears twice`)
+      else seen.add(o.id)
+      if (!nonEmptyString(o.name)) err(`${p}.name`, 'must be a non-empty string — what the user sees')
+      const extra = Object.keys(o).filter((k) => k !== 'id' && k !== 'name')
+      if (extra.length) err(p, `only "id" and "name" are used — remove: ${extra.join(', ')}`)
+    })
+  } else if (data.source === 'table') {
+    if (!nonEmptyString(data.table)) err(`${at}.table`, 'must name the table to read { id, name } rows from')
+    const extra = Object.keys(data).filter((k) => k !== 'source' && k !== 'table')
+    if (extra.length) err(at, `a table source takes only "table" — remove: ${extra.join(', ')}`)
+  } else {
+    err(`${at}.source`, 'must be "static" or "table"')
+  }
+}
+
+function nonEmptyString(v) {
+  return typeof v === 'string' && v.trim() !== ''
+}
+
+function round(v) {
+  return Math.round(v * 10000) / 10000
+}

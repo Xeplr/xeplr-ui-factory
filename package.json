@@ -1,0 +1,59 @@
+{
+  "name": "@xeplr/ui-factory",
+  "version": "1.0.0",
+  "description": "Design data-entry screens on @xeplr/ui-canvas, save them as JSON, render them as working forms — built for Claude to draft and people to refine",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./model": "./src/model.js",
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "xeplr-factory": "bin/xeplr-factory.js"
+  },
+  "files": [
+    "src/",
+    "bin/",
+    "AUTHORING.md"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "test": "for f in test/*.test.js; do node \"$f\" || exit 1; done"
+  },
+  "keywords": [
+    "form-builder",
+    "ui-builder",
+    "screen-designer",
+    "canvas",
+    "react",
+    "low-code",
+    "claude",
+    "xeplr"
+  ],
+  "author": "xeplr",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Xeplr/xeplr-ui-factory"
+  },
+  "homepage": "https://github.com/Xeplr/xeplr-ui-factory#readme",
+  "bugs": {
+    "url": "https://github.com/Xeplr/xeplr-ui-factory/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@xeplr/ui-canvas": "^1.0.2",
+    "react": "^18.0.0 || ^19.0.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^5.2.0",
+    "@xeplr/schema-handler": "^1.0.5",
+    "@xeplr/ui-canvas": "^1.0.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "vite": "^7.3.1"
+  }
+}

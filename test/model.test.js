@@ -1,0 +1,227 @@
+// The screen model — documents, the checker, values, and spec → screen.
+//
+// Plain script: prints its checks, exits non-zero on failure. No framework.
+import { createRequire } from 'node:module'
+import {
+  CONTROLS, createScreen, addControl, moveNode, setNodeProperty, removeNodes, inputNodes,
+  camelName, uniqueFieldName, validateDocument, assertValidDocument, formSchema, initialValues,
+  parseInput, validateValues, fieldError, optionValue, screenFromSpec, getAtPath, setAtPath
+} from '../src/model.js'
+import { normaliseOptions } from '../src/useFactoryScreen.js'
+
+const require = createRequire(import.meta.url)
+const results = []
+const check = (name, cond) => { results.push([name, cond]); console.log((cond ? '  ok   ' : '  FAIL ') + name) }
+const throws = (fn, re) => { try { fn(); return false } catch (e) { return re ? re.test(e.message) : true } }
+
+const EMPLOYEE = {
+  name: 'New employee',
+  fields: [
+    { label: 'First name', required: true },
+    { label: 'Last name', required: true },
+    { label: 'Email', validation: { pattern: '^\\S+@\\S+$', patternMessage: 'Enter a valid email' } },
+    { label: 'Department', type: 'dropdown', table: 'departments', required: true },
+    { label: 'Employment type', type: 'dropdown', options: ['Full time', 'Part time'] },
+    { label: 'Start date', type: 'date', validation: { min: '2020-01-01' } },
+    { label: 'Salary', type: 'number', validation: { min: 0, integer: true } },
+    { label: 'Remote', type: 'checkbox' },
+    { label: 'Notes', type: 'textarea', validation: { maxLength: 10 } }
+  ],
+  reset: 'Clear'
+}
+
+console.log('\na new screen')
+{
+  const doc = createScreen({ name: 'New employee' })
+  check('is named', doc.name === 'New employee')
+  check('gets an id from its name', doc.id === 'new_employee')
+  check('is proportional, a page as tall as it is wide', doc.units === 'fraction' && doc.aspect === 1)
+  check('starts empty and valid', doc.nodes.length === 0 && validateDocument(doc).ok)
+  check('an empty name still makes a valid screen', validateDocument(createScreen({ name: '   ' })).ok)
+}
+
+console.log('\nadding controls')
+{
+  let doc = createScreen({ name: 'X' })
+  let r = addControl(doc, 'text'); doc = r.document
+  check('the first control lands at the top-left margin', r.node.x === 0.04 && r.node.y === 0.04)
+  check('an input gets a field name from its label', r.node.props.name === 'text')
+  r = addControl(doc, 'text'); doc = r.document
+  check('a second one gets a unique name', r.node.props.name === 'text2')
+  check('...and a unique id', r.node.id !== doc.nodes[0].id)
+  check('...and goes below the first, not on top of it', r.node.y > doc.nodes[0].y + doc.nodes[0].h)
+  r = addControl(doc, 'dropdown', { at: { x: 0.9, y: -1 } }); doc = r.document
+  check('a drop near the right edge is pulled back onto the screen', r.node.x + r.node.w <= 1)
+  check('...and a negative y clamps to the top', r.node.y === 0)
+  check('adding never mutates the input', createScreen({ name: 'X' }).nodes.length === 0)
+  check('an unknown type is refused', throws(() => addControl(doc, 'slider'), /Unknown control/))
+  check('the result is valid', validateDocument(doc).ok)
+  check('a label control has no field name', addControl(doc, 'label').node.props.name === undefined)
+}
+
+console.log('\nediting')
+{
+  let doc = createScreen({ name: 'X' })
+  doc = addControl(doc, 'text', { props: { label: 'Email' } }).document
+  const id = doc.nodes[0].id
+  doc = moveNode(doc, id, { x: 0.123456789, y: 0.5, w: 0.3, junk: 5 })
+  check('a move rounds to 4 decimals', doc.nodes[0].x === 0.1235)
+  check('...and ignores anything that is not geometry', doc.nodes[0].junk === undefined)
+  doc = setNodeProperty(doc, id, 'props.validation.maxLength', 50)
+  check('a nested property is set by path', doc.nodes[0].props.validation.maxLength === 50)
+  doc = setNodeProperty(doc, id, 'props.validation.maxLength', undefined)
+  check('clearing the last rule removes the empty validation object', doc.nodes[0].props.validation === undefined)
+  doc = setNodeProperty(doc, id, 'props.placeholder', '')
+  check('a blank string removes the key rather than saving ""', !('placeholder' in doc.nodes[0].props))
+  doc = setNodeProperty(doc, id, 'props.required', false)
+  check('false is a value, kept', doc.nodes[0].props.required === false)
+  const labelDoc = addControl(createScreen({}), 'label').document
+  const emptied = setNodeProperty(setNodeProperty(labelDoc, labelDoc.nodes[0].id, 'props.text', undefined), labelDoc.nodes[0].id, 'props.variant', undefined)
+  check('emptying every prop still leaves props: {}', emptied.nodes[0].props && Object.keys(emptied.nodes[0].props).length === 0)
+  check('removing drops the node', removeNodes(doc, [id]).nodes.length === 0)
+
+  let dd = addControl(createScreen({}), 'dropdown').document
+  const ddId = dd.nodes[0].id
+  dd = setNodeProperty(dd, ddId, 'props.label', 'Office location')
+  check('relabelling a fresh control renames its field to match', dd.nodes[0].props.name === 'officeLocation')
+  dd = setNodeProperty(dd, ddId, 'props.label', 'Site')
+  check('...and keeps following while the name is still generated', dd.nodes[0].props.name === 'site')
+  dd = setNodeProperty(dd, ddId, 'props.name', 'site_id')
+  dd = setNodeProperty(dd, ddId, 'props.label', 'Branch')
+  check('a name someone typed is left alone', dd.nodes[0].props.name === 'site_id')
+  let two = addControl(addControl(createScreen({}), 'text', { props: { label: 'Email' } }).document, 'text').document
+  two = setNodeProperty(two, two.nodes[1].id, 'props.label', 'Email')
+  check('a followed name never collides with another field', two.nodes[1].props.name === 'email2' && validateDocument(two).ok)
+  check('an unknown id changes nothing', moveNode(doc, 'nope', { x: 0.5 }) === doc)
+}
+
+console.log('\nnames')
+check('"Date of birth" → dateOfBirth', camelName('Date of birth') === 'dateOfBirth')
+check('accents and punctuation are dropped', camelName('Café — Name!') === 'cafeName')
+check('a name cannot start with a digit', camelName('2nd line') === '_2ndLine')
+check('uniqueFieldName counts past taken names', uniqueFieldName({ nodes: [{ props: { name: 'a' } }, { props: { name: 'a2' } }] }, 'a') === 'a3')
+
+console.log('\npaths')
+check('getAtPath reads nested', getAtPath({ a: { b: { c: 1 } } }, 'a.b.c') === 1)
+check('...and is safe on a missing branch', getAtPath({}, 'a.b.c') === undefined)
+{
+  const src = { a: { b: 1 }, keep: { x: 1 } }
+  const out = setAtPath(src, 'a.b', 2)
+  check('setAtPath copies only along the path', out.keep === src.keep && src.a.b === 1 && out.a.b === 2)
+}
+
+console.log('\nthe checker says exactly what is wrong')
+{
+  const bad = {
+    kind: 'xeplr-screen', version: 1, id: 's', name: 'S', units: 'fraction', aspect: 1,
+    nodes: [
+      { id: 'a', type: 'text', x: 0.7, y: 0, w: 0.5, h: 0.1, props: { name: 'email', label: 'Email', colour: 'red' } },
+      { id: 'a', type: 'number', x: 0, y: 0.2, w: 0.4, h: 0.1, props: { name: 'email', label: 'Age', validation: { min: 10, max: 5, maxLength: 3 } } },
+      { id: 'c', type: 'dropdown', x: 0, y: 0.4, w: 0.4, h: 0.1, props: { name: '1st', label: 'Dept', data: { source: 'static', options: [{ id: 'x', name: 'X' }, { id: 'x', name: '' }] } } },
+      { id: 'd', type: 'dropdown', x: 0, y: 0.6, w: 0.4, h: 0.1, props: { name: 'dept', label: 'Dept', data: { source: 'sql', query: 'select *' } } },
+      { id: 'e', type: 'slider', x: 0, y: 0.8, w: 0.4, h: 0.1, props: {} },
+      { id: 'f', type: 'date', x: 0, y: 0.9, w: 0.4, h: 0.1, props: { name: 'start', label: 'Start', default: '14/09/2026' } }
+    ]
+  }
+  const { ok, errors } = validateDocument(bad)
+  const has = (path, re) => errors.some((e) => e.path === path && (!re || re.test(e.message)))
+  check('not ok', ok === false)
+  check('runs off the right edge', has('nodes[0].w', /right edge/))
+  check('an unknown property is named, with the allowed list', has('nodes[0].props.colour', /allowed: name, label/))
+  check('a duplicate id points at the first use', has('nodes[1].id', /nodes\[0\]/))
+  check('two fields saving to one key', has('nodes[1].props.name', /cannot save to one key/))
+  check('min above max', has('nodes[1].props.validation', /min is greater than max/))
+  check('a rule that does not belong to the type', has('nodes[1].props.validation.maxLength', /not a rule for "number"/))
+  check('a field name that is not an identifier', has('nodes[2].props.name', /must start with a letter/))
+  check('a repeated option id', has('nodes[2].props.data.options[1].id', /twice/))
+  check('an option with no name', has('nodes[2].props.data.options[1].name'))
+  check('a source that is not static or table', has('nodes[3].props.data.source', /"static" or "table"/))
+  check('an unknown control lists the real ones', has('nodes[4].type', /one of: text, textarea/))
+  check('a date default in the wrong format', has('nodes[5].props.default', /YYYY-MM-DD/))
+  check('assertValidDocument throws with every problem listed', throws(() => assertValidDocument(bad), /nodes\[0\]\.w[\s\S]*nodes\[5\]/))
+  check('a non-object is refused outright', !validateDocument(null).ok && !validateDocument([]).ok)
+}
+
+console.log('\nspec → screen')
+{
+  const doc = screenFromSpec(EMPLOYEE)
+  const byName = Object.fromEntries(doc.nodes.filter((n) => n.props.name).map((n) => [n.props.name, n]))
+  check('is valid', validateDocument(doc).ok)
+  check('a heading with the screen name comes first', doc.nodes[0].type === 'label' && doc.nodes[0].props.text === 'New employee')
+  check('two columns: first and last name share a row', byName.firstName.y === byName.lastName.y && byName.lastName.x > byName.firstName.x)
+  check('a textarea takes the full width', byName.notes.w > 0.9)
+  check('a table dropdown', byName.department.props.data.source === 'table' && byName.department.props.data.table === 'departments')
+  check('string options become { id, name }', JSON.stringify(byName.employmentType.props.data.options[0]) === '{"id":"full_time","name":"Full time"}')
+  check('no control overlaps another', noOverlaps(doc.nodes))
+  check('nothing runs off the right edge', doc.nodes.every((n) => n.x + n.w <= 1.0001))
+  const buttons = doc.nodes.filter((n) => n.type === 'button')
+  check('submit and reset buttons, side by side, below the fields', buttons.length === 2 && buttons[0].y === buttons[1].y && buttons[0].y > byName.notes.y)
+  check('one column stacks every field', noOverlaps(screenFromSpec({ ...EMPLOYEE, columns: 1 }).nodes) &&
+    screenFromSpec({ ...EMPLOYEE, columns: 1 }).nodes.filter((n) => n.props.name).every((n) => n.x === 0.04))
+  check('an unknown key is refused with the allowed list', throws(() => screenFromSpec({ name: 'X', fields: [{ label: 'A', colour: 'red' }] }), /unknown key\(s\) colour — allowed/))
+  check('a dropdown without options or table is refused', throws(() => screenFromSpec({ name: 'X', fields: [{ label: 'A', type: 'dropdown' }] }), /options: \[\.\.\.\] or table/))
+  check('options on a non-dropdown are refused', throws(() => screenFromSpec({ name: 'X', fields: [{ label: 'A', options: ['a'] }] }), /only apply to a dropdown/))
+  check('no name is refused', throws(() => screenFromSpec({ fields: [] }), /name is required/))
+  check('heading: false leaves it out', screenFromSpec({ ...EMPLOYEE, heading: false }).nodes[0].type !== 'label')
+}
+
+console.log('\nvalues')
+{
+  const doc = screenFromSpec(EMPLOYEE)
+  const node = (name) => doc.nodes.find((n) => n.props.name === name)
+  check('a checkbox starts unticked', initialValues(doc).remote === false)
+  check('provided values win', initialValues(doc, { firstName: 'Ada' }).firstName === 'Ada')
+  check('an emptied box is undefined, not ""', parseInput(node('firstName'), '') === undefined)
+  check('a cleared number is undefined, not 0', parseInput(node('salary'), '') === undefined)
+  check('a number box gives a number', parseInput(node('salary'), '42') === 42)
+  check('a <select> string maps back to a numeric table id', optionValue([{ id: 7, name: 'Ops' }], '7') === 7)
+
+  const errs = validateValues(doc, { email: 'nope', salary: 1.5, startDate: '2019-12-31', notes: 'far too long for ten', employmentType: 'freelance' })
+  check('required fields are reported by label', errs.firstName === 'First name is required')
+  check('a pattern uses its own message', errs.email === 'Enter a valid email')
+  check('whole numbers only', errs.salary === 'Salary must be a whole number')
+  check('an early date', errs.startDate === 'Start date must be on or after 2020-01-01')
+  check('too long', errs.notes === 'Notes must be at most 10 characters')
+  check('a static dropdown value that is not an option', errs.employmentType === 'Employment type must be one of the options')
+  check('a table dropdown is checked against its loaded rows', fieldError(node('department'), 9, [{ id: 1, name: 'A' }]) === 'Department must be one of the options')
+  check('...and a string id matches a numeric row', fieldError(node('department'), '1', [{ id: 1, name: 'A' }]) === null)
+  const good = { firstName: 'Ada', lastName: 'L', email: 'a@b', department: 3, employmentType: 'part_time', startDate: '2026-09-14', salary: 100, remote: true, notes: 'ok' }
+  check('a good record passes', Object.keys(validateValues(doc, good)).length === 0)
+
+  // PARITY: the screen's rules, as a schema, are what the host's server can
+  // enforce with @xeplr/schema-handler — and it must agree with the browser.
+  const { applySchema } = require('@xeplr/schema-handler')
+  const schema = formSchema(doc)
+  check('the form schema covers every input, in reading order', schema.map((f) => f.name).join() === inputNodes(doc).map((n) => n.props.name).join())
+  check('patternMessage is a UI detail, not sent to the schema', !schema.some((f) => f.validation && 'patternMessage' in f.validation))
+  check('server accepts what the screen accepts', !throws(() => applySchema(schema, good)))
+  const serverRejects = (values) => throws(() => applySchema(schema, values))
+  check('server rejects a missing required field too', serverRejects({ ...good, firstName: undefined }))
+  check('...a static option that is not listed', serverRejects({ ...good, employmentType: 'freelance' }))
+  check('...a fraction where whole numbers are required', serverRejects({ ...good, salary: 1.5 }))
+  check('...a pattern mismatch', serverRejects({ ...good, email: 'nope' }))
+  check('...text over maxLength', serverRejects({ ...good, notes: 'far too long for ten' }))
+}
+
+console.log('\noptions from the host')
+check('rows are reduced to { id, name }', JSON.stringify(normaliseOptions([{ id: 1, name: 'A', extra: true }])) === '[{"id":1,"name":"A"}]')
+check('a row with no id is dropped', normaliseOptions([{ name: 'x' }, { id: 0, name: 'zero' }]).length === 1)
+check('a missing name falls back to the id', normaliseOptions([{ id: 5 }])[0].name === '5')
+check('garbage is an empty list', normaliseOptions(null).length === 0)
+
+check('every control declares what the panel and checker need',
+  Object.values(CONTROLS).every((c) => c.type && c.label && c.defaultSize && Array.isArray(c.props) && Array.isArray(c.properties) && Array.isArray(c.validation)))
+
+function noOverlaps(nodes) {
+  for (let i = 0; i < nodes.length; i++) {
+    for (let j = i + 1; j < nodes.length; j++) {
+      const a = nodes[i], b = nodes[j]
+      if (a.x < b.x + b.w - 1e-6 && a.x + a.w > b.x + 1e-6 && a.y < b.y + b.h - 1e-6 && a.y + a.h > b.y + 1e-6) return false
+    }
+  }
+  return true
+}
+
+const failed = results.filter(([, ok]) => !ok)
+console.log(`\n${results.length - failed.length}/${results.length} passed`)
+process.exit(failed.length ? 1 : 0)

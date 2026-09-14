@@ -1,0 +1,242 @@
+{
+  "kind": "xeplr-screen",
+  "version": 1,
+  "id": "new_employee",
+  "name": "New employee",
+  "units": "fraction",
+  "aspect": 1,
+  "nodes": [
+    {
+      "id": "label",
+      "type": "label",
+      "x": 0.04,
+      "y": 0.04,
+      "w": 0.92,
+      "h": 0.07,
+      "z": 1,
+      "props": {
+        "text": "New employee",
+        "variant": "heading"
+      }
+    },
+    {
+      "id": "firstName",
+      "type": "text",
+      "x": 0.04,
+      "y": 0.15,
+      "w": 0.4475,
+      "h": 0.08,
+      "z": 2,
+      "props": {
+        "label": "First name",
+        "required": true,
+        "validation": {
+          "maxLength": 80
+        },
+        "name": "firstName"
+      }
+    },
+    {
+      "id": "lastName",
+      "type": "text",
+      "x": 0.5125,
+      "y": 0.15,
+      "w": 0.4475,
+      "h": 0.08,
+      "z": 3,
+      "props": {
+        "label": "Last name",
+        "required": true,
+        "validation": {
+          "maxLength": 80
+        },
+        "name": "lastName"
+      }
+    },
+    {
+      "id": "workEmail",
+      "type": "text",
+      "x": 0.04,
+      "y": 0.27,
+      "w": 0.4475,
+      "h": 0.08,
+      "z": 4,
+      "props": {
+        "label": "Work email",
+        "required": true,
+        "validation": {
+          "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$",
+          "patternMessage": "Enter a valid email address"
+        },
+        "name": "workEmail"
+      }
+    },
+    {
+      "id": "phone",
+      "type": "text",
+      "x": 0.5125,
+      "y": 0.27,
+      "w": 0.4475,
+      "h": 0.08,
+      "z": 5,
+      "props": {
+        "label": "Phone",
+        "validation": {
+          "pattern": "^[0-9+ ()-]{7,20}$",
+          "patternMessage": "Enter a valid phone number"
+        },
+        "name": "phone"
+      }
+    },
+    {
+      "id": "label2",
+      "type": "label",
+      "x": 0.04,
+      "y": 0.39,
+      "w": 0.92,
+      "h": 0.055,
+      "z": 6,
+      "props": {
+        "text": "Employment",
+        "variant": "subheading"
+      }
+    },
+    {
+      "id": "department",
+      "type": "dropdown",
+      "x": 0.04,
+      "y": 0.485,
+      "w": 0.4475,
+      "h": 0.08,
+      "z": 7,
+      "props": {
+        "label": "Department",
+        "placeholder": "Select…",
+        "data": {
+          "source": "table",
+          "table": "departments"
+        },
+        "required": true,
+        "name": "department"
+      }
+    },
+    {
+      "id": "employmentType",
+      "type": "dropdown",
+      "x": 0.5125,
+      "y": 0.485,
+      "w": 0.4475,
+      "h": 0.08,
+      "z": 8,
+      "props": {
+        "label": "Employment type",
+        "placeholder": "Select…",
+        "data": {
+          "source": "static",
+          "options": [
+            {
+              "id": "full_time",
+              "name": "Full time"
+            },
+            {
+              "id": "part_time",
+              "name": "Part time"
+            },
+            {
+              "id": "contract",
+              "name": "Contract"
+            }
+          ]
+        },
+        "required": true,
+        "name": "employmentType"
+      }
+    },
+    {
+      "id": "startDate",
+      "type": "date",
+      "x": 0.04,
+      "y": 0.605,
+      "w": 0.4475,
+      "h": 0.08,
+      "z": 9,
+      "props": {
+        "label": "Start date",
+        "required": true,
+        "name": "startDate"
+      }
+    },
+    {
+      "id": "annualSalary",
+      "type": "number",
+      "x": 0.5125,
+      "y": 0.605,
+      "w": 0.4475,
+      "h": 0.08,
+      "z": 10,
+      "props": {
+        "label": "Annual salary",
+        "validation": {
+          "min": 0
+        },
+        "name": "annualSalary"
+      }
+    },
+    {
+      "id": "remote",
+      "type": "checkbox",
+      "x": 0.04,
+      "y": 0.725,
+      "w": 0.4475,
+      "h": 0.06,
+      "z": 11,
+      "props": {
+        "label": "Remote",
+        "default": false,
+        "name": "remote"
+      }
+    },
+    {
+      "id": "notes",
+      "type": "textarea",
+      "x": 0.04,
+      "y": 0.825,
+      "w": 0.92,
+      "h": 0.18,
+      "z": 12,
+      "props": {
+        "label": "Notes",
+        "validation": {
+          "maxLength": 1000
+        },
+        "name": "notes"
+      }
+    },
+    {
+      "id": "button",
+      "type": "button",
+      "x": 0.04,
+      "y": 1.045,
+      "w": 0.18,
+      "h": 0.07,
+      "z": 13,
+      "props": {
+        "label": "Create employee",
+        "action": "submit"
+      }
+    },
+    {
+      "id": "button2",
+      "type": "button",
+      "x": 0.245,
+      "y": 1.045,
+      "w": 0.18,
+      "h": 0.07,
+      "z": 14,
+      "props": {
+        "label": "Clear",
+        "action": "reset"
+      }
+    }
+  ]
+}

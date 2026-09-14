@@ -1,0 +1,209 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { CONTROLS, controlGroups } from './controls.js'
+import {
+  createScreen, renameScreen, addControl as addControlTo, moveNode, setNodeProperty,
+  removeNodes
+} from './document.js'
+import { validateDocument } from './validateDocument.js'
+
+// The builder's controller: the document being edited, what is selected, and
+// every change the builder can make. No JSX — designs/BuilderSample.jsx draws
+// it, and a host with its own design can use this hook directly.
+//
+// STORAGE IS THE HOST'S. This never loads or persists anything: it starts from
+// the `document` it is handed and gives the result to `onSave`. A document
+// handed in LATER (Claude regenerated the screen, another record was opened)
+// replaces what is being edited.
+
+/**
+ * @param document    the screen to edit; omitted → a new empty screen
+ * @param name        the name for a new screen (when no document)
+ * @param onSave      async (document) → void; called only with a valid document
+ * @param onChange    (document) → void; every edit, for hosts that autosave or preview
+ * @param listTables  async () → [{ id, name }] | string[]; offered in a dropdown's
+ *                    "from a table" picker. Omitted → table sources can still be typed.
+ * @param controls    the control registry (default: the built-ins)
+ */
+export function useFactoryBuilder({ document: given, name, onSave, onChange, listTables, controls = CONTROLS } = {}) {
+  const [doc, setDoc] = useState(() => given || createScreen({ name }))
+  const [selected, setSelected] = useState(() => new Set())
+  const [dirty, setDirty] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState(null)
+  const [showErrors, setShowErrors] = useState(false)
+  const docRef = useRef(doc); docRef.current = doc
+
+  // A NEW document from outside replaces the draft. Compared by identity: the
+  // host re-rendering with the same object must not throw away edits.
+  const lastGiven = useRef(given)
+  useEffect(() => {
+    if (!given || given === lastGiven.current) return
+    lastGiven.current = given
+    docRef.current = given
+    setDoc(given)
+    setSelected(new Set())
+    setDirty(false)
+    setShowErrors(false)
+  }, [given])
+
+  // Every edit goes through here. It works on a REF of the current document,
+  // not a state updater: an edit that needs its own result (the id of the
+  // control just added) gets it synchronously, and two edits in one event
+  // build on each other instead of both starting from the same render.
+  const onChangeRef = useRef(onChange); onChangeRef.current = onChange
+  const update = useCallback((fn) => {
+    const current = docRef.current
+    const next = fn(current)
+    if (next === current) return current
+    docRef.current = next
+    setDoc(next)
+    setDirty(true)
+    onChangeRef.current?.(next)
+    return next
+  }, [])
+
+  // ── tables for the dropdown source picker ─────────────────────────────
+  const [tables, setTables] = useState({ loading: Boolean(listTables), items: [], error: null })
+  const listTablesRef = useRef(listTables); listTablesRef.current = listTables
+  const hasListTables = Boolean(listTables)
+  useEffect(() => {
+    if (!hasListTables) return undefined
+    let cancelled = false
+    Promise.resolve()
+      .then(() => listTablesRef.current())
+      .then((rows) => {
+        if (cancelled) return
+        const items = (rows || []).map((t) => (typeof t === 'string' ? { id: t, name: t } : t))
+        setTables({ loading: false, items, error: null })
+      })
+      .catch((err) => { if (!cancelled) setTables({ loading: false, items: [], error: err.message || 'Could not list tables' }) })
+    return () => { cancelled = true }
+  }, [hasListTables])
+
+  // ── edits ─────────────────────────────────────────────────────────────
+  const rename = useCallback((value) => update((d) => renameScreen(d, value)), [update])
+
+  /** Adds a control and selects it, so its properties are open straight away. */
+  const addControl = useCallback((type, at) => {
+    let added = null
+    update((d) => {
+      const r = addControlTo(d, type, { at }, controls)
+      added = r.node
+      return r.document
+    })
+    if (added) setSelected(new Set([added.id]))
+    return added
+  }, [update, controls])
+
+  const moveControl = useCallback((id, patch) => update((d) => moveNode(d, id, patch)), [update])
+
+  const setProperty = useCallback((id, path, value) => update((d) => setNodeProperty(d, id, path, value, controls)), [update, controls])
+
+  const selectedRef = useRef(selected); selectedRef.current = selected
+  const removeSelected = useCallback(() => {
+    const ids = [...selectedRef.current]
+    if (!ids.length) return
+    update((d) => removeNodes(d, ids))
+    setSelected(new Set())
+  }, [update])
+
+  /** Everything selected moves to a copy, just below the original. */
+  const duplicateSelected = useCallback(() => {
+    const ids = [...selectedRef.current]
+    if (!ids.length) return
+    const created = []
+    update((d) => {
+      let next = d
+      ids.forEach((id) => {
+        const src = d.nodes.find((n) => n.id === id)
+        if (!src) return
+        const props = JSON.parse(JSON.stringify(src.props))
+        delete props.name
+        const r = addControlTo(next, src.type, { at: { x: src.x, y: src.y + src.h + 0.02 }, size: { w: src.w, h: src.h }, props }, controls)
+        next = r.document
+        created.push(r.node.id)
+      })
+      return next
+    })
+    setSelected(new Set(created))
+  }, [update, controls])
+
+  // ── validation + save ─────────────────────────────────────────────────
+  const validation = useMemo(() => validateDocument(doc, controls), [doc, controls])
+
+  /** Errors grouped by node id, for the canvas and the property panel. */
+  const errorsByNode = useMemo(() => {
+    const map = {}
+    validation.errors.forEach((e) => {
+      const m = /^nodes\[(\d+)\]\.?(.*)$/.exec(e.path)
+      const node = m && doc.nodes[Number(m[1])]
+      const key = node ? node.id : '_document'
+      ;(map[key] = map[key] || []).push({ ...e, field: m ? m[2] : e.path })
+    })
+    return map
+  }, [validation, doc.nodes])
+
+  const onSaveRef = useRef(onSave); onSaveRef.current = onSave
+  const save = useCallback(async () => {
+    setShowErrors(true)
+    setSaveError(null)
+    if (!validation.ok) return { ok: false, errors: validation.errors }
+    if (!onSaveRef.current) return { ok: false, errors: [{ path: '', message: 'No onSave was provided' }] }
+    setSaving(true)
+    try {
+      await onSaveRef.current(doc)
+      setDirty(false)
+      setShowErrors(false)
+      return { ok: true }
+    } catch (err) {
+      setSaveError(err.message || 'Could not save')
+      return { ok: false, errors: [{ path: '', message: err.message }] }
+    } finally {
+      setSaving(false)
+    }
+  }, [doc, validation])
+
+  // ── keyboard: Delete / Backspace removes, Cmd/Ctrl+D duplicates ────────
+  useEffect(() => {
+    function onKey(e) {
+      const t = e.target
+      const typing = t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))
+      if (typing) return
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selected.size) {
+        e.preventDefault()
+        removeSelected()
+      } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'd' && selected.size) {
+        e.preventDefault()
+        duplicateSelected()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selected, removeSelected, duplicateSelected])
+
+  const selectedNode = selected.size === 1 ? doc.nodes.find((n) => selected.has(n.id)) || null : null
+
+  return {
+    document: doc,
+    controls,
+    palette: useMemo(() => controlGroups(controls), [controls]),
+    selected,
+    setSelected,
+    selectedNode,
+    selectedControl: selectedNode ? controls[selectedNode.type] : null,
+    rename,
+    addControl,
+    moveControl,
+    setProperty,
+    removeSelected,
+    duplicateSelected,
+    tables,
+    validation,
+    errorsByNode,
+    showErrors,
+    dirty,
+    saving,
+    saveError,
+    save
+  }
+}
