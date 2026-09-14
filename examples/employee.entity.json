@@ -13,5 +13,5 @@
     { "label": "Remote", "type": "checkbox" },
     { "label": "Notes", "type": "textarea", "validation": { "maxLength": 1000 } }
   ],
-  "listColumns": ["firstName", "lastName", "workEmail", "department", "startDate"]
+  "listColumns": ["firstName", "lastName", "workEmail", "departmentId", "startDate"]
 }

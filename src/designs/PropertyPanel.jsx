@@ -6,7 +6,7 @@ import { FONT_FAMILIES, STYLE_KEYS, SCREEN_STYLE_KEYS, LIST_ACTIONS } from '../c
 // each field there names a path and an editor type, and this file owns only
 // what each editor type looks like. A new property is a line in controls.js.
 
-export default function PropertyPanel({ doc, node, control, errors, tables, screens, onChange, onScreenChange, onRemove, selectionCount }) {
+export default function PropertyPanel({ doc, node, control, errors, tables, screens, lockedNames, onChange, onScreenChange, onRemove, selectionCount }) {
   if (selectionCount > 1) {
     return (
       <aside className="xeplr-factory-panel">
@@ -36,7 +36,9 @@ export default function PropertyPanel({ doc, node, control, errors, tables, scre
           {group.fields.map((field) => {
             const errs = errorsFor(field.path)
             errs.forEach((e) => shown.add(e))
-            const Editor = EDITORS[field.type] || TextEditor
+            // A field name that is already a column cannot change — see setNodeProperty.
+            const locked = field.path === 'props.name' && (lockedNames || []).includes(node.props?.name)
+            const Editor = locked ? LockedEditor : (EDITORS[field.type] || TextEditor)
             const id = `xf-prop-${node.id}-${field.path.replace(/\W+/g, '-')}`
             return (
               <div key={field.path} className={`xeplr-factory-prop${errs.length ? ' has-error' : ''}`}>
@@ -52,7 +54,9 @@ export default function PropertyPanel({ doc, node, control, errors, tables, scre
                   doc={doc}
                   errors={errs}
                 />
-                {field.help && <div className="xeplr-factory-prop-help">{field.help}</div>}
+                {locked
+                  ? <div className="xeplr-factory-prop-help">Saved as a column of <code>{doc?.source}</code> — renaming it would leave its data behind. A rename is a migration.</div>
+                  : field.help && <div className="xeplr-factory-prop-help">{field.help}</div>}
                 {errs.filter((e) => e.field === field.path).map((e, i) => (
                   <div key={i} className="xeplr-factory-prop-error">{e.message}</div>
                 ))}
@@ -115,6 +119,10 @@ function ScreenPanel({ doc, errors, tables, onChange }) {
       </fieldset>
     </aside>
   )
+}
+
+function LockedEditor({ id, value }) {
+  return <input id={id} className="xeplr-factory-prop-input xeplr-factory-mono" type="text" value={value ?? ''} readOnly aria-readonly="true" />
 }
 
 function TextEditor({ id, value, onChange }) {

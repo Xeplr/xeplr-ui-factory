@@ -7,7 +7,8 @@ import {
   camelName, uniqueFieldName, validateDocument, assertValidDocument, formSchema, initialValues,
   parseInput, validateValues, fieldError, optionValue, screenFromSpec, getAtPath, setAtPath,
   saveState, recordValues, displayValue, listColumns, listSource, setScreenProperty,
-  screensFromSpec, entityNames, scaffoldEntity
+  screensFromSpec, entityNames, scaffoldEntity,
+  tableForScreen, columnForField, migrationFor, nextMigrationName
 } from '../src/model.js'
 import { normaliseOptions } from '../src/useFactoryScreen.js'
 
@@ -154,7 +155,7 @@ console.log('\nspec → screen')
   check('a heading with the screen name comes first', doc.nodes[0].type === 'label' && doc.nodes[0].props.text === 'New employee')
   check('two columns: first and last name share a row', byName.firstName.y === byName.lastName.y && byName.lastName.x > byName.firstName.x)
   check('a textarea takes the full width', byName.notes.w > 0.9)
-  check('a table dropdown', byName.department.props.data.source === 'table' && byName.department.props.data.table === 'departments')
+  check('a table dropdown', byName.departmentId.props.data.source === 'table' && byName.departmentId.props.data.table === 'departments')
   check('string options become { id, name }', JSON.stringify(byName.employmentType.props.data.options[0]) === '{"id":"full_time","name":"Full time"}')
   check('no control overlaps another', noOverlaps(doc.nodes))
   check('nothing runs off the right edge', doc.nodes.every((n) => n.x + n.w <= 1.0001))
@@ -190,9 +191,9 @@ console.log('\nvalues')
   check('an early date', errs.startDate === 'Start date must be on or after 2020-01-01')
   check('too long', errs.notes === 'Notes must be at most 10 characters')
   check('a static dropdown value that is not an option', errs.employmentType === 'Employment type must be one of the options')
-  check('a table dropdown is checked against its loaded rows', fieldError(node('department'), 9, [{ id: 1, name: 'A' }]) === 'Department must be one of the options')
-  check('...and a string id matches a numeric row', fieldError(node('department'), '1', [{ id: 1, name: 'A' }]) === null)
-  const good = { firstName: 'Ada', lastName: 'L', email: 'a@b', department: 3, employmentType: 'part_time', startDate: '2026-09-14', salary: 100, remote: true, notes: 'ok' }
+  check('a table dropdown is checked against its loaded rows', fieldError(node('departmentId'), 9, [{ id: 1, name: 'A' }]) === 'Department must be one of the options')
+  check('...and a string id matches a numeric row', fieldError(node('departmentId'), '1', [{ id: 1, name: 'A' }]) === null)
+  const good = { firstName: 'Ada', lastName: 'L', email: 'a@b', departmentId: 3, employmentType: 'part_time', startDate: '2026-09-14', salary: 100, remote: true, notes: 'ok' }
   check('a good record passes', Object.keys(validateValues(doc, good)).length === 0)
 
   // PARITY: the screen's rules, as a schema, are what the host's server can
@@ -250,7 +251,7 @@ console.log('\nlists')
   check('an unknown action is refused', validateDocument({ ...doc, nodes: doc.nodes.map((n) => (n.type === 'list' ? { ...n, props: { ...n.props, actions: ['edit', 'archive'] } } : n)) }).errors.some((e) => /actions\[1\]/.test(e.path)))
   const node = (name) => doc.nodes.find((n) => n.props.name === name)
   check('a static dropdown shows its name in a list', displayValue(node('employmentType'), 'part_time') === 'Part time')
-  check('a table dropdown shows the loaded name', displayValue(node('department'), 2, [{ id: 2, name: 'Finance' }]) === 'Finance')
+  check('a table dropdown shows the loaded name', displayValue(node('departmentId'), 2, [{ id: 2, name: 'Finance' }]) === 'Finance')
   check('a checkbox reads Yes / No', displayValue(node('remote'), true) === 'Yes' && displayValue(node('remote'), false) === 'No')
   const rec = recordValues(doc, { id: 9, firstName: 'Ada', startDate: '2026-10-01T00:00:00Z', unknownColumn: 1 })
   check('Edit takes the screen\'s fields from a record', rec.firstName === 'Ada' && rec.startDate === '2026-10-01')
@@ -260,7 +261,7 @@ console.log('\nlists')
 
 console.log('\nan entity is two screens')
 {
-  const { list, edit } = screensFromSpec({ entity: 'employee', fields: EMPLOYEE.fields, listColumns: ['firstName', { field: 'department', label: 'Dept' }] })
+  const { list, edit } = screensFromSpec({ entity: 'employee', fields: EMPLOYEE.fields, listColumns: ['firstName', { field: 'departmentId', label: 'Dept' }] })
   check('both are valid', validateDocument(list).ok && validateDocument(edit).ok)
   check('ids follow the entity', list.id === 'employee_list' && edit.id === 'employee_edit')
   check('both use one table, named from the plural', list.source === 'employees' && edit.source === 'employees')
@@ -282,6 +283,43 @@ console.log('\nan entity is two screens')
   check('an editScreen must be a screen id', validateDocument(bad).errors.some((e) => /editScreen/.test(e.path)))
 }
 
+console.log('\na form is a real table')
+{
+  const { edit } = screensFromSpec({ entity: 'employee', fields: EMPLOYEE.fields })
+  const { table, columns } = tableForScreen(edit)
+  const col = Object.fromEntries(columns.map((c) => [c.name, c]))
+  check('the table is the screen source', table === 'employees')
+  check('one column per field, named as the field', columns.map((c) => c.name).join() === inputNodes(edit).map((n) => n.props.name).join())
+  check('a table dropdown is a foreign key column named …Id', col.departmentId && col.departmentId.references === 'departments' && col.departmentId.length === 25)
+  check('types: date, numeric, integer, boolean, text', col.startDate.type === 'date' && col.salary.type === 'integer' && col.remote.type === 'boolean' && col.notes.type === 'text')
+  check('a text maxLength becomes the varchar length', col.notes.type === 'text' && columnForField({ type: 'text', props: { name: 'a', validation: { maxLength: 80 } } }).length === 80)
+  const create = migrationFor(null, edit)
+  check('first migration creates the table with standard columns', /CREATE TABLE IF NOT EXISTS "employees"/.test(create.sql) && /"isActive"/.test(create.sql) && /"mtId1"/.test(create.sql) && /"recordCreatedBy"/.test(create.sql))
+  check('...a foreign key and its index', /"departmentId"\s+varchar\(25\) REFERENCES "departments"\("id"\)/.test(create.sql) && /employees_departmentId_index/.test(create.sql))
+  check('no JSON columns', !/json/i.test(create.sql))
+
+  let v2 = addControl(edit, 'text', { props: { label: 'Employee code', validation: { maxLength: 12 } } }).document
+  v2 = setNodeProperty(v2, 'firstName', 'props.validation.maxLength', 300)
+  v2 = removeNodes(v2, ['notes'])
+  const upd = migrationFor(edit, v2)
+  check('a new field is ADD COLUMN', /ALTER TABLE "employees" ADD COLUMN IF NOT EXISTS "employeeCode" varchar\(12\)/.test(upd.sql))
+  check('a wider text is ALTER TYPE', /ALTER COLUMN "firstName" TYPE varchar\(300\)/.test(upd.sql))
+  check('a removed field keeps its column, and says so', !/^\s*(ALTER TABLE[^;]*DROP|DROP )/im.test(upd.sql) && /Kept[^\n]*"notes"/.test(upd.sql))
+  check('no change, no migration', migrationFor(edit, edit).empty)
+  check('narrowing is refused', throws(() => migrationFor(setNodeProperty(edit, 'firstName', 'props.validation.maxLength', 80), setNodeProperty(edit, 'firstName', 'props.validation.maxLength', 10)), /would cut longer values/))
+  check('integer → numeric is allowed (wider)', /TYPE numeric/.test(migrationFor(edit, setNodeProperty(edit, 'salary', 'props.validation.integer', undefined)).sql))
+  check('numeric → integer is refused', throws(() => migrationFor(setNodeProperty(edit, 'salary', 'props.validation.integer', undefined), edit), /different kind of value/))
+  check('pointing a dropdown at another table is refused', throws(() => migrationFor(edit, setNodeProperty(edit, 'departmentId', 'props.data', { source: 'table', table: 'teams' })), /points at "departments"/))
+  check('a screen with no fields has no table', throws(() => tableForScreen(screensFromSpec({ entity: 'x', fields: [{ label: 'A' }] }).list), /no fields/))
+  check('migration files continue the app numbering', nextMigrationName(['0066_dashboard_groups.sql', 'readme.txt'], 'employees', true) === '0067_factory_employees_create.sql')
+  check('a field may not take a standard column name', validateDocument(setNodeProperty(edit, 'firstName', 'props.name', 'isActive')).errors.some((e) => /standard column/.test(e.message)))
+
+  const locked = setNodeProperty(edit, 'firstName', 'props.name', 'givenName', undefined, { lockedNames: ['firstName'] })
+  check('a locked field name cannot be renamed', locked === edit)
+  const relabelled = setNodeProperty(edit, 'firstName', 'props.label', 'Given name', undefined, { lockedNames: ['firstName'] })
+  check('...nor follow its label', relabelled.nodes.find((n) => n.id === 'firstName').props.name === 'firstName')
+}
+
 console.log('\nautosave')
 {
   const doc = screenFromSpec(EMPLOYEE)
@@ -289,7 +327,7 @@ console.log('\nautosave')
   check('an untouched empty form does not save, and shows no errors', !empty.canSave && empty.status === 'incomplete' && Object.keys(empty.shown).length === 0)
   const typed = saveState(doc, { firstName: 'Ada', salary: 1.5 }, new Set(['firstName', 'salary']))
   check('a touched field that is wrong is shown and blocks saving', !typed.canSave && typed.status === 'invalid' && typed.shown.salary && !typed.shown.lastName)
-  const good = { firstName: 'Ada', lastName: 'L', email: 'a@b', department: 3, employmentType: 'part_time', startDate: '2026-09-14', remote: false }
+  const good = { firstName: 'Ada', lastName: 'L', email: 'a@b', departmentId: 3, employmentType: 'part_time', startDate: '2026-09-14', remote: false }
   const ready = saveState(doc, good, new Set(['firstName']))
   check('a complete, valid form is ready to save', ready.canSave && ready.status === 'ready')
 }

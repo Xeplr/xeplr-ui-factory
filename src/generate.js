@@ -24,7 +24,7 @@
 // there it is edited like any other.
 
 import { CONTROLS } from './controls.js'
-import { createScreen, addControl, MARGIN, GAP, slugify } from './document.js'
+import { createScreen, addControl, MARGIN, GAP, slugify, camelName } from './document.js'
 import { assertValidDocument } from './validateDocument.js'
 
 /** Heights by control, as page fractions (a page is as tall as it is wide). */
@@ -134,7 +134,12 @@ function propsFromField(type, field, at) {
     if (field[k] !== undefined) props[k] = field[k]
   })
   if (type === 'dropdown' && props.placeholder === undefined) props.placeholder = 'Select…'
-  if (type === 'dropdown') props.data = dataFromField(field, at)
+  if (type === 'dropdown') {
+    props.data = dataFromField(field, at)
+    // A dropdown reading another table stores that row's id: name the column
+    // for what it holds — "Department" → departmentId, a foreign key.
+    if (props.data.source === 'table' && props.name === undefined) props.name = camelName(field.label) + 'Id'
+  }
   else if (field.options || field.table || field.data) throw new Error(`screenFromSpec: ${at} — options/table/data only apply to a dropdown`)
   return props
 }

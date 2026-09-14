@@ -6,6 +6,8 @@
 // handing it to an app, with errors precise enough to fix without guessing.
 //
 //   xeplr-factory screens entity.json [-o dir]           an entity → list + edit screens and their .jsx pages
+//   xeplr-factory migration edit.screen.json [--from previous.screen.json] [-o migrations/]
+//                                                        the SQL that makes the table match the form
 //   xeplr-factory generate spec.json [-o screen.json]   spec → laid-out document
 //   xeplr-factory validate screen.json                   check a document (exit 1 on problems)
 //   xeplr-factory controls                               the controls and their props
@@ -13,16 +15,18 @@
 //
 // "-" as the file reads stdin.
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs'
 import path from 'node:path'
 import { CONTROLS } from '../src/controls.js'
 import { screenFromSpec } from '../src/generate.js'
 import { scaffoldEntity } from '../src/scaffold.js'
+import { migrationFor, nextMigrationName } from '../src/tableSchema.js'
 import { validateDocument } from '../src/validateDocument.js'
 import { formSchema } from '../src/values.js'
 
 const USAGE = `usage:
   xeplr-factory screens <entity.json|-> [-o <dir>] [--force]
+  xeplr-factory migration <edit.screen.json> [--from <previous.screen.json>] [-o <migrations dir>]
   xeplr-factory generate <spec.json|-> [-o <out.json>]
   xeplr-factory validate <screen.json|->
   xeplr-factory controls
@@ -85,6 +89,41 @@ switch (cmd) {
     Object.entries(result.files).forEach(([f, text]) => writeFileSync(path.join(dir, f), text))
     process.stderr.write(`wrote ${targets.join(', ')}\n`)
     process.stderr.write(`list screen "${result.list.id}" opens "${result.edit.id}" for Edit / New; both use table "${result.edit.source}"\n`)
+    break
+  }
+
+  case 'migration': {
+    if (!args[0]) fail(USAGE, 2)
+    const f = args.indexOf('--from')
+    const o = args.indexOf('-o')
+    const next = readJson(args[0])
+    const previous = f !== -1 ? readJson(args[f + 1]) : null
+    for (const [label, doc] of [['screen', next], ['--from screen', previous]]) {
+      if (!doc) continue
+      const { ok, errors } = validateDocument(doc)
+      if (!ok) fail(`the ${label} is not valid — run validate first (${errors.length} problems)`)
+    }
+    let result
+    try {
+      result = migrationFor(previous, next)
+    } catch (err) {
+      fail(err.message)
+    }
+    if (result.empty) {
+      process.stderr.write(`"${result.table}" already matches the form — no migration needed\n`)
+      if (result.diff.unused.length) process.stderr.write(`(columns no longer on the screen, kept: ${result.diff.unused.map((c) => c.name).join(', ')})\n`)
+      break
+    }
+    if (o !== -1) {
+      const dir = args[o + 1]
+      const existing = existsSync(dir) ? readdirSync(dir).filter((x) => x.endsWith('.sql')) : []
+      const file = path.join(dir, nextMigrationName(existing, result.table, result.diff.create))
+      mkdirSync(dir, { recursive: true })
+      writeFileSync(file, result.sql)
+      process.stderr.write(`wrote ${file}\n`)
+    } else {
+      process.stdout.write(result.sql)
+    }
     break
   }
 

@@ -1,6 +1,6 @@
 import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import { FactoryBuilder, FactoryScreen } from '../src/index.js'
+import { FactoryBuilder, FactoryScreen, inputNodes } from '../src/index.js'
 import listExample from '../examples/employee-list.screen.json'
 import editExample from '../examples/employee-edit.screen.json'
 import './dev.css'
@@ -87,6 +87,17 @@ function App() {
     write(designKey(doc.id), doc)
     setDesigns((d) => ({ ...d, [doc.id]: doc }))
   }
+  // Stand-in for @xeplr/factory's publish: a version number, and the fields
+  // that are now "columns" — which the designer then shows as locked.
+  const [published, setPublished] = useState(() => read('dev-published', {}))
+  const publish = async (doc) => {
+    await wait(200)
+    const next = { ...published, [doc.id]: { version: ((published[doc.id] && published[doc.id].version) || 0) + 1, columns: inputNodes(doc).map((n) => n.props.name) } }
+    write('dev-published', next)
+    setPublished(next)
+    return { version: next[doc.id].version }
+  }
+  const locked = (doc) => (published[doc.id] ? published[doc.id].columns : [])
   const screenChoices = [
     { id: listDoc.id, name: listDoc.name, document: listDoc },
     { id: editDoc.id, name: editDoc.name, document: editDoc }
@@ -104,7 +115,7 @@ function App() {
             ))}
           </span>
         ))}
-        <button type="button" className="dev-reset" onClick={() => { localStorage.clear(); setDesigns({ [listExample.id]: listExample, [editExample.id]: editExample }) }}>Reset</button>
+        <button type="button" className="dev-reset" onClick={() => { localStorage.clear(); setPublished({}); setDesigns({ [listExample.id]: listExample, [editExample.id]: editExample }) }}>Reset</button>
       </nav>
 
       {page === 'screen-list' && (
@@ -119,10 +130,10 @@ function App() {
       )}
       {page === 'design-list' && (
         // {...api} FIRST: its onSave saves records; a builder's onSave saves the design.
-        <FactoryBuilder key="design-list" {...api} document={listDoc} onSave={saveDesign} screens={screenChoices} />
+        <FactoryBuilder key="design-list" {...api} document={listDoc} onSave={saveDesign} onPublish={publish} screens={screenChoices} />
       )}
       {page === 'design-edit' && (
-        <FactoryBuilder key="design-edit" {...api} document={editDoc} onSave={saveDesign} screens={screenChoices} />
+        <FactoryBuilder key="design-edit" {...api} document={editDoc} onSave={saveDesign} onPublish={publish} lockedNames={locked(editDoc)} screens={screenChoices} />
       )}
     </div>
   )

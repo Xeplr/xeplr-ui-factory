@@ -28,9 +28,12 @@ import { validateDocument } from './validateDocument.js'
  *                    "from a table" picker. Omitted → table sources can still be typed.
  * @param screens     [{ id, name, document? }] — other screens, offered for a list's "Edit in";
  *                    with its document, a list screen can pick columns from its fields
+ * @param lockedNames field names that are already columns of the table — they cannot be renamed
+ * @param onPublish   async (document) → { version } — makes the saved draft the version everyone sees.
+ *                    It may refuse (e.g. the table is missing columns) by throwing; the message is shown.
  * @param controls    the control registry (default: the built-ins)
  */
-export function useFactoryBuilder({ document: given, name, onSave, onChange, listTables, screens, controls = CONTROLS, autosaveDelay = 800 } = {}) {
+export function useFactoryBuilder({ document: given, name, onSave, onChange, onPublish, listTables, screens, lockedNames, controls = CONTROLS, autosaveDelay = 800 } = {}) {
   const [doc, setDoc] = useState(() => given || createScreen({ name }))
   const [selected, setSelected] = useState(() => new Set())
   const [dirty, setDirty] = useState(false)
@@ -107,7 +110,8 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, lis
 
   const moveControl = useCallback((id, patch) => update((d) => moveNode(d, id, patch)), [update])
 
-  const setProperty = useCallback((id, path, value) => update((d) => setNodeProperty(d, id, path, value, controls)), [update, controls])
+  const lockedRef = useRef(lockedNames); lockedRef.current = lockedNames
+  const setProperty = useCallback((id, path, value) => update((d) => setNodeProperty(d, id, path, value, controls, { lockedNames: lockedRef.current })), [update, controls])
 
   const selectedRef = useRef(selected); selectedRef.current = selected
   const removeSelected = useCallback(() => {
@@ -186,6 +190,38 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, lis
     return () => clearTimeout(t)
   }, [doc, dirty, validation.ok, save, autosaveDelay, saving])
 
+  // PUBLISH: the draft becomes the next version — what screens actually show.
+  // Deliberate, unlike saving: a half-finished design must not reach everyone
+  // filling the form in.
+  const onPublishRef = useRef(onPublish); onPublishRef.current = onPublish
+  const [publishing, setPublishing] = useState(false)
+  const [publishResult, setPublishResult] = useState(null)   // { ok, message, version?, detail? }
+  const publish = useCallback(async () => {
+    if (!onPublishRef.current) return { ok: false }
+    const check = validateDocument(docRef.current, controls)
+    if (!check.ok) {
+      const r = { ok: false, message: `Fix ${check.errors.length} problem${check.errors.length === 1 ? '' : 's'} before publishing` }
+      setPublishResult(r)
+      return r
+    }
+    setPublishing(true)
+    setPublishResult(null)
+    try {
+      const saved = await save()
+      if (!saved.ok && !saved.busy) throw new Error((saved.errors && saved.errors[0] && saved.errors[0].message) || 'Could not save the draft')
+      const res = await onPublishRef.current(docRef.current)
+      const r = { ok: true, version: res && res.version, message: res && res.version ? `Published version ${res.version}` : 'Published' }
+      setPublishResult(r)
+      return r
+    } catch (err) {
+      const r = { ok: false, message: err.message || 'Could not publish', detail: err.detail }
+      setPublishResult(r)
+      return r
+    } finally {
+      setPublishing(false)
+    }
+  }, [controls, save])
+
   const status = saveError ? 'error'
     : saving ? 'saving'
     : !validation.ok ? 'invalid'
@@ -229,6 +265,7 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, lis
     duplicateSelected,
     tables,
     screens: screens || [],
+    lockedNames: lockedNames || [],
     validation,
     errorsByNode,
     dirty,
@@ -236,6 +273,11 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, lis
     saveError,
     savedAt,
     status,
-    save
+    save,
+    canPublish: Boolean(onPublish),
+    publish,
+    publishing,
+    publishResult,
+    clearPublishResult: () => setPublishResult(null)
   }
 }

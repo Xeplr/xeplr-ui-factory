@@ -103,7 +103,7 @@
       }
     },
     {
-      "id": "department",
+      "id": "departmentId",
       "type": "dropdown",
       "x": 0.04,
       "y": 0.485,
@@ -118,7 +118,7 @@
           "table": "departments"
         },
         "required": true,
-        "name": "department"
+        "name": "departmentId"
       }
     },
     {

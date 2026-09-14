@@ -38,7 +38,7 @@
             "label": "Work email"
           },
           {
-            "field": "department",
+            "field": "departmentId",
             "label": "Department"
           },
           {

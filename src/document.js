@@ -105,10 +105,19 @@ export function moveNode(doc, id, patch) {
  * name is still the one made for it: a dropdown dropped as "Dropdown" and
  * relabelled "Location" should save as `location`, not `dropdown`. A name
  * someone typed is theirs, and is left alone.
+ *
+ * A LOCKED name — one that is already a column of the table — never changes:
+ * not by typing, and not by following the label. Renaming it would start a new
+ * empty column and strand the saved data in the old one.
+ *
+ * @param options.lockedNames  field names that are columns already
  */
-export function setNodeProperty(doc, id, path, value, controls = CONTROLS) {
+export function setNodeProperty(doc, id, path, value, controls = CONTROLS, options = {}) {
   const node = doc.nodes.find((n) => n.id === id)
-  const followLabel = path === 'props.label' && node && controls[node.type]?.input && isAutoName(node, controls)
+  const locked = options.lockedNames ? new Set(options.lockedNames) : null
+  const isLocked = Boolean(node && locked && locked.has(node.props?.name))
+  if (path === 'props.name' && isLocked) return doc
+  const followLabel = path === 'props.label' && node && !isLocked && controls[node.type]?.input && isAutoName(node, controls)
   let next = mapNode(doc, id, (n) => {
     const updated = setAtPath(n, path, value)
     // setAtPath prunes an emptied object; `props` itself must always exist.

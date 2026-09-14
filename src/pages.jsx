@@ -9,9 +9,11 @@ import { BuilderSample, ScreenSample, ScreenModal } from './designs/index.js'
  * @prop name         name for a new screen
  * @prop onSave       async (document) → void — called automatically after edits, only with a valid document
  * @prop onChange     (document) → void — every edit
+ * @prop onPublish    async (document) → { version } — shows a Publish button; throw to refuse, with `detail` to show (e.g. the migration to run)
  * @prop listTables   async () → [{ id, name }] | string[] — for "Saves to", lists and table dropdowns
  * @prop fetchOptions async ({ table }) → [{ id, name }] — Preview with real options
  * @prop fetchRecords async ({ source }) → records — Preview with real records
+ * @prop lockedNames  field names that are already columns of the table — shown read-only
  * @prop screens      [{ id, name, document? }] — other screens: "Edit in" choices, and Preview's popups
  * @prop controls     control registry (default: built-ins)
  */

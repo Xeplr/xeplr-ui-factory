@@ -6,7 +6,8 @@ Design a screen on the shared canvas, save it as metadata, render it as a workin
 
 | Question | Decision |
 |---|---|
-| Storage | **Always the consuming app's.** The factory has no database and never will. The app stores the screen document (`onSave`) and hands it back (`document` prop). |
+| Storage | **Always the consuming app's.** The UI factory has no database. Designs: `factory_screens` (draft / published versions) via `@xeplr/factory`. |
+| Records | **Real tables, never JSON.** One table per entity, one column per field, named as the field. Migrations drafted from the form (`xeplr-factory migration`), reviewed, applied by the app's `migrate:up`. Safe changes only (add, widen); narrowing / type changes refused; removed columns kept; names locked once they are columns. |
 | Layout | **Proportional, like dashboards.** `units: "fraction"` on `@xeplr/ui-canvas`: x/w are fractions of the width, y/h of the page height; rendered in the same proportions at any size. No cell grid. |
 | First use | **Data-entry forms** (e.g. "New employee"). |
 | Linking objects together | **Phase 2**, with workflow. Phase 1 has no cross-object links. |

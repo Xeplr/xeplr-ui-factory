@@ -14,3 +14,8 @@ export { formSchema, initialValues, parseInput, validateValues, fieldError, same
 export { screenFromSpec, screensFromSpec, entityNames, SPEC_HEIGHTS, ROW_GAP } from './generate.js'
 export { scaffoldEntity } from './scaffold.js'
 export { getAtPath, setAtPath } from './propertyPath.js'
+export { createFactoryApi } from './remote.js'
+export {
+  STANDARD_COLUMNS, RESERVED_COLUMNS, MAX_IDENTIFIER,
+  columnForField, tableForScreen, columnSql, widening, diffTables, migrationFor, nextMigrationName
+} from './tableSchema.js'

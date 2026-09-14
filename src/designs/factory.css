@@ -216,3 +216,10 @@
 .xeplr-factory-modal-title { font-weight: 700; font-size: 15px; }
 .xeplr-factory-modal-close { border: none; background: none; font-size: 22px; line-height: 1; cursor: pointer; color: var(--xeplr-muted, #6b6a63); padding: 2px 6px; }
 .xeplr-factory-modal-body { padding: 8px 24px 16px; }
+
+/* ── publish result ─────────────────────────────────────────────────────── */
+.xeplr-factory-publish { display: flex; align-items: flex-start; gap: 10px; padding: 8px 12px; font-size: 12.5px; border-bottom: 1px solid var(--xf-border); }
+.xeplr-factory-publish > span { flex: 1; }
+.xeplr-factory-publish.is-ok { color: var(--xeplr-status-good, #1d7a4c); background: color-mix(in srgb, var(--xeplr-status-good, #1d7a4c) 7%, transparent); }
+.xeplr-factory-publish.is-error { color: var(--xf-danger); background: color-mix(in srgb, var(--xf-danger) 7%, transparent); flex-wrap: wrap; }
+.xeplr-factory-publish-detail { flex-basis: 100%; order: 3; margin: 4px 0 0; padding: 8px; max-height: 220px; overflow: auto; font-size: 11.5px; color: var(--xeplr-text, #1a1a19); background: var(--xeplr-surface, #fff); border: 1px solid var(--xf-border); border-radius: 6px; white-space: pre; }

@@ -14,12 +14,22 @@ A request for "a form for employees" is an **entity**, and an entity is **two sc
    This writes `employee-list.screen.json`, `employee-edit.screen.json`, `EmployeeList.jsx` and `EditEmployee.jsx`. Wire the two pages into the app's menu next to two `<FactoryBuilder>` pages for designing them (Screen · List, Screen · Edit, Designer · List, Designer · Edit). It refuses to overwrite existing files — they may have been refined in the designer — unless given `--force`.
 
    A single screen that is not an entity (a settings form, say) uses `npx xeplr-factory generate spec.json -o screen.json` with the screen spec below.
-3. **Validate** — `generate` already refuses a bad spec, but check any document you edited by hand:
+3. **Write the table's migration.** Records live in a **real table** — `employees`, one column per field — never in JSON. Draft the migration from the edit screen into the app's migrations folder:
+   ```sh
+   npx xeplr-factory migration src/screens/employee/employee-edit.screen.json -o migrations
+   ```
+   It writes the next numbered file (`0067_factory_employees_create.sql`): a `CREATE TABLE` with a column per field, real foreign keys for table dropdowns, and the standard `id` / `isActive` / `mtId1–4` / audit columns. Read it, and apply it with the app's `migrate:up`.
+
+   **Changing an existing form** is a migration too. Pass the version the table was built from: `--from employee-edit.published.json` (from git, or `GET /factory/screens/employee_edit`). New fields become `ADD COLUMN`; a wider text or number becomes `ALTER COLUMN … TYPE`. Narrowing, or changing a field to a different kind of value, is **refused** — explain why to the person and write that migration by hand only if they confirm. A removed field's column is kept.
+
+   **Never rename a field that is already a column** (the designer locks those names). Renaming would start a new empty column and strand the data in the old one.
+4. **Validate** — `screens` and `generate` already refuse a bad spec, but check any document you edited by hand:
    ```sh
    npx xeplr-factory validate screen.json
    ```
    Every problem names a path (`nodes[3].props.data.table`) and what belongs there. Fix and re-run until it prints `ok`.
-4. **Hand the document to the app.** The app stores it and opens it in `<FactoryBuilder>`, where the person moves, resizes and restyles controls.
+5. **Save and publish.** Save the screens as drafts and publish them. Publishing refuses a screen whose table is missing a column, and returns the SQL that would add it — run the migration first.
+6. **Hand over.** The person opens the screens in the designer to move, resize and restyle controls.
 
 There is **no submit button** to add: a screen saves itself as it is filled in. If the request mentions seeing or editing what was entered ("…and show the employees below"), add a `list`.
 
@@ -38,7 +48,7 @@ Changing an existing screen: edit the document's `props` directly (labels, valid
     { "label": "Department", "type": "dropdown", "table": "departments", "required": true },
     { "label": "Start date", "type": "date", "required": true }
   ],
-  "listColumns": ["firstName", "lastName", "department", "startDate"]
+  "listColumns": ["firstName", "lastName", "departmentId", "startDate"]
 }
 ```
 
@@ -49,6 +59,8 @@ Changing an existing screen: edit the document's `props` directly (labels, valid
 | `source` | the table records are saved in (default: the plural, snake_cased — `employees`) |
 | `fields` | **required** — the edit form's fields, exactly as in the screen spec below |
 | `listColumns` | the list's columns: field names, or `{ "field", "label" }` (default: the first five fields). Pick the few that identify a record |
+
+A dropdown reading another table stores that row's id, so its field (and column) is named for it: "Department" becomes `departmentId`, a foreign key to `departments.id`. The other table needs an `id` and a `name` column — create that entity first.
 | `columns` | `1` or `2` — the edit form's layout (default `2`) |
 | `pageSize`, `actions`, `width`, `style` | as below |
 
@@ -143,7 +155,7 @@ Only style when the request asks for a look ("make the heading blue", "bigger la
 For an entity, `screens` makes the list for you. By hand: a `list` shows the saved records of the screen's `source` (or its own `source`) with **New**, **Edit** and **Delete**; `editScreen` names the screen those open in a popup. Columns default to every field; name the few that identify a record instead:
 
 ```json
-{ "title": "Employees", "columns": [{ "field": "firstName", "label": "First name" }, { "field": "department", "label": "Department" }] }
+{ "title": "Employees", "columns": [{ "field": "firstName", "label": "First name" }, { "field": "departmentId", "label": "Department" }] }
 ```
 
 A list needs a table: set the screen's `source` or the list's own.
@@ -188,10 +200,18 @@ Keep labels short and in sentence case ("Start date", not "START DATE:"). Mark o
 - Node `id`s are unique; input `props.name`s are unique and match `^[A-Za-z_][A-Za-z0-9_]*$`.
 - `props` allowed per control: `npx xeplr-factory controls`.
 
+## Field names are column names
+
+- camelCase, as generated from the label: `firstName`, `startDate`, `departmentId`.
+- Not a standard column: `id`, `isActive`, `mtId1`–`mtId4`, `recordCreatedDate`, `recordModifiedDate`, `recordCreatedBy`, `recordModifiedBy`.
+- At most 63 characters.
+- Choose them as if naming a database column — because you are.
+
 ## Commands
 
 ```sh
 npx xeplr-factory screens <entity.json|-> [-o <dir>] [--force] # entity → list + edit screens and pages
+npx xeplr-factory migration <edit.screen.json> [--from <previous.screen.json>] [-o <migrations dir>]  # the table's SQL
 npx xeplr-factory generate <spec.json|-> [-o <screen.json>]   # spec → document
 npx xeplr-factory validate <screen.json|->                    # exit 1 with every problem listed
 npx xeplr-factory controls                                     # controls, props, validation rules

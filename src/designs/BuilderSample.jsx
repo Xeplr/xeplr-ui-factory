@@ -71,7 +71,20 @@ export default function BuilderSample({ ctrl, renderPreview, className, style })
             {preview ? 'Back to design' : 'Preview'}
           </button>
         )}
+        {ctrl.canPublish && (
+          <button type="button" className="xeplr-factory-primary" onClick={ctrl.publish} disabled={ctrl.publishing}>
+            {ctrl.publishing ? 'Publishing…' : 'Publish'}
+          </button>
+        )}
       </header>
+
+      {ctrl.publishResult && (
+        <div className={`xeplr-factory-publish${ctrl.publishResult.ok ? ' is-ok' : ' is-error'}`} role="status">
+          <span>{ctrl.publishResult.message}</span>
+          {ctrl.publishResult.detail && <pre className="xeplr-factory-publish-detail">{ctrl.publishResult.detail}</pre>}
+          <button type="button" className="xeplr-factory-icon-button" aria-label="Dismiss" onClick={ctrl.clearPublishResult}>×</button>
+        </div>
+      )}
 
       {preview && renderPreview ? (
         <div className="xeplr-factory-preview">{renderPreview(doc)}</div>
@@ -116,6 +129,7 @@ export default function BuilderSample({ ctrl, renderPreview, className, style })
             errors={ctrl.selectedNode ? ctrl.errorsByNode[ctrl.selectedNode.id] : ctrl.errorsByNode._document}
             tables={ctrl.tables}
             screens={ctrl.screens}
+            lockedNames={ctrl.lockedNames}
             onChange={(path, value) => ctrl.setProperty(ctrl.selectedNode.id, path, value)}
             onScreenChange={ctrl.setScreen}
             onRemove={ctrl.removeSelected}

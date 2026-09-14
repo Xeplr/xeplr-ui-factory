@@ -12,6 +12,7 @@
 
 import { CONTROLS, LABEL_VARIANTS, LIST_ACTIONS, STYLE_KEYS, SCREEN_STYLE_KEYS } from './controls.js'
 import { DOCUMENT_KIND, DOCUMENT_VERSION } from './document.js'
+import { RESERVED_COLUMNS, MAX_IDENTIFIER } from './tableSchema.js'
 
 const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 const TABLE_NAME = /^[A-Za-z_][A-Za-z0-9_.$-]*$/
@@ -80,6 +81,8 @@ export function validateDocument(doc, controls = CONTROLS) {
       if (!nonEmptyString(props.name)) err(`${at}.props.name`, 'is required — the key the value is saved under')
       else if (!FIELD_NAME.test(props.name)) err(`${at}.props.name`, `"${props.name}" must start with a letter or _ and contain only letters, digits and _`)
       else if (names.has(props.name)) err(`${at}.props.name`, `"${props.name}" is already used by nodes[${names.get(props.name)}] — two fields cannot save to one key`)
+      else if (RESERVED_COLUMNS.includes(props.name)) err(`${at}.props.name`, `"${props.name}" is a standard column of every table — choose another name`)
+      else if (props.name.length > MAX_IDENTIFIER) err(`${at}.props.name`, `is ${props.name.length} characters — a column name can be at most ${MAX_IDENTIFIER}`)
       else names.set(props.name, i)
 
       if (!nonEmptyString(props.label)) err(`${at}.props.label`, 'is required — the text shown above the field')

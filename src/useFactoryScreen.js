@@ -14,9 +14,9 @@ import { initialValues, parseInput, saveState, fieldError, optionValue, recordVa
 //
 // ── THE DATABASE IS THE HOST'S ───────────────────────────────────────────
 // Everything that reads or writes data is a call the host supplies:
-//   onSave(values, { id, source, document })   → the saved record (with its id)
-//   fetchRecords({ source, node })             → rows, for a list
-//   onDelete({ id, source, record })
+//   onSave(values, { id, source, screen, document })   → the saved record (with its id)
+//   fetchRecords({ source, screen, node })             → rows, for a list
+//   onDelete({ id, source, screen, record })
 //   fetchOptions({ table, node })              → [{ id, name }], for a table dropdown
 //
 // ── LIST → EDIT IN A POPUP ───────────────────────────────────────────────
@@ -144,7 +144,7 @@ export function useFactoryScreen({
     setSaveError(null)
     const task = (async () => {
       try {
-        const saved = await l.onSave(l.values, { id: l.recordId, source: l.source, document: l.doc })
+        const saved = await l.onSave(l.values, { id: l.recordId, source: l.source, screen: l.doc.id, document: l.doc })
         // A new record's first save creates it; its id makes the next save an update.
         if (saved && typeof saved === 'object' && saved[l.recordKey] !== undefined && saved[l.recordKey] !== null) {
           setRecordId(saved[l.recordKey])
@@ -246,7 +246,7 @@ export function useFactoryScreen({
       const src = listSource(doc, node)
       setLists((l) => ({ ...l, [node.id]: { rows: l[node.id]?.rows || [], loading: true, error: null } }))
       const run = fetchRecordsRef.current
-        ? Promise.resolve().then(() => fetchRecordsRef.current({ source: src, node }))
+        ? Promise.resolve().then(() => fetchRecordsRef.current({ source: src, screen: doc.id, node }))
         : Promise.reject(new Error(`No fetchRecords was provided to list "${src}"`))
       run
         .then((rows) => { if (!cancelled) setLists((l) => ({ ...l, [node.id]: { rows: Array.isArray(rows) ? rows : [], loading: false, error: null } })) })
@@ -261,7 +261,7 @@ export function useFactoryScreen({
   const deleteRecord = useCallback(async (node, rec) => {
     const id = rec ? rec[recordKey] : undefined
     if (!onDeleteRef.current) throw new Error('No onDelete was provided')
-    await onDeleteRef.current({ id, source: listSource(doc, node), record: rec })
+    await onDeleteRef.current({ id, source: listSource(doc, node), screen: doc.id, record: rec })
     // Deleting the record that is open leaves nothing to save into.
     if (id !== undefined && id === live.current.recordId) {
       clearTimeout(timer.current); timer.current = null
