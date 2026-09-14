@@ -5,6 +5,7 @@
 // turn a short spec into a laid-out document, and check a document before
 // handing it to an app, with errors precise enough to fix without guessing.
 //
+//   xeplr-factory screens entity.json [-o dir]           an entity → list + edit screens and their .jsx pages
 //   xeplr-factory generate spec.json [-o screen.json]   spec → laid-out document
 //   xeplr-factory validate screen.json                   check a document (exit 1 on problems)
 //   xeplr-factory controls                               the controls and their props
@@ -12,13 +13,16 @@
 //
 // "-" as the file reads stdin.
 
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
+import path from 'node:path'
 import { CONTROLS } from '../src/controls.js'
 import { screenFromSpec } from '../src/generate.js'
+import { scaffoldEntity } from '../src/scaffold.js'
 import { validateDocument } from '../src/validateDocument.js'
 import { formSchema } from '../src/values.js'
 
 const USAGE = `usage:
+  xeplr-factory screens <entity.json|-> [-o <dir>] [--force]
   xeplr-factory generate <spec.json|-> [-o <out.json>]
   xeplr-factory validate <screen.json|->
   xeplr-factory controls
@@ -59,6 +63,28 @@ switch (cmd) {
     }
     out(doc, outFile)
     if (outFile) process.stderr.write(`wrote ${outFile} — ${doc.nodes.length} controls\n`)
+    break
+  }
+
+  case 'screens': {
+    if (!args[0]) fail(USAGE, 2)
+    const o = args.indexOf('-o')
+    const dir = o !== -1 ? args[o + 1] : '.'
+    const force = args.includes('--force')
+    let result
+    try {
+      result = scaffoldEntity(readJson(args[0]))
+    } catch (err) {
+      fail(err.message)
+    }
+    const targets = Object.keys(result.files).map((f) => path.join(dir, f))
+    // Never overwrite a screen someone has since refined in the designer.
+    const existing = targets.filter((t) => existsSync(t))
+    if (existing.length && !force) fail(`would overwrite ${existing.join(', ')} — pass --force to replace them`)
+    mkdirSync(dir, { recursive: true })
+    Object.entries(result.files).forEach(([f, text]) => writeFileSync(path.join(dir, f), text))
+    process.stderr.write(`wrote ${targets.join(', ')}\n`)
+    process.stderr.write(`list screen "${result.list.id}" opens "${result.edit.id}" for Edit / New; both use table "${result.edit.source}"\n`)
     break
   }
 

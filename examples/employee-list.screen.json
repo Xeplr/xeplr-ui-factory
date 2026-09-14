@@ -1,0 +1,53 @@
+{
+  "kind": "xeplr-screen",
+  "version": 1,
+  "id": "employee_list",
+  "name": "Employees",
+  "units": "fraction",
+  "aspect": 1,
+  "width": 800,
+  "nodes": [
+    {
+      "id": "list",
+      "type": "list",
+      "x": 0.04,
+      "y": 0.04,
+      "w": 0.92,
+      "h": 0.8,
+      "z": 1,
+      "props": {
+        "title": "Employees",
+        "pageSize": 10,
+        "actions": [
+          "new",
+          "edit",
+          "delete"
+        ],
+        "editScreen": "employee_edit",
+        "columns": [
+          {
+            "field": "firstName",
+            "label": "First name"
+          },
+          {
+            "field": "lastName",
+            "label": "Last name"
+          },
+          {
+            "field": "workEmail",
+            "label": "Work email"
+          },
+          {
+            "field": "department",
+            "label": "Department"
+          },
+          {
+            "field": "startDate",
+            "label": "Start date"
+          }
+        ]
+      }
+    }
+  ],
+  "source": "employees"
+}

@@ -1,6 +1,5 @@
 {
-  "name": "New employee",
-  "source": "employees",
+  "entity": "employee",
   "fields": [
     { "label": "First name", "required": true, "validation": { "maxLength": 80 } },
     { "label": "Last name", "required": true, "validation": { "maxLength": 80 } },
@@ -14,14 +13,5 @@
     { "label": "Remote", "type": "checkbox" },
     { "label": "Notes", "type": "textarea", "validation": { "maxLength": 1000 } }
   ],
-  "list": {
-    "title": "Employees",
-    "columns": [
-      { "field": "firstName", "label": "First name" },
-      { "field": "lastName", "label": "Last name" },
-      { "field": "workEmail", "label": "Email" },
-      { "field": "department", "label": "Department" },
-      { "field": "startDate", "label": "Start date" }
-    ]
-  }
+  "listColumns": ["firstName", "lastName", "workEmail", "department", "startDate"]
 }

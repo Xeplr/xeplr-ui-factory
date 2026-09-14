@@ -7,20 +7,38 @@ import { fileURLToPath } from 'node:url'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const bin = path.join(here, '..', 'bin', 'xeplr-factory.js')
-const example = path.join(here, '..', 'examples', 'new-employee.spec.json')
+const example = path.join(here, '..', 'examples', 'employee.entity.json')
+const formSpec = JSON.stringify({ name: 'New employee', fields: [{ label: 'First name', required: true }, { label: 'Department', type: 'dropdown', options: ['A', 'B'] }] })
 const dir = mkdtempSync(path.join(tmpdir(), 'xf-cli-'))
 
 const results = []
 const check = (name, cond) => { results.push([name, cond]); console.log((cond ? '  ok   ' : '  FAIL ') + name) }
 const run = (args, input) => spawnSync(process.execPath, [bin, ...args], { encoding: 'utf8', input })
 
+console.log('\nscreens: an entity becomes a list screen and an edit screen')
+{
+  const out = path.join(dir, 'app')
+  const r = run(['screens', example, '-o', out])
+  check('exits 0', r.status === 0)
+  const files = ['employee-list.screen.json', 'employee-edit.screen.json', 'EmployeeList.jsx', 'EditEmployee.jsx']
+  check('writes both screens and both pages', files.every((f) => { try { readFileSync(path.join(out, f)); return true } catch (_) { return false } }))
+  const list = JSON.parse(readFileSync(path.join(out, 'employee-list.screen.json'), 'utf8'))
+  check('the list opens the edit screen', list.nodes[0].props.editScreen === 'employee_edit')
+  check('the list page passes the edit screen to the popup', /screens=\{\{ \[editScreen\.id\]: editScreen \}\}/.test(readFileSync(path.join(out, 'EmployeeList.jsx'), 'utf8')))
+  const again = run(['screens', example, '-o', out])
+  check('refuses to overwrite a screen that may have been refined since', again.status === 1 && /--force/.test(again.stderr))
+  check('...unless forced', run(['screens', example, '-o', out, '--force']).status === 0)
+}
+
 console.log('\ngenerate')
 {
+  const specFile = path.join(dir, 'form.spec.json')
+  writeFileSync(specFile, formSpec)
   const outFile = path.join(dir, 'screen.json')
-  const r = run(['generate', example, '-o', outFile])
+  const r = run(['generate', specFile, '-o', outFile])
   check('exits 0', r.status === 0)
   const doc = JSON.parse(readFileSync(outFile, 'utf8'))
-  check('writes a screen document', doc.kind === 'xeplr-screen' && doc.nodes.length > 5)
+  check('writes a screen document', doc.kind === 'xeplr-screen' && doc.nodes.length >= 3)
   const stdin = run(['generate', '-'], JSON.stringify({ name: 'Tiny', fields: [{ label: 'A' }] }))
   check('reads a spec from stdin and prints the document', stdin.status === 0 && JSON.parse(stdin.stdout).name === 'Tiny')
   const bad = run(['generate', '-'], JSON.stringify({ name: 'X', fields: [{ label: 'A', type: 'slider' }] }))
@@ -32,7 +50,7 @@ console.log('\ngenerate')
 console.log('\nvalidate')
 {
   const good = path.join(dir, 'good.json')
-  writeFileSync(good, run(['generate', example]).stdout)
+  writeFileSync(good, run(['generate', '-'], formSpec).stdout)
   const ok = run(['validate', good])
   check('a valid document exits 0', ok.status === 0 && /ok/.test(ok.stdout))
   const doc = JSON.parse(readFileSync(good, 'utf8'))

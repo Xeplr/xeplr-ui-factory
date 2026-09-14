@@ -167,3 +167,107 @@ function unknownKeys(obj, allowed, at) {
 function round(v) {
   return Math.round(v * 10000) / 10000
 }
+
+// ── an entity: a LIST screen and an EDIT screen ──────────────────────────
+//
+// "Create a form for employees" is two screens, not one:
+//
+//   employee_list  — the saved employees, in a list; Edit and New open…
+//   employee_edit  — …the add / edit form, in a popup (or on its own page)
+//
+// The list names the edit screen (`editScreen`), which is the only link
+// between them; both save to and read from the same table.
+
+const ENTITY_KEYS = ['entity', 'plural', 'source', 'fields', 'columns', 'listColumns', 'pageSize', 'actions', 'width', 'style', 'aspect']
+
+/**
+ * @param spec
+ *   entity       singular name, e.g. "employee" (required)
+ *   plural?      e.g. "employees" (default: entity + "s")
+ *   source?      table records are saved in (default: plural, snake_cased)
+ *   fields       the edit form's fields — exactly as screenFromSpec
+ *   columns?     1 or 2 — the edit form's layout (default 2)
+ *   listColumns? [{ field, label }] or ["firstName", …] — the list's columns
+ *                (default: up to the first 5 fields)
+ *   pageSize?, actions?, width?, style?
+ * @returns {{ list, edit }} two checked screen documents
+ */
+export function screensFromSpec(spec, controls = CONTROLS) {
+  if (!spec || typeof spec !== 'object') throw new Error('screensFromSpec: spec must be an object')
+  unknownKeys(spec, ENTITY_KEYS, 'spec')
+  if (!spec.entity || typeof spec.entity !== 'string') throw new Error('screensFromSpec: spec.entity is required, e.g. "employee"')
+  const names = entityNames(spec.entity, spec.plural)
+  const source = spec.source || names.table
+
+  const edit = screenFromSpec({
+    name: `Add / edit ${names.singular}`,
+    id: `${names.key}_edit`,
+    source,
+    columns: spec.columns,
+    fields: spec.fields,
+    width: spec.width,
+    style: spec.style,
+    aspect: spec.aspect
+  }, controls)
+
+  const fieldNodes = edit.nodes.filter((n) => controls[n.type]?.input)
+  const byName = Object.fromEntries(fieldNodes.map((n) => [n.props.name, n]))
+  let listColumns
+  if (Array.isArray(spec.listColumns) && spec.listColumns.length) {
+    listColumns = spec.listColumns.map((c, i) => {
+      const field = typeof c === 'string' ? c : c && c.field
+      if (!byName[field]) throw new Error(`screensFromSpec: spec.listColumns[${i}] "${field}" is not a field of the edit form — one of: ${Object.keys(byName).join(', ')}`)
+      return { field, label: (typeof c === 'object' && c.label) || byName[field].props.label }
+    })
+  } else {
+    listColumns = fieldNodes.slice(0, 5).map((n) => ({ field: n.props.name, label: n.props.label }))
+  }
+
+  let list = createScreen({ name: names.pluralTitle, id: `${names.key}_list`, source, width: spec.width, style: spec.style, aspect: spec.aspect })
+  ;({ document: list } = addControl(list, 'list', {
+    at: { x: MARGIN, y: MARGIN },
+    size: { w: round(1 - 2 * MARGIN), h: 0.8 },
+    props: {
+      title: names.pluralTitle,
+      editScreen: edit.id,
+      columns: listColumns,
+      pageSize: spec.pageSize || 10,
+      actions: spec.actions || ['new', 'edit', 'delete']
+    }
+  }, controls))
+
+  return { list: assertValidDocument(list, controls), edit }
+}
+
+/**
+ * "employee" → the names the pair uses everywhere, so the ids, files, table and
+ * components always agree.
+ */
+export function entityNames(entity, plural) {
+  const words = String(entity).trim().replace(/[^A-Za-z0-9]+/g, ' ').trim().split(/\s+/).filter(Boolean)
+  if (!words.length) throw new Error('entity must contain letters or digits')
+  const pluralWords = plural
+    ? String(plural).trim().replace(/[^A-Za-z0-9]+/g, ' ').trim().split(/\s+/).filter(Boolean)
+    : [...words.slice(0, -1), pluralise(words[words.length - 1])]
+  const lower = (ws) => ws.map((w) => w.toLowerCase())
+  const pascal = (ws) => ws.map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('')
+  return {
+    singular: lower(words).join(' '),                     // "employee"
+    pluralTitle: capitalise(lower(pluralWords).join(' ')), // "Employees"
+    key: lower(words).join('_'),                          // "employee"  → ids employee_list / employee_edit
+    file: lower(words).join('-'),                         // "employee"  → employee-list.screen.json
+    table: lower(pluralWords).join('_'),                  // "employees"
+    listComponent: `${pascal(words)}List`,                // "EmployeeList"
+    editComponent: `Edit${pascal(words)}`                 // "EditEmployee"
+  }
+}
+
+function pluralise(word) {
+  if (/[^aeiou]y$/i.test(word)) return word.slice(0, -1) + 'ies'
+  if (/(s|x|z|ch|sh)$/i.test(word)) return word + 'es'
+  return word + 's'
+}
+
+function capitalise(s) {
+  return s.charAt(0).toUpperCase() + s.slice(1)
+}

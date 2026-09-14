@@ -15,6 +15,7 @@ import { DOCUMENT_KIND, DOCUMENT_VERSION } from './document.js'
 
 const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 const TABLE_NAME = /^[A-Za-z_][A-Za-z0-9_.$-]*$/
+const SCREEN_ID = /^[A-Za-z0-9_-]+$/
 const DOCUMENT_KEYS = ['kind', 'version', 'id', 'name', 'source', 'units', 'aspect', 'width', 'style', 'nodes']
 const COLOR = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i
 
@@ -32,6 +33,7 @@ export function validateDocument(doc, controls = CONTROLS) {
   if (doc.kind !== DOCUMENT_KIND) err('kind', `must be "${DOCUMENT_KIND}"`)
   if (doc.version !== DOCUMENT_VERSION) err('version', `must be ${DOCUMENT_VERSION}`)
   if (!nonEmptyString(doc.id)) err('id', 'must be a non-empty string')
+  else if (!SCREEN_ID.test(doc.id)) err('id', `"${doc.id}" must contain only letters, digits, _ and -`)
   if (!nonEmptyString(doc.name)) err('name', 'must be a non-empty string — the screen\'s title, e.g. "New employee"')
   if (doc.units !== 'fraction') err('units', 'must be "fraction"')
   if (!(typeof doc.aspect === 'number' && doc.aspect > 0)) err('aspect', 'must be a number greater than 0 (1 = page as tall as it is wide)')
@@ -234,6 +236,7 @@ function checkList(props, doc, at, err) {
   if (props.title !== undefined && typeof props.title !== 'string') err(`${at}.props.title`, 'must be a string')
   if (props.source !== undefined && !(nonEmptyString(props.source) && TABLE_NAME.test(props.source))) err(`${at}.props.source`, 'must name the table to list records from')
   if (props.source === undefined && doc.source === undefined) err(`${at}.props.source`, 'is required when the screen has no "source" — which table should the list read?')
+  if (props.editScreen !== undefined && !(nonEmptyString(props.editScreen) && SCREEN_ID.test(props.editScreen))) err(`${at}.props.editScreen`, 'must be the id of the screen that edits a record, e.g. "employee_edit"')
   if (props.pageSize !== undefined && !(Number.isInteger(props.pageSize) && props.pageSize >= 1 && props.pageSize <= 200)) err(`${at}.props.pageSize`, 'must be a whole number from 1 to 200')
   if (props.actions !== undefined) {
     if (!Array.isArray(props.actions)) err(`${at}.props.actions`, `must be an array of: ${LIST_ACTIONS.join(', ')}`)

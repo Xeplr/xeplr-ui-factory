@@ -5,9 +5,9 @@ import { boxStyle, fieldStyle } from './styles.js'
 // A list of the saved records, in @xeplr/ui-table.
 //
 // On the canvas (design) it is a still picture of the columns — there are no
-// records while designing. Live, rows come from the host's fetchRecords, and
-// each row can be opened into the form (Edit) or removed (Delete); New clears
-// the form for a fresh record.
+// records while designing. Live, rows come from the host's fetchRecords.
+// Edit and New open the list's edit screen in a popup (`editScreen`), or, for a
+// list on a form, load the row into the form's own fields. Delete removes it.
 
 export default function ListView({ node, doc, design, list, onEdit, onDelete, onNew, currentId, recordKey = 'id', canDelete, fieldNodes, optionsFor }) {
   const p = node.props || {}

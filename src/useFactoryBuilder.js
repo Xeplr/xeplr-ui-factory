@@ -26,9 +26,11 @@ import { validateDocument } from './validateDocument.js'
  * @param onChange    (document) → void; every edit, for hosts that autosave or preview
  * @param listTables  async () → [{ id, name }] | string[]; offered in a dropdown's
  *                    "from a table" picker. Omitted → table sources can still be typed.
+ * @param screens     [{ id, name, document? }] — other screens, offered for a list's "Edit in";
+ *                    with its document, a list screen can pick columns from its fields
  * @param controls    the control registry (default: the built-ins)
  */
-export function useFactoryBuilder({ document: given, name, onSave, onChange, listTables, controls = CONTROLS, autosaveDelay = 800 } = {}) {
+export function useFactoryBuilder({ document: given, name, onSave, onChange, listTables, screens, controls = CONTROLS, autosaveDelay = 800 } = {}) {
   const [doc, setDoc] = useState(() => given || createScreen({ name }))
   const [selected, setSelected] = useState(() => new Set())
   const [dirty, setDirty] = useState(false)
@@ -37,12 +39,15 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, lis
   const [savedAt, setSavedAt] = useState(null)
   const docRef = useRef(doc); docRef.current = doc
 
-  // A NEW document from outside replaces the draft. Compared by identity: the
-  // host re-rendering with the same object must not throw away edits.
+  // A NEW document from outside replaces the draft. Not a new OBJECT: a host
+  // that re-reads what it just saved hands back the same screen as a fresh
+  // object on every autosave, and replacing the draft with it would drop the
+  // selection each time. Only different content replaces what is being edited.
   const lastGiven = useRef(given)
   useEffect(() => {
     if (!given || given === lastGiven.current) return
     lastGiven.current = given
+    if (JSON.stringify(given) === JSON.stringify(docRef.current)) return
     docRef.current = given
     setDoc(given)
     setSelected(new Set())
@@ -223,6 +228,7 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, lis
     removeSelected,
     duplicateSelected,
     tables,
+    screens: screens || [],
     validation,
     errorsByNode,
     dirty,

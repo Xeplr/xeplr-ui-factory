@@ -18,6 +18,11 @@ import { initialValues, parseInput, saveState, fieldError, optionValue, recordVa
 //   fetchRecords({ source, node })             → rows, for a list
 //   onDelete({ id, source, record })
 //   fetchOptions({ table, node })              → [{ id, name }], for a table dropdown
+//
+// ── LIST → EDIT IN A POPUP ───────────────────────────────────────────────
+// A list whose `editScreen` names another screen opens that screen in a popup
+// for Edit and New. The screen comes from `screens` ({ id → document }) or the
+// host's `loadScreen(id)`. The list refreshes as the popup saves.
 
 /** Quiet time after the last change before a save goes out. */
 export const AUTOSAVE_DELAY = 700
@@ -31,15 +36,32 @@ export const AUTOSAVE_DELAY = 700
  * @param fetchRecords  async ({ source, node }) → records, for lists
  * @param onDelete      async ({ id, source, record }) → void
  * @param onChange      (values) → void — every change, before any save
+ * @param screens       { id → document } — screens a list's Edit / New can open
+ * @param loadScreen    async (id) → document — for screens not in `screens`
  * @param autosaveDelay ms (default 700)
  * @param controls      the control registry (default: the built-ins)
  */
 export function useFactoryScreen({
-  document: doc, record, recordKey = 'id', onSave, fetchOptions, fetchRecords, onDelete, onChange,
+  document: doc, record, recordKey = 'id', onSave, fetchOptions, fetchRecords, onDelete, onChange, screens, loadScreen,
   autosaveDelay = AUTOSAVE_DELAY, controls = CONTROLS
 } = {}) {
   const check = useMemo(() => validateDocument(doc, controls), [doc, controls])
   const inputs = useMemo(() => (check.ok ? inputNodes(doc, controls) : []), [doc, controls, check.ok])
+
+  // A LIST SCREEN has no fields of its own; what its columns mean — that
+  // `department` is a dropdown whose 2 reads "Finance" — lives on the screen it
+  // edits in. Those fields are borrowed for display, and their table options
+  // loaded alongside this screen's own.
+  const fieldsFor = useCallback((node) => {
+    if (inputs.length || !node || !node.props.editScreen) return inputs
+    const editDoc = screens && screens[node.props.editScreen]
+    return editDoc && validateDocument(editDoc, controls).ok ? inputNodes(editDoc, controls) : []
+  }, [inputs, screens, controls])
+  const optionNodes = useMemo(() => {
+    if (!check.ok) return []
+    const borrowed = doc.nodes.filter((n) => n.type === 'list').flatMap((n) => (inputs.length ? [] : fieldsFor(n)))
+    return [...inputs, ...borrowed]
+  }, [check.ok, doc, inputs, fieldsFor])
   const source = check.ok ? doc.source || null : null
 
   const startValues = useCallback(
@@ -64,7 +86,7 @@ export function useFactoryScreen({
   const fetchOptionsRef = useRef(fetchOptions); fetchOptionsRef.current = fetchOptions
   useEffect(() => {
     let cancelled = false
-    const tableNodes = inputs.filter((n) => n.type === 'dropdown' && n.props.data?.source === 'table')
+    const tableNodes = optionNodes.filter((n) => n.type === 'dropdown' && n.props.data?.source === 'table')
     if (!tableNodes.length) { setOptions({}); return undefined }
     setOptions(Object.fromEntries(tableNodes.map((n) => [n.id, { loading: true, items: [], error: null }])))
     const byTable = new Map()
@@ -87,7 +109,7 @@ export function useFactoryScreen({
         })
     })
     return () => { cancelled = true }
-  }, [inputs])
+  }, [optionNodes])
 
   const optionsFor = useCallback((node) => {
     if (node.props.data?.source === 'static') return { loading: false, items: node.props.data.options, error: null }
@@ -248,9 +270,49 @@ export function useFactoryScreen({
     setListVersion((v) => v + 1)
   }, [doc, recordKey, openRecord])
 
+  // ── popup: a list's Edit / New in its edit screen ─────────────────────
+  const [popup, setPopup] = useState(null)   // { node, screenId, record, document, loading, error }
+  const screensRef = useRef(screens); screensRef.current = screens
+  const loadScreenRef = useRef(loadScreen); loadScreenRef.current = loadScreen
+
+  /** Edit (a record) or New (null) in the list's edit screen. */
+  const openEditor = useCallback(async (node, rec) => {
+    const screenId = node.props.editScreen
+    const base = { node, screenId, record: rec || null, document: null, loading: true, error: null }
+    setPopup(base)
+    try {
+      let found = screensRef.current && screensRef.current[screenId]
+      if (!found && loadScreenRef.current) found = await loadScreenRef.current(screenId)
+      if (!found) throw new Error(`Screen "${screenId}" was not provided — pass it in \`screens\` or supply loadScreen`)
+      const checked = validateDocument(found, live.current.controls)
+      if (!checked.ok) throw new Error(`Screen "${screenId}" is not valid: ${checked.errors[0].path} ${checked.errors[0].message}`)
+      setPopup((p) => (p && p.screenId === screenId ? { ...p, document: found, loading: false } : p))
+    } catch (err) {
+      setPopup((p) => (p && p.screenId === screenId ? { ...p, loading: false, error: err.message } : p))
+    }
+  }, [])
+
+  const closeEditor = useCallback(() => {
+    setPopup(null)
+    setListVersion((v) => v + 1)
+  }, [])
+
+  /** The popup's saves go to the host's onSave, and refresh the list behind it. */
+  const onSaveRef = useRef(onSave); onSaveRef.current = onSave
+  const popupSave = useCallback(async (vals, meta) => {
+    const saved = onSaveRef.current ? await onSaveRef.current(vals, meta) : undefined
+    setListVersion((v) => v + 1)
+    return saved
+  }, [])
+
   return {
     document: doc,
     documentErrors: check.errors,
+    popup,
+    fieldsFor,
+    openEditor,
+    closeEditor,
+    popupSave,
     values,
     recordId,
     errors: state.shown,

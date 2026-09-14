@@ -21,7 +21,7 @@ const STATUS = {
   invalid: 'Fix the highlighted fields to save'
 }
 
-export default function ScreenSample({ ctrl, className, style }) {
+export default function ScreenSample({ ctrl, className, style, renderPopup }) {
   const { document: doc } = ctrl
 
   if (ctrl.documentErrors.length) {
@@ -39,16 +39,20 @@ export default function ScreenSample({ ctrl, className, style }) {
   const pageHeight = (contentBottom(doc) + MARGIN) * aspect * 100
   const fieldNodes = inputNodes(doc)
   const statusText = ctrl.status === 'error' ? `Not saved — ${ctrl.saveError}` : STATUS[ctrl.status]
+  // A screen with no fields of its own (a list screen) has nothing to save.
+  const hasFields = fieldNodes.length > 0
 
   return (
     <div
       className={'xeplr-factory-screen' + (className ? ' ' + className : '')}
       style={{ maxWidth: doc.width, ...screenStyle(doc), ...style }}
     >
-      <div className={`xeplr-factory-status xeplr-factory-status--${ctrl.status}`} role="status" aria-live="polite">
-        <span>{ctrl.recordId !== null && ctrl.recordId !== undefined ? 'Editing record' : 'New record'}</span>
-        <span>{statusText}</span>
-      </div>
+      {hasFields && (
+        <div className={`xeplr-factory-status xeplr-factory-status--${ctrl.status}`} role="status" aria-live="polite">
+          <span>{ctrl.recordId !== null && ctrl.recordId !== undefined ? 'Editing record' : 'New record'}</span>
+          <span>{statusText}</span>
+        </div>
+      )}
       <form
         className="xeplr-factory-page"
         style={{ height: `${pageHeight}cqw` }}
@@ -79,20 +83,23 @@ export default function ScreenSample({ ctrl, className, style }) {
               list={node.type === 'list' ? {
                 doc,
                 list: ctrl.listFor(node),
-                fieldNodes,
+                fieldNodes: ctrl.fieldsFor(node),
                 optionsFor: ctrl.optionsFor,
                 currentId: ctrl.recordId,
                 recordKey: ctrl.recordKey,
                 canDelete: ctrl.canDelete,
-                onEdit: (rec) => ctrl.openRecord(rec),
+                // A list with an edit screen opens it in a popup; one on a form
+                // opens the row in the form's own fields.
+                onEdit: (rec) => (node.props.editScreen ? ctrl.openEditor(node, rec) : ctrl.openRecord(rec)),
                 // eslint-disable-next-line no-alert
                 onDelete: (rec) => ctrl.deleteRecord(node, rec).catch((err) => window.alert(err.message || 'Could not delete')),
-                onNew: () => ctrl.newRecord()
+                onNew: () => (node.props.editScreen ? ctrl.openEditor(node, null) : ctrl.newRecord())
               } : undefined}
             />
           </div>
         ))}
       </form>
+      {ctrl.popup && renderPopup && renderPopup(ctrl.popup, ctrl)}
     </div>
   )
 }

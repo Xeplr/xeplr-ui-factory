@@ -2,7 +2,24 @@
 
 **Design data-entry screens, save them as JSON, run them as working forms.** Drag controls onto a canvas, set their labels, validation, options, fonts and colours. The same document renders as a live form in your app that **saves itself** as it is filled in, with a list of the saved records to open, edit or delete.
 
-It is built to work with Claude: ask for *"a form for a new employee with name, email, department and start date"*, Claude drafts the screen, and a person refines it in the builder.
+It is built to work with Claude: ask for *"a form for employees with name, email, department and start date"*, and Claude creates **two screens** — an employee **list** and an **add / edit** form that the list's Edit and New open in a popup — plus the two pages that show them. A person then refines either one in the designer.
+
+## One entity, two screens, four pages
+
+| page | what it is |
+|---|---|
+| **Screen · List** | `EmployeeList.jsx` — the saved employees; **New** and **Edit** open the edit screen in a popup, **Delete** removes a row |
+| **Screen · Edit** | `EditEmployee.jsx` — the add / edit form, on its own page (the same screen the popup shows) |
+| **Designer · List** | `<FactoryBuilder document={employeeList} />` — its title, columns, actions, look |
+| **Designer · Edit** | `<FactoryBuilder document={employeeEdit} />` — its fields, validation, options, look |
+
+```sh
+npx xeplr-factory screens employee.entity.json -o src/screens/employee
+#  employee-list.screen.json   EmployeeList.jsx
+#  employee-edit.screen.json   EditEmployee.jsx
+```
+
+See [examples/](./examples) for exactly what it writes.
 
 (The package name on npm is `@xeplr/ui-factory` — the GitHub repo and folder are named `xeplr-ui-factory`.)
 
@@ -59,6 +76,7 @@ import { FactoryScreen } from '@xeplr/ui-factory'
   fetchRecords={async ({ source }) => api.records(source)}
   onDelete={async ({ id, source }) => api.remove(source, id)}
   fetchOptions={async ({ table }) => api.options(table)}
+  screens={{ employee_edit: editScreen }}             // what a list's Edit / New open in a popup
 />
 ```
 
@@ -68,7 +86,9 @@ Values arrive typed: numbers as numbers, checkboxes as booleans, dates as `"YYYY
 
 ### Lists of saved records
 
-A **List** control shows the records of the table the screen saves to (or another), in `@xeplr/ui-table`, with the columns you tick. **Edit** opens a row in the form — changes then save to that record — **Delete** removes it after a confirmation, and **New** clears the form. The list refreshes after every save. Dropdown columns show names, not ids.
+A **List** control shows the records of the table the screen saves to (or another), in `@xeplr/ui-table`, with the columns you tick. Its **Edit in** names the edit screen: **Edit** and **New** open that screen in a popup, where it saves itself and the list refreshes behind it. **Delete** removes a row after a confirmation. Dropdown columns show names, not ids — read from the edit screen's fields.
+
+The edit screen comes from `screens` (`{ id → document }`) or your `loadScreen(id)`. A list on a form with no **Edit in** opens rows in that form's own fields instead.
 
 `@xeplr/ui-table` reads the xeplr theme tokens (`--xeplr-bg-*`, `--xeplr-text-*`, `--xeplr-border-*`) and defaults to a dark look; define them for a light app.
 
@@ -131,7 +151,8 @@ const screen = screenFromSpec({
 It lays the fields out as a tidy one- or two-column form and returns a checked document. The same is available on the command line:
 
 ```sh
-npx xeplr-factory generate spec.json -o screen.json
+npx xeplr-factory screens entity.json -o dir   # an entity → list + edit screens and pages
+npx xeplr-factory generate spec.json -o screen.json   # one screen from a spec
 npx xeplr-factory validate screen.json      # every problem, with its path
 npx xeplr-factory controls                   # controls, props and rules
 ```
@@ -169,7 +190,7 @@ Styles are namespaced `.xeplr-factory-*` and read the xeplr theme variables with
 
 ```sh
 npm install
-npm run dev     # http://localhost:19006 — builder + screen, with a stand-in app that keeps records in localStorage
+npm run dev     # http://localhost:19006 — Screen · List / Edit and Designer · List / Edit for the example employee, records kept in localStorage
 ```
 
 ## Files
@@ -180,14 +201,15 @@ src/
   document.js            ─ create and edit screen documents
   validateDocument.js    ─ the document checker
   values.js              ─ values, validation, autosave readiness, records and list columns, formSchema
-  generate.js            ─ screenFromSpec
+  generate.js            ─ screenFromSpec, screensFromSpec (list + edit), entity names
+  scaffold.js            ─ an entity → its screen JSON and .jsx pages
   model.js               ─ everything above, React-free
   useFactoryBuilder.js   ─ builder controller
   useFactoryScreen.js    ─ screen controller
   designs/               ─ BuilderSample, ScreenSample, ControlView, ListView, Palette, PropertyPanel, styles.js, factory.css
   pages.jsx              ─ FactoryBuilder, FactoryScreen
-bin/xeplr-factory.js     ─ generate / validate / controls / schema
-examples/                ─ new-employee spec and screen
+bin/xeplr-factory.js     ─ screens / generate / validate / controls / schema
+examples/                ─ employee.entity.json and what `screens` makes of it
 dev/                     ─ the stand-in app for `npm run dev` (not published)
 ```
 

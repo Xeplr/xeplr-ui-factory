@@ -16,11 +16,13 @@ body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background
 }
 
 .dev-shell { height: 100%; display: flex; flex-direction: column; }
-.dev-tabs { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #1a1a19; color: #fff; }
-.dev-tabs strong { margin-right: 12px; }
-.dev-tabs button { font: inherit; padding: 4px 10px; border-radius: 5px; border: 1px solid #555; background: transparent; color: #fff; cursor: pointer; }
-.dev-tabs button[aria-pressed="true"] { background: #fff; color: #1a1a19; }
-.dev-note { margin-left: auto; font-size: 12px; opacity: .7; }
+.dev-menu { display: flex; align-items: center; gap: 18px; padding: 8px 14px; background: #1a1a19; color: #fff; }
+.dev-menu strong { margin-right: 6px; }
+.dev-menu-group { display: flex; align-items: center; gap: 6px; }
+.dev-menu-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; opacity: .6; margin-right: 2px; }
+.dev-menu button { font: inherit; padding: 4px 12px; border-radius: 5px; border: 1px solid #555; background: transparent; color: #fff; cursor: pointer; }
+.dev-menu button[aria-pressed="true"] { background: #fff; color: #1a1a19; }
+.dev-menu .dev-reset { margin-left: auto; opacity: .8; }
 .dev-shell > .xeplr-factory-builder { flex: 1; min-height: 0; }
 .dev-run { flex: 1; overflow: auto; padding: 24px; }
 .dev-run > .xeplr-factory-screen { margin: 0 auto; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 8px 12px; box-sizing: content-box; }

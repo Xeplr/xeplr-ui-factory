@@ -6,7 +6,7 @@ import { FONT_FAMILIES, STYLE_KEYS, SCREEN_STYLE_KEYS, LIST_ACTIONS } from '../c
 // each field there names a path and an editor type, and this file owns only
 // what each editor type looks like. A new property is a line in controls.js.
 
-export default function PropertyPanel({ doc, node, control, errors, tables, onChange, onScreenChange, onRemove, selectionCount }) {
+export default function PropertyPanel({ doc, node, control, errors, tables, screens, onChange, onScreenChange, onRemove, selectionCount }) {
   if (selectionCount > 1) {
     return (
       <aside className="xeplr-factory-panel">
@@ -47,6 +47,7 @@ export default function PropertyPanel({ doc, node, control, errors, tables, onCh
                   value={getAtPath(node, field.path)}
                   onChange={(v) => onChange(field.path, v)}
                   tables={tables}
+                  screens={screens}
                   node={node}
                   doc={doc}
                   errors={errs}
@@ -197,11 +198,16 @@ function TableEditor({ id, value, onChange, tables }) {
 }
 
 /**
- * A list's columns: tick which of the screen's fields to show, in reading
- * order. Nothing ticked means all of them.
+ * A list's columns: tick which fields to show, in reading order. The fields
+ * are this screen's own — or, for a list screen, those of the screen it edits
+ * in. Nothing ticked means all of them.
  */
-function ColumnsEditor({ value, onChange, doc }) {
-  const fields = doc ? inputNodes(doc).map((n) => ({ field: n.props.name, label: n.props.label || n.props.name })) : []
+function ColumnsEditor({ value, onChange, doc, node, screens }) {
+  const editDoc = node && node.props.editScreen ? (screens || []).find((s) => s.id === node.props.editScreen)?.document : null
+  const from = doc && inputNodes(doc).length ? doc : editDoc
+  const fields = from
+    ? inputNodes(from).map((n) => ({ field: n.props.name, label: n.props.label || n.props.name }))
+    : (Array.isArray(value) ? value : [])
   const chosen = Array.isArray(value) ? value : null
   const isOn = (f) => (chosen ? chosen.some((c) => c.field === f.field) : true)
   const toggle = (f) => {
@@ -223,7 +229,21 @@ function ColumnsEditor({ value, onChange, doc }) {
   )
 }
 
-const ACTION_LABELS = { new: 'New — clear the form for a new record', edit: 'Edit — open a row in the form', delete: 'Delete — remove a row' }
+/** Another screen, by id: picked from the ones the app lists, typed otherwise. */
+function ScreenEditor({ id, value, onChange, screens, doc }) {
+  const others = (screens || []).filter((s) => !doc || s.id !== doc.id)
+  if (others.length) {
+    return (
+      <select id={id} className="xeplr-factory-prop-input" value={value ?? ''} onChange={(e) => onChange(e.target.value || undefined)}>
+        <option value="">— open rows in this screen's fields</option>
+        {others.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+      </select>
+    )
+  }
+  return <input id={id} className="xeplr-factory-prop-input xeplr-factory-mono" type="text" placeholder="employee_edit" value={value ?? ''} onChange={(e) => onChange(e.target.value.trim() || undefined)} />
+}
+
+const ACTION_LABELS = { new: 'New — add a record', edit: 'Edit — open a row for editing', delete: 'Delete — remove a row' }
 
 function ActionsEditor({ value, onChange }) {
   const on = Array.isArray(value) ? value : LIST_ACTIONS
@@ -367,6 +387,7 @@ export const EDITORS = {
   font: FontEditor,
   color: ColorEditor,
   table: TableEditor,
+  screen: ScreenEditor,
   columns: ColumnsEditor,
   actions: ActionsEditor,
   dataSource: DataSourceEditor

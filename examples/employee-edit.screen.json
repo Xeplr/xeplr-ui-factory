@@ -1,8 +1,8 @@
 {
   "kind": "xeplr-screen",
   "version": 1,
-  "id": "new_employee",
-  "name": "New employee",
+  "id": "employee_edit",
+  "name": "Add / edit employee",
   "units": "fraction",
   "aspect": 1,
   "width": 800,
@@ -16,7 +16,7 @@
       "h": 0.07,
       "z": 1,
       "props": {
-        "text": "New employee",
+        "text": "Add / edit employee",
         "variant": "heading"
       }
     },
@@ -211,46 +211,6 @@
           "maxLength": 1000
         },
         "name": "notes"
-      }
-    },
-    {
-      "id": "list",
-      "type": "list",
-      "x": 0.04,
-      "y": 1.035,
-      "w": 0.92,
-      "h": 0.42,
-      "z": 13,
-      "props": {
-        "title": "Employees",
-        "pageSize": 10,
-        "actions": [
-          "new",
-          "edit",
-          "delete"
-        ],
-        "columns": [
-          {
-            "field": "firstName",
-            "label": "First name"
-          },
-          {
-            "field": "lastName",
-            "label": "Last name"
-          },
-          {
-            "field": "workEmail",
-            "label": "Email"
-          },
-          {
-            "field": "department",
-            "label": "Department"
-          },
-          {
-            "field": "startDate",
-            "label": "Start date"
-          }
-        ]
       }
     }
   ],

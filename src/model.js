@@ -11,5 +11,6 @@ export {
 } from './document.js'
 export { validateDocument, assertValidDocument } from './validateDocument.js'
 export { formSchema, initialValues, parseInput, validateValues, fieldError, sameId, optionValue, saveState, recordValues, displayValue, listColumns, listSource } from './values.js'
-export { screenFromSpec, SPEC_HEIGHTS, ROW_GAP } from './generate.js'
+export { screenFromSpec, screensFromSpec, entityNames, SPEC_HEIGHTS, ROW_GAP } from './generate.js'
+export { scaffoldEntity } from './scaffold.js'
 export { getAtPath, setAtPath } from './propertyPath.js'

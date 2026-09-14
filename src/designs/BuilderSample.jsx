@@ -115,6 +115,7 @@ export default function BuilderSample({ ctrl, renderPreview, className, style })
             selectionCount={ctrl.selected.size}
             errors={ctrl.selectedNode ? ctrl.errorsByNode[ctrl.selectedNode.id] : ctrl.errorsByNode._document}
             tables={ctrl.tables}
+            screens={ctrl.screens}
             onChange={(path, value) => ctrl.setProperty(ctrl.selectedNode.id, path, value)}
             onScreenChange={ctrl.setScreen}
             onRemove={ctrl.removeSelected}

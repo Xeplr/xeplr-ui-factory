@@ -4,12 +4,16 @@ This guide is for whoever **writes** a screen definition — usually Claude, fro
 
 ## The workflow
 
-1. **Write a spec** — a short list of what is on the screen, in reading order. Do not write coordinates.
-2. **Generate** the screen document from it:
+A request for "a form for employees" is an **entity**, and an entity is **two screens**: a list, and an add / edit form the list opens in a popup.
+
+1. **Write an entity spec** — the entity's name and its fields, in reading order. Do not write coordinates.
+2. **Generate** both screens and their pages:
    ```sh
-   npx xeplr-factory generate spec.json -o screen.json
+   npx xeplr-factory screens employee.entity.json -o src/screens/employee
    ```
-   or in code: `screenFromSpec(spec)` from `@xeplr/ui-factory/model`.
+   This writes `employee-list.screen.json`, `employee-edit.screen.json`, `EmployeeList.jsx` and `EditEmployee.jsx`. Wire the two pages into the app's menu next to two `<FactoryBuilder>` pages for designing them (Screen · List, Screen · Edit, Designer · List, Designer · Edit). It refuses to overwrite existing files — they may have been refined in the designer — unless given `--force`.
+
+   A single screen that is not an entity (a settings form, say) uses `npx xeplr-factory generate spec.json -o screen.json` with the screen spec below.
 3. **Validate** — `generate` already refuses a bad spec, but check any document you edited by hand:
    ```sh
    npx xeplr-factory validate screen.json
@@ -21,7 +25,36 @@ There is **no submit button** to add: a screen saves itself as it is filled in. 
 
 Changing an existing screen: edit the document's `props` directly (labels, validation, options), validate, and hand it back. Regenerate from a spec only when the layout should start over.
 
-## The spec
+## The entity spec
+
+```json
+{
+  "entity": "employee",
+  "fields": [
+    { "label": "First name", "required": true },
+    { "label": "Last name", "required": true },
+    { "label": "Work email", "required": true,
+      "validation": { "pattern": "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", "patternMessage": "Enter a valid email address" } },
+    { "label": "Department", "type": "dropdown", "table": "departments", "required": true },
+    { "label": "Start date", "type": "date", "required": true }
+  ],
+  "listColumns": ["firstName", "lastName", "department", "startDate"]
+}
+```
+
+| key | meaning |
+|---|---|
+| `entity` | **required** — singular, e.g. `"employee"`, `"leave request"` |
+| `plural` | when the plural is irregular, e.g. `"people"` (default: `entity` + s / es / ies) |
+| `source` | the table records are saved in (default: the plural, snake_cased — `employees`) |
+| `fields` | **required** — the edit form's fields, exactly as in the screen spec below |
+| `listColumns` | the list's columns: field names, or `{ "field", "label" }` (default: the first five fields). Pick the few that identify a record |
+| `columns` | `1` or `2` — the edit form's layout (default `2`) |
+| `pageSize`, `actions`, `width`, `style` | as below |
+
+Names are derived once and agree everywhere: ids `employee_list` / `employee_edit`, files `employee-*.screen.json`, components `EmployeeList` / `EditEmployee`, table `employees`.
+
+## The screen spec
 
 ```json
 {
@@ -107,7 +140,7 @@ Only style when the request asks for a look ("make the heading blue", "bigger la
 
 ## Lists
 
-A `list` shows the saved records of the screen's `source` (or its own `source`) with **New**, **Edit** and **Delete**. Columns default to every field; name the few that identify a record instead:
+For an entity, `screens` makes the list for you. By hand: a `list` shows the saved records of the screen's `source` (or its own `source`) with **New**, **Edit** and **Delete**; `editScreen` names the screen those open in a popup. Columns default to every field; name the few that identify a record instead:
 
 ```json
 { "title": "Employees", "columns": [{ "field": "firstName", "label": "First name" }, { "field": "department", "label": "Department" }] }
@@ -158,6 +191,7 @@ Keep labels short and in sentence case ("Start date", not "START DATE:"). Mark o
 ## Commands
 
 ```sh
+npx xeplr-factory screens <entity.json|-> [-o <dir>] [--force] # entity → list + edit screens and pages
 npx xeplr-factory generate <spec.json|-> [-o <screen.json>]   # spec → document
 npx xeplr-factory validate <screen.json|->                    # exit 1 with every problem listed
 npx xeplr-factory controls                                     # controls, props, validation rules

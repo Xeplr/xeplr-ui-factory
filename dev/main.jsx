@@ -1,13 +1,15 @@
 import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { FactoryBuilder, FactoryScreen } from '../src/index.js'
-import example from '../examples/new-employee.screen.json'
+import listExample from '../examples/employee-list.screen.json'
+import editExample from '../examples/employee-edit.screen.json'
 import './dev.css'
 
-// A STAND-IN HOST, for trying the package on its own. Everything a real app
-// supplies is faked here, in memory and localStorage: the tables, the rows a
-// dropdown reads, the records a screen saves, and where a screen design goes.
-// None of this is published.
+// A STAND-IN HOST, for trying the package on its own — laid out the way an app
+// using it is: one entity ("employee") as TWO screens, each with a page to use
+// it and a page to design it. Everything a real app supplies is faked here, in
+// localStorage: the tables, the lookup rows, the saved records, and where the
+// screen designs go. None of this is published.
 
 const LOOKUPS = {
   departments: [
@@ -22,26 +24,26 @@ const LOOKUPS = {
 }
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms))
-const readStore = () => { try { return JSON.parse(localStorage.getItem('xeplr-factory-dev-records')) || {} } catch (_) { return {} } }
-const writeStore = (s) => localStorage.setItem('xeplr-factory-dev-records', JSON.stringify(s))
+const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback } catch (_) { return fallback } }
+const write = (key, value) => localStorage.setItem(key, JSON.stringify(value))
 
-// What an app's API would be: AJAX calls, one per operation.
+// What an app's API would be: one AJAX call per operation.
 const api = {
   listTables: async () => [...Object.keys(LOOKUPS), 'employees'],
   fetchOptions: async ({ table }) => {
-    await wait(150)
+    await wait(120)
     if (!LOOKUPS[table]) throw new Error(`No table "${table}"`)
     return LOOKUPS[table]
   },
   fetchRecords: async ({ source }) => {
-    await wait(150)
-    return readStore()[source] || []
+    await wait(120)
+    return read('dev-records', {})[source] || []
   },
-  // Creates when there is no id yet, updates when there is — and returns the
-  // saved record, whose id the screen keeps for the next save.
-  saveRecord: async (values, { id, source }) => {
-    await wait(250)
-    const store = readStore()
+  // Creates when there is no id, updates when there is — and returns the saved
+  // record, whose id the screen keeps for its next save.
+  onSave: async (values, { id, source }) => {
+    await wait(200)
+    const store = read('dev-records', {})
     const rows = store[source] || []
     let saved
     if (id === null || id === undefined) {
@@ -53,58 +55,74 @@ const api = {
       if (i === -1) rows.push(saved); else rows[i] = saved
     }
     store[source] = rows
-    writeStore(store)
+    write('dev-records', store)
     return saved
   },
-  deleteRecord: async ({ id, source }) => {
-    await wait(150)
-    const store = readStore()
+  onDelete: async ({ id, source }) => {
+    await wait(120)
+    const store = read('dev-records', {})
     store[source] = (store[source] || []).filter((r) => r.id !== id)
-    writeStore(store)
+    write('dev-records', store)
   }
 }
 
-function loadDesign() {
-  try { return JSON.parse(localStorage.getItem('xeplr-factory-dev')) || example } catch (_) { return example }
-}
+const designKey = (id) => `dev-screen:${id}`
+const loadDesign = (example) => read(designKey(example.id), example)
+
+const MENU = [
+  { key: 'screen-list', group: 'Screen', label: 'List' },
+  { key: 'screen-edit', group: 'Screen', label: 'Edit' },
+  { key: 'design-list', group: 'Designer', label: 'List' },
+  { key: 'design-edit', group: 'Designer', label: 'Edit' }
+]
 
 function App() {
-  const [design, setDesign] = useState(loadDesign)
-  const [tab, setTab] = useState('build')
-  const [saves, setSaves] = useState(0)
+  const [page, setPage] = useState('screen-list')
+  const [designs, setDesigns] = useState(() => ({ [listExample.id]: loadDesign(listExample), [editExample.id]: loadDesign(editExample) }))
+
+  const listDoc = designs[listExample.id]
+  const editDoc = designs[editExample.id]
+  const saveDesign = async (doc) => {
+    await wait(150)
+    write(designKey(doc.id), doc)
+    setDesigns((d) => ({ ...d, [doc.id]: doc }))
+  }
+  const screenChoices = [
+    { id: listDoc.id, name: listDoc.name, document: listDoc },
+    { id: editDoc.id, name: editDoc.name, document: editDoc }
+  ]
 
   return (
     <div className="dev-shell">
-      <nav className="dev-tabs">
-        <strong>@xeplr/ui-factory</strong>
-        <button type="button" aria-pressed={tab === 'build'} onClick={() => setTab('build')}>Builder</button>
-        <button type="button" aria-pressed={tab === 'run'} onClick={() => setTab('run')}>Screen</button>
-        <button type="button" onClick={() => { localStorage.removeItem('xeplr-factory-dev'); localStorage.removeItem('xeplr-factory-dev-records'); setDesign(example) }}>Reset example</button>
-        <span className="dev-note">design saves: {saves}</span>
+      <nav className="dev-menu" aria-label="Pages">
+        <strong>Employees</strong>
+        {['Screen', 'Designer'].map((group) => (
+          <span key={group} className="dev-menu-group">
+            <span className="dev-menu-label">{group}</span>
+            {MENU.filter((m) => m.group === group).map((m) => (
+              <button key={m.key} type="button" aria-pressed={page === m.key} onClick={() => setPage(m.key)}>{m.label}</button>
+            ))}
+          </span>
+        ))}
+        <button type="button" className="dev-reset" onClick={() => { localStorage.clear(); setDesigns({ [listExample.id]: listExample, [editExample.id]: editExample }) }}>Reset</button>
       </nav>
 
-      {tab === 'build' ? (
-        <FactoryBuilder
-          document={design}
-          listTables={api.listTables}
-          fetchOptions={api.fetchOptions}
-          fetchRecords={api.fetchRecords}
-          onSave={async (doc) => {
-            await wait(200)
-            localStorage.setItem('xeplr-factory-dev', JSON.stringify(doc))
-            setSaves((n) => n + 1)
-          }}
-        />
-      ) : (
+      {page === 'screen-list' && (
         <div className="dev-run">
-          <FactoryScreen
-            document={loadDesign()}
-            fetchOptions={api.fetchOptions}
-            fetchRecords={api.fetchRecords}
-            onSave={api.saveRecord}
-            onDelete={api.deleteRecord}
-          />
+          <FactoryScreen document={listDoc} screens={{ [editDoc.id]: editDoc }} {...api} />
         </div>
+      )}
+      {page === 'screen-edit' && (
+        <div className="dev-run">
+          <FactoryScreen document={editDoc} {...api} />
+        </div>
+      )}
+      {page === 'design-list' && (
+        // {...api} FIRST: its onSave saves records; a builder's onSave saves the design.
+        <FactoryBuilder key="design-list" {...api} document={listDoc} onSave={saveDesign} screens={screenChoices} />
+      )}
+      {page === 'design-edit' && (
+        <FactoryBuilder key="design-edit" {...api} document={editDoc} onSave={saveDesign} screens={screenChoices} />
       )}
     </div>
   )

@@ -287,7 +287,9 @@ CONTROLS.list = {
   defaultSize: { w: 0.92, h: 0.42 },
   // No columns → the screen's own fields, in reading order.
   defaults: { title: 'Saved records', pageSize: 10, actions: ['new', 'edit', 'delete'] },
-  props: ['title', 'source', 'columns', 'pageSize', 'actions', 'style'],
+  // editScreen: the id of the screen Edit and New open in a POPUP. Without one,
+  // Edit opens the row in this screen's own fields (a list on a form).
+  props: ['title', 'source', 'editScreen', 'columns', 'pageSize', 'actions', 'style'],
   validation: [],
   styles: ['fontFamily', 'fontSize', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'],
   properties: [
@@ -297,6 +299,7 @@ CONTROLS.list = {
       fields: [
         { path: 'props.title', label: 'Title', type: 'text' },
         { path: 'props.source', label: 'Records from', type: 'table', help: 'Blank → the table this screen saves to' },
+        { path: 'props.editScreen', label: 'Edit in', type: 'screen', help: 'The screen Edit and New open in a popup' },
         { path: 'props.pageSize', label: 'Rows per page', type: 'number' }
       ]
     },

@@ -201,3 +201,18 @@
 .xeplr-factory-color input[type="color"] { width: 32px; height: 28px; padding: 0; border: 1px solid var(--xf-border); border-radius: 5px; background: none; cursor: pointer; }
 .xeplr-factory-checklist { display: flex; flex-direction: column; gap: 5px; }
 .xeplr-factory-checklist .xeplr-factory-toggle { font-weight: 500; }
+
+/* ── popup ──────────────────────────────────────────────────────────────── */
+.xeplr-factory-modal-backdrop {
+  position: fixed; inset: 0; z-index: 10000; display: flex; align-items: flex-start; justify-content: center;
+  padding: 4vh 2vw; box-sizing: border-box; overflow: auto;
+  background: rgba(20, 20, 18, .45);
+}
+.xeplr-factory-modal {
+  max-width: 96vw; background: var(--xeplr-surface, #fff); color: var(--xeplr-text, #1a1a19);
+  border-radius: 10px; box-shadow: 0 12px 40px rgba(0, 0, 0, .25); outline: none;
+}
+.xeplr-factory-modal-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--xeplr-border, #e2e1d9); }
+.xeplr-factory-modal-title { font-weight: 700; font-size: 15px; }
+.xeplr-factory-modal-close { border: none; background: none; font-size: 22px; line-height: 1; cursor: pointer; color: var(--xeplr-muted, #6b6a63); padding: 2px 6px; }
+.xeplr-factory-modal-body { padding: 8px 24px 16px; }

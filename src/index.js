@@ -13,7 +13,7 @@ export { useFactoryBuilder } from './useFactoryBuilder.js'
 export { useFactoryScreen, normaliseOptions, AUTOSAVE_DELAY } from './useFactoryScreen.js'
 
 // Designs
-export { BuilderSample, ScreenSample, ListView, ControlView, VIEWS, Palette, DRAG_TYPE, PropertyPanel, EDITORS } from './designs/index.js'
+export { BuilderSample, ScreenSample, ListView, ScreenModal, ControlView, VIEWS, Palette, DRAG_TYPE, PropertyPanel, EDITORS } from './designs/index.js'
 
 // Ready-made
 export { FactoryBuilder, FactoryScreen } from './pages.jsx'

@@ -6,7 +6,8 @@ import {
   CONTROLS, createScreen, addControl, moveNode, setNodeProperty, removeNodes, inputNodes,
   camelName, uniqueFieldName, validateDocument, assertValidDocument, formSchema, initialValues,
   parseInput, validateValues, fieldError, optionValue, screenFromSpec, getAtPath, setAtPath,
-  saveState, recordValues, displayValue, listColumns, listSource, setScreenProperty
+  saveState, recordValues, displayValue, listColumns, listSource, setScreenProperty,
+  screensFromSpec, entityNames, scaffoldEntity
 } from '../src/model.js'
 import { normaliseOptions } from '../src/useFactoryScreen.js'
 
@@ -255,6 +256,30 @@ console.log('\nlists')
   check('Edit takes the screen\'s fields from a record', rec.firstName === 'Ada' && rec.startDate === '2026-10-01')
   check('...leaves out columns the screen does not have', !('unknownColumn' in rec) && !('id' in rec))
   check('...and an absent checkbox is unticked', rec.remote === false)
+}
+
+console.log('\nan entity is two screens')
+{
+  const { list, edit } = screensFromSpec({ entity: 'employee', fields: EMPLOYEE.fields, listColumns: ['firstName', { field: 'department', label: 'Dept' }] })
+  check('both are valid', validateDocument(list).ok && validateDocument(edit).ok)
+  check('ids follow the entity', list.id === 'employee_list' && edit.id === 'employee_edit')
+  check('both use one table, named from the plural', list.source === 'employees' && edit.source === 'employees')
+  const l = list.nodes[0]
+  check('the list screen is one list that opens the edit screen', list.nodes.length === 1 && l.type === 'list' && l.props.editScreen === 'employee_edit')
+  check('list columns by name or { field, label }', l.props.columns.map((c) => c.label).join() === 'First name,Dept')
+  check('the edit screen has the fields and no list', inputNodes(edit).length === EMPLOYEE.fields.length && !edit.nodes.some((n) => n.type === 'list'))
+  check('a list column must be a field of the edit form', throws(() => screensFromSpec({ entity: 'x', fields: [{ label: 'A' }], listColumns: ['nope'] }), /not a field of the edit form/))
+  check('no entity is refused', throws(() => screensFromSpec({ fields: [] }), /entity is required/))
+  check('without listColumns, the first five fields', screensFromSpec({ entity: 'x', fields: EMPLOYEE.fields }).list.nodes[0].props.columns.length === 5)
+  const names = entityNames('leave request')
+  check('names agree everywhere', names.table === 'leave_requests' && names.file === 'leave-request' && names.listComponent === 'LeaveRequestList' && names.editComponent === 'EditLeaveRequest')
+  check('plurals: company → companies, box → boxes', entityNames('company').table === 'companies' && entityNames('box').table === 'boxes')
+  check('an explicit plural wins', entityNames('person', 'people').table === 'people')
+  const { files } = scaffoldEntity({ entity: 'employee', fields: [{ label: 'Name' }] })
+  check('scaffold writes both screens and both pages', Object.keys(files).sort().join() === 'EditEmployee.jsx,EmployeeList.jsx,employee-edit.screen.json,employee-list.screen.json')
+  check('the edit page takes a record for Edit', /export default function EditEmployee\(\{ api, record \}\)/.test(files['EditEmployee.jsx']))
+  const bad = { ...list, nodes: [{ ...l, props: { ...l.props, editScreen: 'no spaces allowed' } }] }
+  check('an editScreen must be a screen id', validateDocument(bad).errors.some((e) => /editScreen/.test(e.path)))
 }
 
 console.log('\nautosave')

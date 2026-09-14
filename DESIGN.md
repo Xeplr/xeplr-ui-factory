@@ -14,6 +14,7 @@ Design a screen on the shared canvas, save it as metadata, render it as a workin
 | Saving | **Automatic, no submit.** A screen saves itself (host `onSave`, AJAX) a moment after a valid change; the builder saves the design the same way. |
 | Styles | **Every look is a property** — font, size, weight, italic, alignment, colours, border, radius, label style; screen-wide defaults. Sizes are px at the design `width`; never enlarged. |
 | Records | **List control** — saved records in `@xeplr/ui-table`, with New / Edit / Delete; host `fetchRecords` / `onDelete`. |
+| Entities | **Two screens per entity**: `<entity>_list` (a list whose Edit / New open…) and `<entity>_edit` (…the add / edit form, in a popup). Claude generates both plus `EntityList.jsx` / `EditEntity.jsx`; an app shows Screen · List, Screen · Edit, Designer · List, Designer · Edit. |
 | Authoring | **Claude drafts, people refine.** A short spec → `screenFromSpec` lays it out; `xeplr-factory validate` checks it; [AUTHORING.md](./AUTHORING.md) is the guide. |
 
 ## Phase 1 — the designer
@@ -77,7 +78,7 @@ The factory never runs SQL — the database is the app's. The app supplies two f
 }
 ```
 
-A full example: [examples/new-employee.screen.json](./examples/new-employee.screen.json), generated from [examples/new-employee.spec.json](./examples/new-employee.spec.json).
+A full example: [examples/](./examples) — `employee.entity.json` and the two screens and two pages `xeplr-factory screens` makes of it.
 
 - Geometry is `@xeplr/ui-canvas` items as-is (`id, x, y, w, h, z, groupId`).
 - `formSchema(document)` turns the inputs' props into a `@xeplr/schema-handler` schema, so the app's server checks submissions with `applySchema`.
