@@ -29,8 +29,10 @@ import { validateDocument } from './validateDocument.js'
  * @param screens     [{ id, name, document? }] — other screens, offered for a list's "Edit in";
  *                    with its document, a list screen can pick columns from its fields
  * @param lockedNames field names that are already columns of the table — they cannot be renamed
- * @param onPublish   async (document) → { version } — makes the saved draft the version everyone sees.
- *                    It may refuse (e.g. the table is missing columns) by throwing; the message is shown.
+ * @param onPublish   async (document, { confirmDrop }) → { version } — makes the saved draft the version
+ *                    everyone sees, and changes its table to match. Throw to refuse (the message is
+ *                    shown); throw with `confirm: [{ column, records }]` when removed fields would drop
+ *                    columns — the builder asks, and calls again with confirmDrop naming them.
  * @param controls    the control registry (default: the built-ins)
  */
 export function useFactoryBuilder({ document: given, name, onSave, onChange, onPublish, listTables, screens, lockedNames, controls = CONTROLS, autosaveDelay = 800 } = {}) {
@@ -196,7 +198,7 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
   const onPublishRef = useRef(onPublish); onPublishRef.current = onPublish
   const [publishing, setPublishing] = useState(false)
   const [publishResult, setPublishResult] = useState(null)   // { ok, message, version?, detail? }
-  const publish = useCallback(async () => {
+  const publish = useCallback(async (confirmDrop) => {
     if (!onPublishRef.current) return { ok: false }
     const check = validateDocument(docRef.current, controls)
     if (!check.ok) {
@@ -209,12 +211,21 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
     try {
       const saved = await save()
       if (!saved.ok && !saved.busy) throw new Error((saved.errors && saved.errors[0] && saved.errors[0].message) || 'Could not save the draft')
-      const res = await onPublishRef.current(docRef.current)
-      const r = { ok: true, version: res && res.version, message: res && res.version ? `Published version ${res.version}` : 'Published' }
+      const res = await onPublishRef.current(docRef.current, { confirmDrop: Array.isArray(confirmDrop) ? confirmDrop : [] })
+      const kept = (res && res.keep) || []
+      const r = {
+        ok: true,
+        version: res && res.version,
+        message: (res && res.version ? `Published version ${res.version}` : 'Published') +
+          (kept.length ? ` — kept ${kept.map((k) => k.name).join(', ')} (${kept[0].reason})` : '')
+      }
       setPublishResult(r)
       return r
     } catch (err) {
-      const r = { ok: false, message: err.message || 'Could not publish', detail: err.detail }
+      // A removed field would drop a column: not an error, a question.
+      const r = Array.isArray(err.confirm) && err.confirm.length
+        ? { ok: false, confirm: err.confirm, message: err.message }
+        : { ok: false, message: err.message || 'Could not publish', detail: err.detail }
       setPublishResult(r)
       return r
     } finally {

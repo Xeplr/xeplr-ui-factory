@@ -28,7 +28,12 @@ export function createFactoryApi({ fetch: doFetch, base = '' } = {}) {
       const err = new Error((json && json.message) || `${method} ${path} failed (${res.status})`)
       err.status = res.status
       err.fields = json && json.error && json.error.fields
-      err.detail = json && json.dataArray && json.dataArray[0] && json.dataArray[0].migration
+      const extra = (json && json.dataArray && json.dataArray[0]) || {}
+      // Publish: columns it would drop, waiting for a yes — and what it keeps.
+      err.confirm = extra.confirm
+      err.keep = extra.keep
+      err.refused = extra.refused
+      if (extra.statements) err.detail = extra.statements.join('\n')
       throw err
     }
     return json ? json.dataArray : []
@@ -42,7 +47,9 @@ export function createFactoryApi({ fetch: doFetch, base = '' } = {}) {
     loadScreen: async (key) => one(await call('GET', `/screens/${enc(key)}`)).document,
     loadDraft: async (key) => one(await call('GET', `/screens/${enc(key)}?draft=true`)),
     saveDraft: (doc) => call('PUT', `/screens/${enc(doc.id)}/draft`, { document: doc }),
-    publish: async (doc) => one(await call('POST', `/screens/${enc(doc.id)}/publish`)),
+    // Changes the screen's table directly. Rejects with err.confirm = [{ column, records }]
+    // when a removed field would drop a column; call again with { confirmDrop: [names] }.
+    publish: async (doc, options) => one(await call('POST', `/screens/${enc(doc.id)}/publish`, { confirmDrop: (options && options.confirmDrop) || [] })),
     listTables: () => call('GET', '/tables'),
 
     // records

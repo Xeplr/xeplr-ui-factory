@@ -17,5 +17,6 @@ export { getAtPath, setAtPath } from './propertyPath.js'
 export { createFactoryApi } from './remote.js'
 export {
   STANDARD_COLUMNS, RESERVED_COLUMNS, MAX_IDENTIFIER,
-  columnForField, tableForScreen, columnSql, widening, diffTables, migrationFor, nextMigrationName
+  columnForField, tableForScreen, columnSql, widening, diffTables, migrationFor, nextMigrationName,
+  createStatements, addStatements, alterStatement, dropStatement, columnFromDatabase, planTableChange
 } from './tableSchema.js'

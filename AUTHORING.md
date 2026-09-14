@@ -14,21 +14,21 @@ A request for "a form for employees" is an **entity**, and an entity is **two sc
    This writes `employee-list.screen.json`, `employee-edit.screen.json`, `EmployeeList.jsx` and `EditEmployee.jsx`. Wire the two pages into the app's menu next to two `<FactoryBuilder>` pages for designing them (Screen · List, Screen · Edit, Designer · List, Designer · Edit). It refuses to overwrite existing files — they may have been refined in the designer — unless given `--force`.
 
    A single screen that is not an entity (a settings form, say) uses `npx xeplr-factory generate spec.json -o screen.json` with the screen spec below.
-3. **Write the table's migration.** Records live in a **real table** — `employees`, one column per field — never in JSON. Draft the migration from the edit screen into the app's migrations folder:
-   ```sh
-   npx xeplr-factory migration src/screens/employee/employee-edit.screen.json -o migrations
-   ```
-   It writes the next numbered file (`0067_factory_employees_create.sql`): a `CREATE TABLE` with a column per field, real foreign keys for table dropdowns, and the standard `id` / `isActive` / `mtId1–4` / audit columns. Read it, and apply it with the app's `migrate:up`.
+3. **The table comes from Publish.** Records live in a **real table** — `employees`, one column per field — never in JSON, and there are no migration files to write: **publishing** the edit screen creates its table (`CREATE TABLE`, a column per field, real foreign keys for table dropdowns, the standard `id` / `isActive` / `mtId1–4` / audit columns), and publishing a later version changes it:
+   - a new field → `ADD COLUMN`; a wider text or number → `ALTER COLUMN … TYPE`
+   - narrowing, or a different kind of value → **refused**; tell the person why
+   - a **removed field drops its column and all its data** — Publish asks the person to confirm first, showing how many values would go. Never confirm a drop on their behalf.
+   - a column not created by a screen, or still used by another company's screen, is never dropped
 
-   **Changing an existing form** is a migration too. Pass the version the table was built from: `--from employee-edit.published.json` (from git, or `GET /factory/screens/employee_edit`). New fields become `ADD COLUMN`; a wider text or number becomes `ALTER COLUMN … TYPE`. Narrowing, or changing a field to a different kind of value, is **refused** — explain why to the person and write that migration by hand only if they confirm. A removed field's column is kept.
+   Publish a table that others point at first: `departments` before `employees`. To preview the SQL without applying it: `npx xeplr-factory migration employee-edit.screen.json`.
 
-   **Never rename a field that is already a column** (the designer locks those names). Renaming would start a new empty column and strand the data in the old one.
+   **Never rename a field that is already a column** (the designer locks those names) — it would drop the old column and its data and start an empty one.
 4. **Validate** — `screens` and `generate` already refuse a bad spec, but check any document you edited by hand:
    ```sh
    npx xeplr-factory validate screen.json
    ```
    Every problem names a path (`nodes[3].props.data.table`) and what belongs there. Fix and re-run until it prints `ok`.
-5. **Save and publish.** Save the screens as drafts and publish them. Publishing refuses a screen whose table is missing a column, and returns the SQL that would add it — run the migration first.
+5. **Save and publish.** Save the screens as drafts, then publish — edit screens of referenced tables first. Publishing changes the table; if it would drop columns it returns them for the person to confirm.
 6. **Hand over.** The person opens the screens in the designer to move, resize and restyle controls.
 
 There is **no submit button** to add: a screen saves itself as it is filled in. If the request mentions seeing or editing what was entered ("…and show the employees below"), add a `list`.
@@ -211,7 +211,7 @@ Keep labels short and in sentence case ("Start date", not "START DATE:"). Mark o
 
 ```sh
 npx xeplr-factory screens <entity.json|-> [-o <dir>] [--force] # entity → list + edit screens and pages
-npx xeplr-factory migration <edit.screen.json> [--from <previous.screen.json>] [-o <migrations dir>]  # the table's SQL
+npx xeplr-factory migration <edit.screen.json> [--from <previous.screen.json>]   # preview a table's SQL (Publish applies it)
 npx xeplr-factory generate <spec.json|-> [-o <screen.json>]   # spec → document
 npx xeplr-factory validate <screen.json|->                    # exit 1 with every problem listed
 npx xeplr-factory controls                                     # controls, props, validation rules

@@ -72,13 +72,33 @@ export default function BuilderSample({ ctrl, renderPreview, className, style })
           </button>
         )}
         {ctrl.canPublish && (
-          <button type="button" className="xeplr-factory-primary" onClick={ctrl.publish} disabled={ctrl.publishing}>
+          <button type="button" className="xeplr-factory-primary" onClick={() => ctrl.publish()} disabled={ctrl.publishing}>
             {ctrl.publishing ? 'Publishing…' : 'Publish'}
           </button>
         )}
       </header>
 
-      {ctrl.publishResult && (
+      {ctrl.publishResult && ctrl.publishResult.confirm && (
+        <div className="xeplr-factory-publish is-confirm" role="alertdialog" aria-label="Confirm removing columns">
+          <div className="xeplr-factory-confirm-text">
+            <strong>Publishing removes {ctrl.publishResult.confirm.length === 1 ? 'a column' : `${ctrl.publishResult.confirm.length} columns`} and all the data in {ctrl.publishResult.confirm.length === 1 ? 'it' : 'them'}.</strong>
+            <ul>
+              {ctrl.publishResult.confirm.map((c) => (
+                <li key={c.column}><code>{c.column}</code> — {c.records} saved value{c.records === 1 ? '' : 's'}, for every company using this table</li>
+              ))}
+            </ul>
+            This cannot be undone. To keep the data, put the field back before publishing.
+          </div>
+          <div className="xeplr-factory-confirm-actions">
+            <button type="button" className="xeplr-factory-danger" disabled={ctrl.publishing}
+              onClick={() => ctrl.publish(ctrl.publishResult.confirm.map((c) => c.column))}>
+              {ctrl.publishing ? 'Publishing…' : 'Remove and publish'}
+            </button>
+            <button type="button" className="xeplr-factory-secondary" onClick={ctrl.clearPublishResult}>Cancel</button>
+          </div>
+        </div>
+      )}
+      {ctrl.publishResult && !ctrl.publishResult.confirm && (
         <div className={`xeplr-factory-publish${ctrl.publishResult.ok ? ' is-ok' : ' is-error'}`} role="status">
           <span>{ctrl.publishResult.message}</span>
           {ctrl.publishResult.detail && <pre className="xeplr-factory-publish-detail">{ctrl.publishResult.detail}</pre>}

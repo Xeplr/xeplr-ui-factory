@@ -90,8 +90,20 @@ function App() {
   // Stand-in for @xeplr/factory's publish: a version number, and the fields
   // that are now "columns" — which the designer then shows as locked.
   const [published, setPublished] = useState(() => read('dev-published', {}))
-  const publish = async (doc) => {
+  const publish = async (doc, { confirmDrop = [] } = {}) => {
     await wait(200)
+    // Like @xeplr/factory: a field that was a column and is gone would drop it —
+    // asked first, with how many saved values it holds.
+    const had = (published[doc.id] && published[doc.id].columns) || []
+    const fields = inputNodes(doc).map((n) => n.props.name)
+    const dropping = had.filter((c) => !fields.includes(c))
+    const unconfirmed = dropping.filter((c) => !confirmDrop.includes(c))
+    if (unconfirmed.length) {
+      const rows = read('dev-records', {})[doc.source] || []
+      const err = new Error(`Publishing removes ${dropping.length} column(s) with all their data`)
+      err.confirm = dropping.map((c) => ({ column: c, records: rows.filter((r) => r[c] !== undefined && r[c] !== null && r[c] !== '').length }))
+      throw err
+    }
     const next = { ...published, [doc.id]: { version: ((published[doc.id] && published[doc.id].version) || 0) + 1, columns: inputNodes(doc).map((n) => n.props.name) } }
     write('dev-published', next)
     setPublished(next)

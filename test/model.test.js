@@ -8,7 +8,7 @@ import {
   parseInput, validateValues, fieldError, optionValue, screenFromSpec, getAtPath, setAtPath,
   saveState, recordValues, displayValue, listColumns, listSource, setScreenProperty,
   screensFromSpec, entityNames, scaffoldEntity,
-  tableForScreen, columnForField, migrationFor, nextMigrationName
+  tableForScreen, columnForField, migrationFor, nextMigrationName, planTableChange, columnFromDatabase
 } from '../src/model.js'
 import { normaliseOptions } from '../src/useFactoryScreen.js'
 
@@ -318,6 +318,44 @@ console.log('\na form is a real table')
   check('a locked field name cannot be renamed', locked === edit)
   const relabelled = setNodeProperty(edit, 'firstName', 'props.label', 'Given name', undefined, { lockedNames: ['firstName'] })
   check('...nor follow its label', relabelled.nodes.find((n) => n.id === 'firstName').props.name === 'firstName')
+}
+
+console.log('\npublish changes the table directly')
+{
+  const { edit } = screensFromSpec({ entity: 'employee', fields: EMPLOYEE.fields })
+  const created = planTableChange(null, edit)
+  check('no table: CREATE TABLE and indexes', created.create && /CREATE TABLE IF NOT EXISTS "employees"/.test(created.statements[0]) && created.statements.length === 3)
+
+  // The table as the database describes it after that create.
+  const db = (doc) => ({ table: 'employees', columns: [
+    { name: 'id', udtName: 'varchar', maxLength: 25 },
+    ...tableForScreen(doc).columns.map((c) => ({ name: c.name, udtName: { varchar: 'varchar', text: 'text', integer: 'int4', numeric: 'numeric', date: 'date', boolean: 'bool' }[c.type], maxLength: c.length || null, references: c.references })),
+    { name: 'isActive', udtName: 'bool' }, { name: 'mtId1', udtName: 'varchar', maxLength: 25 }
+  ] })
+  check('the database description reads back as the same columns', planTableChange(db(edit), edit).statements.length === 0)
+  check('columnFromDatabase maps pg types', columnFromDatabase({ name: 'a', udtName: 'int4' }).type === 'integer' && columnFromDatabase({ name: 'b', udtName: 'varchar', maxLength: 12 }).length === 12)
+
+  let v2 = addControl(edit, 'text', { props: { label: 'Employee code', validation: { maxLength: 12 } } }).document
+  v2 = removeNodes(v2, ['salary'])
+  const current = db(edit)
+  current.columns.push({ name: 'legacyCode', udtName: 'varchar', maxLength: 10 })   // made by hand
+
+  const asking = planTableChange(current, v2, { managed: ['salary', 'firstName'] })
+  check('a removed field that was a screen field is offered for dropping', asking.drop.map((d) => d.name).join() === 'salary')
+  check('...and nothing runs until it is confirmed', asking.unconfirmed.join() === 'salary' && asking.statements.length === 0)
+  check('a column no screen made is kept, with the reason', asking.keep.some((k) => k.name === 'legacyCode' && /not created by a screen/.test(k.reason)))
+
+  const confirmed = planTableChange(current, v2, { managed: ['salary'], confirmDrop: ['salary'] })
+  check('confirmed: add, then drop', confirmed.statements.some((x) => /ADD COLUMN IF NOT EXISTS "employeeCode" varchar\(12\)/.test(x)) && confirmed.statements.some((x) => /DROP COLUMN IF EXISTS "salary"/.test(x)))
+  check('confirming another name confirms nothing', planTableChange(current, v2, { managed: ['salary'], confirmDrop: ['notes'] }).statements.length === 0)
+
+  const shared = planTableChange(current, v2, { managed: ['salary'], inUse: ['salary'] })
+  check('a column another screen still uses is kept, not asked about', shared.drop.length === 0 && shared.keep.some((k) => k.name === 'salary') && shared.statements.length > 0)
+
+  const narrowed = planTableChange(db(setNodeProperty(edit, 'firstName', 'props.validation.maxLength', 300)), edit)
+  check('narrowing is refused and nothing runs', narrowed.refused.length === 1 && narrowed.statements.length === 0)
+  const hand = { table: 'employees', columns: [...db(edit).columns.filter((c) => c.name !== 'startDate'), { name: 'startDate', udtName: 'timestamp' }] }
+  check('a column of a type no field makes is never changed', planTableChange(hand, edit).refused.some((r) => r.column === 'startDate'))
 }
 
 console.log('\nautosave')

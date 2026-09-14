@@ -33,7 +33,7 @@ Most internal apps are a long tail of forms, and every one of them is hand-built
 
 **The factory never has a database.** Your app stores screen documents and supplies the rows dropdowns read. The factory draws, edits and validates.
 
-**Records live in real tables** — `employees`, one column per field — never in JSON, so `select * from employees` and ordinary reporting just work. `xeplr-factory migration` drafts each table's migration from its form, and [`@xeplr/factory`](https://www.npmjs.com/package/@xeplr/factory) is the server package that saves screens (draft / publish) and reads and writes those tables with the screen's own validation. `createFactoryApi({ fetch })` connects the components to it.
+**Records live in real tables** — `employees`, one column per field — never in JSON, so `select * from employees` and ordinary reporting just work. **Publishing** a screen creates or changes its table directly: new fields add columns, and a removed field drops its column and data only after you confirm. [`@xeplr/factory`](https://www.npmjs.com/package/@xeplr/factory) is the server package that does it, saves screens (draft / publish) and reads and writes those tables with the screen's own validation. `createFactoryApi({ fetch })` connects the components to it.
 
 ## Install
 
@@ -65,7 +65,7 @@ import { FactoryBuilder } from '@xeplr/ui-factory'
 - **Every look is a property:** font, size, weight, italic, alignment, text colour, background, border colour/width, corner radius — and for an input, its label's size, weight and colour.
 - With nothing selected, the panel shows the **screen**: the table it saves to, its width, and the font and colours every control inherits.
 - **No Save button.** Edits are saved (as a draft) a moment after you stop, whenever the screen is valid; problems are marked on the controls that have them until they are fixed.
-- **Publish** (when `onPublish` is given) makes the draft the version everyone sees. It may be refused — e.g. the table has no column for a new field — and the reason, with the migration to run, is shown.
+- **Publish** (when `onPublish` is given) makes the draft the version everyone sees and changes its table to match. If removed fields would drop columns, it asks first — "Publishing removes `phone` — 1,240 saved values" — with **Remove and publish** / **Cancel**. Unsafe changes (narrowing a field) are refused with the reason.
 - **`lockedNames`**: fields that are already columns of the table. Their names are read-only, because renaming one would leave its data behind.
 
 ## The screen
@@ -156,7 +156,7 @@ It lays the fields out as a tidy one- or two-column form and returns a checked d
 
 ```sh
 npx xeplr-factory screens entity.json -o dir   # an entity → list + edit screens and pages
-npx xeplr-factory migration edit.screen.json -o migrations   # the entity's table, as a migration
+npx xeplr-factory migration edit.screen.json   # preview the SQL Publish would run
 npx xeplr-factory generate spec.json -o screen.json   # one screen from a spec
 npx xeplr-factory validate screen.json      # every problem, with its path
 npx xeplr-factory controls                   # controls, props and rules
@@ -208,7 +208,7 @@ src/
   values.js              ─ values, validation, autosave readiness, records and list columns, formSchema
   generate.js            ─ screenFromSpec, screensFromSpec (list + edit), entity names
   scaffold.js            ─ an entity → its screen JSON and .jsx pages
-  tableSchema.js         ─ a form → its table; CREATE / ALTER TABLE migrations, safe changes only
+  tableSchema.js         ─ a form → its table; the publish plan (create / add / widen / confirmed drops)
   remote.js              ─ createFactoryApi: the calls to @xeplr/factory's routes
   model.js               ─ everything above, React-free
   useFactoryBuilder.js   ─ builder controller

@@ -181,30 +181,134 @@ export function migrationFor(previous, next, controls = CONTROLS) {
   lines.push(...header, '')
 
   if (diff.create) {
-    const cols = [...STANDARD_COLUMNS.slice(0, 1), ...after.columns.map((c) => ({ name: c.name, sql: columnSql(c), label: c.label })), ...STANDARD_COLUMNS.slice(1)]
-    const width = Math.max(...cols.map((c) => c.name.length)) + 2
-    lines.push(`CREATE TABLE IF NOT EXISTS ${q(t)} (`)
-    cols.forEach((c, i) => {
-      const comma = i < cols.length - 1 ? ',' : ''
-      const note = c.label ? `  -- ${c.label}` : ''
-      lines.push(`  ${q(c.name).padEnd(width)} ${c.sql}${comma}${note}`)
-    })
-    lines.push(');', '')
-    lines.push(`CREATE INDEX IF NOT EXISTS ${q(`${t}_mt_index`)} ON ${q(t)} ("mtId1", "mtId2");`)
-    after.columns.filter((c) => c.references).forEach((c) => {
-      lines.push(`CREATE INDEX IF NOT EXISTS ${q(`${t}_${c.name}_index`)} ON ${q(t)} (${q(c.name)});`)
-    })
+    lines.push(...createStatements(after, { annotate: true }))
   } else {
-    diff.add.forEach((c) => {
-      lines.push(`ALTER TABLE ${q(t)} ADD COLUMN IF NOT EXISTS ${q(c.name)} ${columnSql(c)};  -- ${c.label}`)
-      if (c.references) lines.push(`CREATE INDEX IF NOT EXISTS ${q(`${t}_${c.name}_index`)} ON ${q(t)} (${q(c.name)});`)
-    })
-    diff.alter.forEach(({ from, to }) => {
-      const type = to.type === 'varchar' ? `varchar(${to.length})` : to.type
-      lines.push(`ALTER TABLE ${q(t)} ALTER COLUMN ${q(to.name)} TYPE ${type};  -- was ${describe(from)}`)
-    })
+    diff.add.forEach((c) => lines.push(...addStatements(t, c, { annotate: true })))
+    diff.alter.forEach(({ from, to }) => lines.push(alterStatement(t, from, to, { annotate: true })))
   }
   return { sql: lines.join('\n') + '\n', diff, table: t, empty: false }
+}
+
+// ── statements ───────────────────────────────────────────────────────────
+
+/** CREATE TABLE with the fields and the standard columns, and its indexes. */
+export function createStatements(after, { annotate } = {}) {
+  const t = after.table
+  const cols = [...STANDARD_COLUMNS.slice(0, 1), ...after.columns.map((c) => ({ name: c.name, sql: columnSql(c), label: c.label })), ...STANDARD_COLUMNS.slice(1)]
+  const width = Math.max(...cols.map((c) => c.name.length)) + 2
+  const body = cols.map((c, i) => {
+    const comma = i < cols.length - 1 ? ',' : ''
+    const note = annotate && c.label ? `  -- ${c.label}` : ''
+    return `  ${q(c.name).padEnd(width)} ${c.sql}${comma}${note}`
+  })
+  const out = [`CREATE TABLE IF NOT EXISTS ${q(t)} (\n${body.join('\n')}\n);`]
+  out.push(`CREATE INDEX IF NOT EXISTS ${q(`${t}_mt_index`)} ON ${q(t)} ("mtId1", "mtId2");`)
+  after.columns.filter((c) => c.references).forEach((c) => {
+    out.push(`CREATE INDEX IF NOT EXISTS ${q(`${t}_${c.name}_index`)} ON ${q(t)} (${q(c.name)});`)
+  })
+  return out
+}
+
+export function addStatements(t, c, { annotate } = {}) {
+  const out = [`ALTER TABLE ${q(t)} ADD COLUMN IF NOT EXISTS ${q(c.name)} ${columnSql(c)};${annotate && c.label ? `  -- ${c.label}` : ''}`]
+  if (c.references) out.push(`CREATE INDEX IF NOT EXISTS ${q(`${t}_${c.name}_index`)} ON ${q(t)} (${q(c.name)});`)
+  return out
+}
+
+export function alterStatement(t, from, to, { annotate } = {}) {
+  const type = to.type === 'varchar' ? `varchar(${to.length})` : to.type
+  return `ALTER TABLE ${q(t)} ALTER COLUMN ${q(to.name)} TYPE ${type};${annotate ? `  -- was ${describe(from)}` : ''}`
+}
+
+/** Drops the column and every value in it. Its foreign key and index go with it. */
+export function dropStatement(t, name) {
+  return `ALTER TABLE ${q(t)} DROP COLUMN IF EXISTS ${q(name)};`
+}
+
+// ── publish: apply directly ──────────────────────────────────────────────
+//
+// Publishing a screen changes its table straight away — no migration files.
+// It compares the screen with the table AS IT IS in the database (not with
+// the previous version), so a table changed by hand, or a publish that failed
+// halfway, is still seen for what it is.
+//
+// A REMOVED FIELD DROPS ITS COLUMN AND ITS DATA — only after the person
+// confirms, and never for a column this factory did not create:
+//   managed  names that were fields of a published version of a screen on this
+//            table. A column somebody added by hand is not in it, and is left alone.
+//   inUse    names another published screen on the same table still has —
+//            another company's screen, say. The column is shared; it stays.
+
+/** A column as Postgres describes it → the shape columnForField returns. */
+export function columnFromDatabase(c) {
+  const base = { name: c.name }
+  if (c.references) base.references = c.references
+  switch (c.udtName) {
+    case 'varchar': return { ...base, type: 'varchar', length: c.maxLength }
+    case 'text': return { ...base, type: 'text' }
+    case 'int2':
+    case 'int4': return { ...base, type: 'integer' }
+    case 'numeric': return { ...base, type: 'numeric' }
+    case 'date': return { ...base, type: 'date' }
+    case 'bool': return { ...base, type: 'boolean' }
+    // Anything else (a timestamp, a bigint someone chose) is not a type a field
+    // makes — so any change to it is refused rather than guessed at.
+    default: return { ...base, type: c.udtName }
+  }
+}
+
+/**
+ * What publishing `next` does to its table.
+ *
+ * @param current  { table, columns: [{ name, udtName, maxLength, references }] }
+ *                 as the database describes it, or null when the table does not exist
+ * @param options.managed      names ever published as fields on this table
+ * @param options.inUse        names other published screens on this table still use
+ * @param options.confirmDrop  names the person has confirmed dropping
+ * @returns {{
+ *   table, create,
+ *   add, alter,             what will change
+ *   drop,                   columns to drop: [{ name }]
+ *   unconfirmed,            of those, the ones not yet confirmed — nothing runs until this is empty
+ *   keep,                   columns left in place, with why: [{ name, reason }]
+ *   refused,                changes that cannot be made safely: [{ column, reason }] — nothing runs
+ *   statements              the SQL, in order — empty while anything is refused or unconfirmed
+ * }}
+ */
+export function planTableChange(current, next, options = {}, controls = CONTROLS) {
+  const after = tableForScreen(next, controls)
+  const managed = new Set(options.managed || [])
+  const inUse = new Set(options.inUse || [])
+  const confirmed = new Set(options.confirmDrop || [])
+  const plan = { table: after.table, create: false, add: [], alter: [], drop: [], unconfirmed: [], keep: [], refused: [], statements: [] }
+
+  if (!current) {
+    plan.create = true
+    plan.add = after.columns
+    plan.statements = createStatements(after)
+    return plan
+  }
+
+  const existing = current.columns
+    .filter((c) => !RESERVED_COLUMNS.includes(c.name))
+    .map(columnFromDatabase)
+  const diff = diffTables({ table: after.table, columns: existing }, after)
+  plan.add = diff.add
+  plan.alter = diff.alter
+  plan.refused = diff.refused
+
+  diff.unused.forEach((c) => {
+    if (!managed.has(c.name)) plan.keep.push({ name: c.name, reason: 'not created by a screen — left as it is' })
+    else if (inUse.has(c.name)) plan.keep.push({ name: c.name, reason: 'another published screen on this table still uses it' })
+    else plan.drop.push({ name: c.name })
+  })
+  plan.unconfirmed = plan.drop.filter((d) => !confirmed.has(d.name)).map((d) => d.name)
+
+  if (plan.refused.length || plan.unconfirmed.length) return plan
+  plan.add.forEach((c) => plan.statements.push(...addStatements(after.table, c)))
+  plan.alter.forEach(({ from, to }) => plan.statements.push(alterStatement(after.table, from, to)))
+  plan.drop.forEach((d) => plan.statements.push(dropStatement(after.table, d.name)))
+  return plan
 }
 
 /** Next migration file name in a folder of NNNN_*.sql files. */
