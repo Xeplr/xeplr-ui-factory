@@ -1,6 +1,6 @@
 {
   "name": "@xeplr/ui-factory",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Design data-entry screens on @xeplr/ui-canvas, save them as JSON, render them as working forms — built for Claude to draft and people to refine",
   "type": "module",
   "main": "src/index.js",
