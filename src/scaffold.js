@@ -39,6 +39,7 @@ function listPage(n, listJson, editJson, list, edit) {
   return `import { FactoryScreen } from '@xeplr/ui-factory'
 import listScreen from './${listJson}'
 import editScreen from './${editJson}'
+import { ${n.hooksInstance} } from './${n.editComponent}.jsx'
 
 // ${n.pluralTitle} — the saved ${list.source}, with New / Edit / Delete.
 // Edit and New open "${edit.name}" (${edit.id}) in a popup.
@@ -48,12 +49,15 @@ import editScreen from './${editJson}'
 //   fetchRecords({ source })        → records
 //   onDelete({ id, source, record })
 //   fetchOptions({ table })         → [{ id, name }] for dropdowns
+//
+// Its hooks are ${n.editComponent}.jsx's — the same ones run in the popup.
 export default function ${n.listComponent}({ api }) {
   return (
     <FactoryScreen
       document={listScreen}
       screens={{ [editScreen.id]: editScreen }}
       {...api}
+      hooks={${n.hooksInstance}}
     />
   )
 }
@@ -102,15 +106,51 @@ module.exports = {
 }
 
 function editPage(n, editJson, edit) {
-  return `import { FactoryScreen } from '@xeplr/ui-factory'
+  return `import { FactoryScreen, FactoryHooks } from '@xeplr/ui-factory'
 import editScreen from './${editJson}'
 
 // ${edit.name} — saves itself as it is filled in; there is no submit.
 // Opened in a popup from ${n.listComponent}, or on its own page:
 //   <${n.editComponent} api={api} />                 a new ${n.singular}
 //   <${n.editComponent} api={api} record={row} />    an existing one
+
+// ── WHAT THE SCREENS DO IN THE BROWSER ──────────────────────────────────
+// Every method runs the default (super). Change the ones you need; leave the
+// rest as they are. Used by this page, by ${n.listComponent} and by its popup.
+//
+//   before    change the input, then call super
+//   after     call super, then use or change what it returns
+//   override  do not call super
+//
+// ctx.screen says which screen is calling ("${n.key}_list" or "${edit.id}").
+// Keep them as methods (save(values, ctx) { … }) — super does not work in
+// arrow functions. Rules that must hold belong in the server's hooks.
+export class ${n.hooksClass} extends FactoryHooks {
+  /** A list's rows (ctx.many), or the record Edit opens (ctx.id). */
+  get(ctx) {
+    return super.get(ctx)
+  }
+
+  /** Every autosave — keep it quick. Returns the saved record. */
+  save(values, ctx) {
+    return super.save(values, ctx)
+  }
+
+  /** A list row, after the person confirmed. */
+  delete(record, ctx) {
+    return super.delete(record, ctx)
+  }
+
+  /** Extra row buttons beside Edit / Delete: [{ label, onClick: (record, ctx) => … }]. ctx.refresh() reloads. */
+  actions(ctx) {
+    return super.actions(ctx)
+  }
+}
+
+export const ${n.hooksInstance} = new ${n.hooksClass}()
+
 export default function ${n.editComponent}({ api, record }) {
-  return <FactoryScreen document={editScreen} record={record} {...api} />
+  return <FactoryScreen document={editScreen} record={record} {...api} hooks={${n.hooksInstance}} />
 }
 `
 }

@@ -11,7 +11,7 @@ A request for "a form for employees" is an **entity**, and an entity is **two sc
    ```sh
    npx xeplr-factory screens employee.entity.json -o src/screens/employee
    ```
-   This writes `employee-list.screen.json`, `employee-edit.screen.json`, `EmployeeList.jsx`, `EditEmployee.jsx` and an empty `employee.hooks.js`. Wire the two pages into the app's menu next to two `<FactoryBuilder>` pages for designing them (Screen · List, Screen · Edit, Designer · List, Designer · Edit). It refuses to overwrite existing files — they may have been refined in the designer — unless given `--force`.
+   This writes `employee-list.screen.json`, `employee-edit.screen.json`, `EmployeeList.jsx`, `EditEmployee.jsx` (which holds the front-end hooks — see below) and an empty `employee.hooks.js` (the server's). Wire the two pages into the app's menu next to two `<FactoryBuilder>` pages for designing them (Screen · List, Screen · Edit, Designer · List, Designer · Edit). It refuses to overwrite existing files — they may have been refined in the designer — unless given `--force`, which replaces the screen JSON only: the `.jsx` pages and the hooks file are the app's code and are always kept.
 
    A single screen that is not an entity (a settings form, say) uses `npx xeplr-factory generate spec.json -o screen.json` with the screen spec below.
 3. **The table comes from Publish.** Records live in a **real table** — `employees`, one column per field — never in JSON, and there are no migration files to write: **publishing** the edit screen creates its table (`CREATE TABLE`, a column per field, real foreign keys for table dropdowns, the standard `id` / `isActive` / `mtId1–4` / audit columns), and publishing a later version changes it:
@@ -29,8 +29,28 @@ A request for "a form for employees" is an **entity**, and an entity is **two sc
    ```
    Every problem names a path (`nodes[3].props.data.table`) and what belongs there. Fix and re-run until it prints `ok`.
 5. **Save and publish.** Save the screens as drafts, then publish — edit screens of referenced tables first. Publishing changes the table; if it would drop columns it returns them for the person to confirm.
-6. **Hooks, if the request needs them.** Anything beyond storing what the form shows — a value worked out on save, a check against other records, an email afterwards, a list narrowed to the user — goes in `employee.hooks.js`, never in the screen: `save`, `get` (list and one record) and `delete`, each with `before`, `after`, `error` and `override`. Register it with `factory.init({ hooks: { employee_edit: require('./employee.hooks') } })`. `override` replaces the whole operation — rules and the other hooks included — so use it only when the generic save / get / delete does not apply at all. The `screens` command never overwrites an existing hooks file, even with `--force`. Details: the [`@xeplr/factory` README](https://www.npmjs.com/package/@xeplr/factory#hooks).
-7. **Hand over.** The person opens the screens in the designer to move, resize and restyle controls.
+6. **Front-end hooks, if the request needs them in the browser.** `EditEmployee.jsx` holds a class, used by both pages and by the popup:
+
+   ```jsx
+   export class EmployeeHooks extends FactoryHooks {
+     get(ctx) { return super.get(ctx) }                          // a list's rows (ctx.many), or the record Edit opens (ctx.id)
+     save(values, ctx) { return super.save(values, ctx) }        // every autosave; returns the saved record
+     delete(record, ctx) { return super.delete(record, ctx) }    // a list row, after the person confirmed
+     actions(ctx) { return super.actions(ctx) }                  // extra row buttons: [{ label, onClick: (record, ctx) => … }]
+   }
+   ```
+
+   Every method already runs the default. **Change only the method the request is about** and keep calling `super`:
+   - *before* — change the input, then `return super.save(changed, ctx)`
+   - *after* — `const saved = await super.save(values, ctx)`, then use or change it
+   - *override* — do not call `super`
+   - *extra row buttons* — `actions(ctx) { return [{ label: 'Mark done', onClick: async (record) => { …; ctx.refresh() } }] }`
+
+   `ctx.screen` says which screen is calling (`employee_list` or `employee_edit`). Keep them **methods** — `super` does not work in arrow functions. Do not delete the unchanged ones; they show what can be changed.
+
+   Front-end hooks shape what the person sees and sends. **Anything that must hold goes in the server's hooks** (next step). The server keeps only values that are fields of the form: a value added in `save` that is not a field needs a server `save.before` that accepts it.
+7. **Server hooks, if the request needs them.** Anything beyond storing what the form shows — a value worked out on save, a check against other records, an email afterwards, a list narrowed to the user — goes in `employee.hooks.js`, never in the screen: `save`, `get` (list and one record) and `delete`, each with `before`, `after`, `error` and `override`. Register it with `factory.init({ hooks: { employee_edit: require('./employee.hooks') } })`. `override` replaces the whole operation — rules and the other hooks included — so use it only when the generic save / get / delete does not apply at all. The `screens` command never overwrites an existing hooks file, even with `--force`. Details: the [`@xeplr/factory` README](https://www.npmjs.com/package/@xeplr/factory#hooks).
+8. **Hand over.** The person opens the screens in the designer to move, resize and restyle controls.
 
 There is **no submit button** to add: a screen saves itself as it is filled in. If the request mentions seeing or editing what was entered ("…and show the employees below"), add a `list`.
 

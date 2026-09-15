@@ -9,7 +9,7 @@ import { boxStyle, fieldStyle } from './styles.js'
 // Edit and New open the list's edit screen in a popup (`editScreen`), or, for a
 // list on a form, load the row into the form's own fields. Delete removes it.
 
-export default function ListView({ node, doc, design, list, onEdit, onDelete, onNew, currentId, recordKey = 'id', canDelete, fieldNodes, optionsFor }) {
+export default function ListView({ node, doc, design, list, onEdit, onDelete, onNew, currentId, recordKey = 'id', canDelete, fieldNodes, optionsFor, extraActions = [] }) {
   const p = node.props || {}
   const columns = listColumns(doc, node)
   const actions = p.actions || ['new', 'edit', 'delete']
@@ -67,6 +67,11 @@ export default function ListView({ node, doc, design, list, onEdit, onDelete, on
       }
     })
   }
+
+  // The app's own buttons (hooks.actions), after the built-in ones.
+  extraActions.forEach((a, i) => {
+    rowActions.push({ key: 'extra-' + i + '-' + a.label, label: a.label, variant: a.variant, onClick: (row) => a.onClick(row.__record) })
+  })
 
   return (
     <div className="xeplr-factory-list" style={style}>

@@ -81,10 +81,10 @@ switch (cmd) {
     } catch (err) {
       fail(err.message)
     }
-    // The hooks file is the app's own code — kept as it is, even with --force.
-    const hooksFile = Object.keys(result.files).find((f) => f.endsWith('.hooks.js'))
-    const keptHooks = hooksFile && existsSync(path.join(dir, hooksFile)) ? hooksFile : null
-    const writing = Object.keys(result.files).filter((f) => f !== keptHooks)
+    // The app's own code — the server hooks, and the pages with their front-end
+    // hooks — is kept as it is, even with --force. Only the screen JSON is replaced.
+    const kept = Object.keys(result.files).filter((f) => (f.endsWith('.hooks.js') || f.endsWith('.jsx')) && existsSync(path.join(dir, f)))
+    const writing = Object.keys(result.files).filter((f) => !kept.includes(f))
     const targets = writing.map((f) => path.join(dir, f))
     // Never overwrite a screen someone has since refined in the designer.
     const existing = targets.filter((t) => existsSync(t))
@@ -92,7 +92,7 @@ switch (cmd) {
     mkdirSync(dir, { recursive: true })
     writing.forEach((f) => writeFileSync(path.join(dir, f), result.files[f]))
     process.stderr.write(`wrote ${targets.join(', ')}\n`)
-    if (keptHooks) process.stderr.write(`kept ${path.join(dir, keptHooks)} — it is your code\n`)
+    if (kept.length) process.stderr.write(`kept ${kept.map((f) => path.join(dir, f)).join(', ')} — your code\n`)
     process.stderr.write(`list screen "${result.list.id}" opens "${result.edit.id}" for Edit / New; both use table "${result.edit.source}"\n`)
     break
   }

@@ -15,5 +15,8 @@ export { useFactoryScreen, normaliseOptions, AUTOSAVE_DELAY } from './useFactory
 // Designs
 export { BuilderSample, ScreenSample, ListView, ScreenModal, ControlView, VIEWS, Palette, DRAG_TYPE, PropertyPanel, EDITORS } from './designs/index.js'
 
+// Front-end hooks — extend FactoryHooks, override what you need, call super
+export { FactoryHooks } from './hooks.js'
+
 // Ready-made
 export { FactoryBuilder, FactoryScreen } from './pages.jsx'

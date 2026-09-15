@@ -88,6 +88,7 @@ export default function ScreenSample({ ctrl, className, style, renderPopup }) {
                 currentId: ctrl.recordId,
                 recordKey: ctrl.recordKey,
                 canDelete: ctrl.canDelete,
+                extraActions: ctrl.actionsFor ? ctrl.actionsFor(node) : [],
                 // A list with an edit screen opens it in a popup; one on a form
                 // opens the row in the form's own fields.
                 onEdit: (rec) => (node.props.editScreen ? ctrl.openEditor(node, rec) : ctrl.openRecord(rec)),

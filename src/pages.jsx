@@ -53,6 +53,7 @@ export function FactoryBuilder(props) {
  * @prop screens      { id → document } — the screens a list's Edit / New open in a popup
  * @prop loadScreen   async (id) → document — for screens not in `screens`
  * @prop controls     control registry (default: built-ins)
+ * @prop hooks        your FactoryHooks subclass (get / save / delete / actions) — also used by the popup
  */
 export function FactoryScreen(props) {
   const ctrl = useFactoryScreen(props)
@@ -85,6 +86,7 @@ export function FactoryScreen(props) {
               screens={props.screens}
               loadScreen={props.loadScreen}
               controls={props.controls}
+              hooks={props.hooks}
             />
           )}
         </ScreenModal>

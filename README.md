@@ -92,6 +92,43 @@ If `onSave` throws an error with `fields: [{ field, message }]` (what `createFac
 
 Values arrive typed: numbers as numbers, checkboxes as booleans, dates as `"YYYY-MM-DD"`, and a dropdown as the option's own `id` (a table's numeric id stays a number).
 
+### Front-end hooks
+
+What a screen does in the browser — load, save, delete, extra row buttons — is a class you extend. Every method is the default; override the one you need and call `super`:
+
+```jsx
+import { FactoryScreen, FactoryHooks } from '@xeplr/ui-factory'
+
+class TaskHooks extends FactoryHooks {
+  async save(values, ctx) {
+    const saved = await super.save({ ...values, title: values.title.trim() }, ctx)   // before
+    toast('Saved ' + saved.title)                                                   // after
+    return saved
+  }
+  async get(ctx) {
+    const rows = await super.get(ctx)
+    return ctx.many ? rows.filter((r) => r.status !== 'archived') : rows
+  }
+  actions(ctx) {
+    return [{ label: 'Mark done', onClick: async (record) => { await markDone(record.id); ctx.refresh() } }]
+  }
+}
+
+const taskHooks = new TaskHooks()
+<FactoryScreen document={taskList} {...api} hooks={taskHooks} />
+```
+
+| method | default | ctx |
+|---|---|---|
+| `get(ctx)` | `fetchRecords` for a list, `fetchRecord` for the record Edit opens | `many`, `id`, `screen`, `source` |
+| `save(values, ctx)` | `onSave` — on every autosave; return the saved record | `id`, `isNew`, `screen`, `source` |
+| `delete(record, ctx)` | `onDelete`, after the person confirmed | `id`, `screen`, `source` |
+| `actions(ctx)` | `[]` — extra row buttons `{ label, onClick(record, ctx) }` beside Edit / Delete | `screen`, `refresh()` |
+
+Not calling `super` replaces the default. The same hooks run in the popup a list opens (`ctx.screen` says which screen). Methods, not arrow functions — `super` needs them. `xeplr-factory screens` writes this class, every method calling `super`, into the edit page.
+
+Rules that must hold belong in the server's hooks; the browser only shapes what the person sees and sends.
+
 ### Lists of saved records
 
 A **List** control shows the records of the table the screen saves to (or another), in `@xeplr/ui-table`, with the columns you tick. Its **Edit in** names the edit screen: **Edit** and **New** open that screen in a popup, where it saves itself and the list refreshes behind it. **Delete** removes a row after a confirmation. Dropdown columns show names, not ids — read from the edit screen's fields.

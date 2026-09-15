@@ -3,6 +3,7 @@ import { CONTROLS } from './controls.js'
 import { inputNodes } from './document.js'
 import { validateDocument } from './validateDocument.js'
 import { initialValues, parseInput, saveState, fieldError, optionValue, recordValues, listSource } from './values.js'
+import { hookMethod } from './hooks.js'
 
 // A saved screen, running. No JSX — designs/ScreenSample.jsx draws it.
 //
@@ -41,12 +42,16 @@ export const AUTOSAVE_DELAY = 700
  * @param loadScreen    async (id) → document — for screens not in `screens`
  * @param autosaveDelay ms (default 700)
  * @param controls      the control registry (default: the built-ins)
+ * @param hooks         a FactoryHooks (or an object with some of its methods) — get / save / delete / actions
  */
 export function useFactoryScreen({
-  document: doc, record, recordKey = 'id', onSave, fetchOptions, fetchRecords, fetchRecord, onDelete, onChange, screens, loadScreen,
+  document: doc, record, recordKey = 'id', onSave, fetchOptions, fetchRecords, fetchRecord, onDelete, onChange, screens, loadScreen, hooks,
   autosaveDelay = AUTOSAVE_DELAY, controls = CONTROLS
 } = {}) {
   const check = useMemo(() => validateDocument(doc, controls), [doc, controls])
+  // Read at call time, so a new hooks object never re-runs loads by itself.
+  const hooksRef = useRef(hooks); hooksRef.current = hooks
+  const hook = (name) => hookMethod(hooksRef.current, name)
   const inputs = useMemo(() => (check.ok ? inputNodes(doc, controls) : []), [doc, controls, check.ok])
 
   // A LIST SCREEN has no fields of its own; what its columns mean — that
@@ -163,13 +168,19 @@ export function useFactoryScreen({
     const l = live.current
     const st = saveState(l.doc, l.values, l.touched, l.loadedItems, l.controls)
     if (!st.canSave) { setStatus(st.status); return { ok: false, errors: st.errors } }
-    if (!l.onSave) { setStatus('saved'); return { ok: true } }
+    const customSave = hooksRef.current && typeof hooksRef.current.save === 'function'
+    if (!l.onSave && !customSave) { setStatus('saved'); return { ok: true } }
 
     setStatus('saving')
     setSaveError(null)
     const task = (async () => {
       try {
-        const saved = await l.onSave(l.values, { id: l.recordId, source: l.source, screen: l.doc.id, document: l.doc })
+        const meta = { id: l.recordId, source: l.source, screen: l.doc.id, document: l.doc }
+        const saved = await hook('save')(l.values, {
+          ...meta,
+          isNew: l.recordId === null || l.recordId === undefined,
+          defaults: { save: (vals) => (l.onSave ? l.onSave(vals, meta) : undefined) }
+        })
         // A new record's first save creates it; its id makes the next save an update.
         if (saved && typeof saved === 'object' && saved[l.recordKey] !== undefined && saved[l.recordKey] !== null) {
           setRecordId(saved[l.recordKey])
@@ -284,9 +295,15 @@ export function useFactoryScreen({
     listNodes.forEach((node) => {
       const src = listSource(doc, node)
       setLists((l) => ({ ...l, [node.id]: { rows: l[node.id]?.rows || [], loading: true, error: null } }))
-      const run = fetchRecordsRef.current
-        ? Promise.resolve().then(() => fetchRecordsRef.current({ source: src, screen: doc.id, node }))
-        : Promise.reject(new Error(`No fetchRecords was provided to list "${src}"`))
+      const run = Promise.resolve().then(() => hook('get')({
+        many: true, id: null, screen: doc.id, source: src, node, document: doc,
+        defaults: {
+          get: () => {
+            if (!fetchRecordsRef.current) throw new Error(`No fetchRecords was provided to list "${src}"`)
+            return fetchRecordsRef.current({ source: src, screen: doc.id, node })
+          }
+        }
+      }))
       run
         .then((rows) => { if (!cancelled) setLists((l) => ({ ...l, [node.id]: { rows: Array.isArray(rows) ? rows : [], loading: false, error: null } })) })
         .catch((err) => { if (!cancelled) setLists((l) => ({ ...l, [node.id]: { rows: l[node.id]?.rows || [], loading: false, error: err.message || 'Could not load records' } })) })
@@ -296,11 +313,33 @@ export function useFactoryScreen({
 
   const listFor = useCallback((node) => lists[node.id] || { rows: [], loading: false, error: null }, [lists])
 
+  /** Extra row buttons from hooks.actions — each onClick gets the row's record. */
+  const actionsFor = useCallback((node) => {
+    const ctx = { screen: doc.id, source: listSource(doc, node), node, document: doc, refresh: () => setListVersion((v) => v + 1) }
+    let extra
+    try { extra = hook('actions')(ctx) } catch (err) { console.error('[factory] hooks.actions failed:', err); extra = [] }
+    return (Array.isArray(extra) ? extra : []).filter((a) => a && a.label && typeof a.onClick === 'function').map((a) => ({
+      ...a,
+      onClick: (rec) => Promise.resolve().then(() => a.onClick(rec, ctx)).catch((err) => {
+        console.error('[factory] action "' + a.label + '" failed:', err)
+        // eslint-disable-next-line no-alert
+        if (typeof window !== 'undefined') window.alert(err.message || 'Could not ' + a.label)
+      })
+    }))
+  }, [doc, lists])                                              // eslint-disable-line react-hooks/exhaustive-deps
+
   const onDeleteRef = useRef(onDelete); onDeleteRef.current = onDelete
   const deleteRecord = useCallback(async (node, rec) => {
     const id = rec ? rec[recordKey] : undefined
-    if (!onDeleteRef.current) throw new Error('No onDelete was provided')
-    await onDeleteRef.current({ id, source: listSource(doc, node), screen: doc.id, record: rec })
+    await hook('delete')(rec, {
+      id, source: listSource(doc, node), screen: doc.id, node, document: doc,
+      defaults: {
+        delete: (r) => {
+          if (!onDeleteRef.current) throw new Error('No onDelete was provided')
+          return onDeleteRef.current({ id: r ? r[recordKey] : id, source: listSource(doc, node), screen: doc.id, record: r })
+        }
+      }
+    })
     // Deleting the record that is open leaves nothing to save into.
     if (id !== undefined && id === live.current.recordId) {
       clearTimeout(timer.current); timer.current = null
@@ -329,8 +368,12 @@ export function useFactoryScreen({
       // Edit opens the record as it is NOW, through the server's get hooks —
       // not the list's copy, which may be stale or shaped for the list.
       let fresh = rec || null
-      if (rec && fetchRecordRef.current && rec[live.current.recordKey] !== undefined) {
-        fresh = await fetchRecordRef.current({ screen: screenId, id: rec[live.current.recordKey] })
+      if (rec && rec[live.current.recordKey] !== undefined) {
+        const id = rec[live.current.recordKey]
+        fresh = await hook('get')({
+          many: false, id, screen: screenId, document: found,
+          defaults: { get: () => (fetchRecordRef.current ? fetchRecordRef.current({ screen: screenId, id }) : rec) }
+        })
       }
       setPopup((p) => (p && p.screenId === screenId ? { ...p, document: found, record: fresh, loading: false } : p))
     } catch (err) {
@@ -376,7 +419,9 @@ export function useFactoryScreen({
     listFor,
     deleteRecord,
     recordKey,
-    canDelete: Boolean(onDelete)
+    canDelete: Boolean(onDelete) || Boolean(hooks && typeof hooks.delete === 'function'),
+    actionsFor,
+    hooks
   }
 }
 

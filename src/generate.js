@@ -263,7 +263,9 @@ export function entityNames(entity, plural) {
     file: lower(words).join('-'),                         // "employee"  → employee-list.screen.json
     table: lower(pluralWords).join('_'),                  // "employees"
     listComponent: `${pascal(words)}List`,                // "EmployeeList"
-    editComponent: `Edit${pascal(words)}`                 // "EditEmployee"
+    editComponent: `Edit${pascal(words)}`,                // "EditEmployee"
+    hooksClass: `${pascal(words)}Hooks`,                  // "EmployeeHooks" — in EditEmployee.jsx
+    hooksInstance: `${lowerFirst(pascal(words))}Hooks`    // "employeeHooks"
   }
 }
 
@@ -271,6 +273,10 @@ function pluralise(word) {
   if (/[^aeiou]y$/i.test(word)) return word.slice(0, -1) + 'ies'
   if (/(s|x|z|ch|sh)$/i.test(word)) return word + 'es'
   return word + 's'
+}
+
+function lowerFirst(s) {
+  return s.charAt(0).toLowerCase() + s.slice(1)
 }
 
 function capitalise(s) {

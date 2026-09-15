@@ -28,8 +28,10 @@ console.log('\nscreens: an entity becomes a list screen and an edit screen')
   const again = run(['screens', example, '-o', out])
   check('refuses to overwrite a screen that may have been refined since', again.status === 1 && /--force/.test(again.stderr))
   writeFileSync(path.join(out, 'employee.hooks.js'), '// my hooks\n')
+  writeFileSync(path.join(out, 'EditEmployee.jsx'), '// my page\n')
   check('...unless forced', run(['screens', example, '-o', out, '--force']).status === 0)
   check('...and even forced, the hooks file is kept', readFileSync(path.join(out, 'employee.hooks.js'), 'utf8') === '// my hooks\n')
+  check('...and the pages, which hold the front-end hooks', readFileSync(path.join(out, 'EditEmployee.jsx'), 'utf8') === '// my page\n')
 }
 
 console.log('\ngenerate')
