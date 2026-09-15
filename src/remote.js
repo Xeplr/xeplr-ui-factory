@@ -68,6 +68,8 @@ export function createFactoryApi({ fetch: doFetch, base = '' } = {}) {
     // when a removed field would drop a column; call again with { confirmDrop: [names] }.
     publish: async (doc, options) => one(await call('POST', `/screens/${enc(doc.id)}/publish`, { confirmDrop: (options && options.confirmDrop) || [] })),
     listTables: () => call('GET', '/tables'),
+    // A new form from its name: { entity, plural? } → { entity, name, source, edit, list } — both screens as drafts.
+    createEntity: async (spec) => one(await call('POST', '/entities', spec)),
 
     // records
     fetchRecords: ({ screen }) => call('GET', `/records/${enc(screen)}`),

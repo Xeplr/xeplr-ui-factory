@@ -9,6 +9,7 @@ const check = (name, cond) => { results.push([name, cond]); console.log((cond ? 
 const REPLIES = {
   'GET /factory/records/task_list': [200, { dataArray: [{ id: 'a', title: 'One' }] }],
   'POST /factory/records/task_edit/save': [422, { message: 'Title is required', error: { fields: [{ field: 'title', message: 'Title is required' }] }, dataArray: [] }],
+  'POST /factory/entities': [200, { dataArray: [{ entity: 'crop', name: 'Crops', source: 'crops', edit: 'crop_edit', list: 'crop_list' }] }],
   'POST /factory/screens/task_edit/publish': [409, { message: 'Confirm', dataArray: [{ confirm: [{ column: 'notes', records: 2 }], keep: [] }] }]
 }
 const reply = (url, opts) => REPLIES[`${(opts && opts.method) || 'GET'} ${url.replace(/^\/api/, '')}`]
@@ -28,6 +29,7 @@ const authFetchLike = async (url, opts) => {
 for (const [label, doFetch] of [['a Response fetch', responseFetch], ['authFetch', authFetchLike]]) {
   console.log(`\n${label}`)
   const api = createFactoryApi({ fetch: doFetch, base: '/api' })
+  check('a new form comes back with its screen ids', (await api.createEntity({ entity: 'crop' })).edit === 'crop_edit')
   const rows = await api.fetchRecords({ screen: 'task_list' })
   check('records come back as rows', rows.length === 1 && rows[0].title === 'One')
   try {
