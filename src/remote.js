@@ -16,27 +16,44 @@
 export function createFactoryApi({ fetch: doFetch, base = '' } = {}) {
   if (typeof doFetch !== 'function') throw new Error('createFactoryApi: pass { fetch } — usually authFetch from @xeplr/ui-account')
 
+  // Two kinds of fetch are accepted, because both are what apps have:
+  //   window.fetch-like  → a Response: read it, and throw on !res.ok
+  //   authFetch-like     → the PARSED body, and on failure it throws an Error
+  //                        carrying status and the body (err.status, err.body)
+  // Either way a failure becomes the same Error, with the server's fields,
+  // confirm and refused lists on it.
   async function call(method, path, body) {
-    const res = await doFetch(`${base}/factory${path}`, {
-      method,
-      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
-      body: body === undefined ? undefined : JSON.stringify(body)
-    })
-    let json = null
-    try { json = await res.json() } catch (_) { /* not JSON — reported below */ }
-    if (!res.ok) {
-      const err = new Error((json && json.message) || `${method} ${path} failed (${res.status})`)
-      err.status = res.status
-      err.fields = json && json.error && json.error.fields
-      const extra = (json && json.dataArray && json.dataArray[0]) || {}
-      // Publish: columns it would drop, waiting for a yes — and what it keeps.
-      err.confirm = extra.confirm
-      err.keep = extra.keep
-      err.refused = extra.refused
-      if (extra.statements) err.detail = extra.statements.join('\n')
+    let res
+    try {
+      res = await doFetch(`${base}/factory${path}`, {
+        method,
+        headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+        body: body === undefined ? undefined : JSON.stringify(body)
+      })
+    } catch (err) {
+      if (err && err.body !== undefined && err.status) throw failure(method, path, err.status, err.body, err.message)
       throw err
     }
-    return json ? json.dataArray : []
+    if (res && typeof res.json === 'function' && typeof res.ok === 'boolean') {
+      let json = null
+      try { json = await res.json() } catch (_) { /* not JSON — reported below */ }
+      if (!res.ok) throw failure(method, path, res.status, json)
+      return json ? json.dataArray : []
+    }
+    return res && Array.isArray(res.dataArray) ? res.dataArray : []
+  }
+
+  function failure(method, path, status, json, fallback) {
+    const err = new Error((json && json.message) || fallback || `${method} ${path} failed (${status})`)
+    err.status = status
+    err.fields = json && json.error && json.error.fields
+    const extra = (json && json.dataArray && json.dataArray[0]) || {}
+    // Publish: columns it would drop, waiting for a yes — and what it keeps.
+    err.confirm = extra.confirm
+    err.keep = extra.keep
+    err.refused = extra.refused
+    if (extra.statements) err.detail = extra.statements.join('\n')
+    return err
   }
   const one = (rows) => (Array.isArray(rows) ? rows[0] : rows)
   const enc = encodeURIComponent

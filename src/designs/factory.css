@@ -50,8 +50,11 @@
 .xeplr-factory-required { color: var(--xf-danger); }
 .xeplr-factory-input {
   flex: 1; min-height: 0; width: 100%; box-sizing: border-box;
-  font: inherit; color: var(--xf-ink); background: var(--xeplr-input-bg, var(--xf-surface));
-  border: 1px solid var(--xeplr-input-border, var(--xf-border)); border-radius: calc(6 * var(--xf-u));
+  /* The screen's own colours, never the host theme's input tokens: a dark theme
+     would give the box a dark background while the text stays the screen's
+     dark ink — unreadable. A screen's look is its style properties. */
+  font: inherit; color: var(--xf-ink); background: var(--xf-surface);
+  border: 1px solid var(--xf-border); border-radius: calc(6 * var(--xf-u));
   padding: 0 calc(10 * var(--xf-u));
 }
 .xeplr-factory-textarea { padding-block: calc(8 * var(--xf-u)); resize: none; }
@@ -89,7 +92,7 @@
 .xeplr-factory-list-mock { width: 100%; border-collapse: collapse; }
 .xeplr-factory-list-mock th { text-align: left; font-weight: 600; font-size: .9em; padding: calc(6 * var(--xf-u)) calc(10 * var(--xf-u)); border-bottom: 1px solid var(--xf-border); color: var(--xf-muted); }
 .xeplr-factory-list-mock td { padding: calc(8 * var(--xf-u)) calc(10 * var(--xf-u)); border-bottom: 1px solid var(--xf-border); }
-.xeplr-factory-list-bar { display: block; height: calc(8 * var(--xf-u)); width: 70%; border-radius: 4px; background: var(--xeplr-border-secondary, #ecebe4); }
+.xeplr-factory-list-bar { display: block; height: calc(8 * var(--xf-u)); width: 70%; border-radius: 4px; background: #ecebe4; }
 .xeplr-factory-list .xeplr-table-row.xeplr-factory-row-open td,
 .xeplr-factory-list tr.xeplr-factory-row-open td { background: color-mix(in srgb, var(--xf-accent) 10%, transparent); }
 
@@ -177,8 +180,8 @@
 .xeplr-factory-prop { margin-bottom: 10px; }
 .xeplr-factory-prop-label { display: block; margin-bottom: 3px; font-weight: 600; font-size: 12px; }
 .xeplr-factory-prop-input {
-  width: 100%; box-sizing: border-box; font: inherit; padding: 5px 7px; color: inherit;
-  border: 1px solid var(--xf-border); border-radius: 5px; background: var(--xeplr-input-bg, #fff);
+  width: 100%; box-sizing: border-box; font: inherit; padding: 5px 7px;
+  border: 1px solid var(--xf-border); border-radius: 5px; background: #fff; color: var(--xf-ink, #1a1a19);
 }
 .xeplr-factory-prop.has-error .xeplr-factory-prop-input { border-color: var(--xf-danger); }
 .xeplr-factory-prop-help { margin-top: 3px; color: var(--xf-muted); font-size: 11px; line-height: 1.4; }

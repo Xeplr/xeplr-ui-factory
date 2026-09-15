@@ -53,11 +53,32 @@ export function useFactoryScreen({
   // `department` is a dropdown whose 2 reads "Finance" — lives on the screen it
   // edits in. Those fields are borrowed for display, and their table options
   // loaded alongside this screen's own.
+  //
+  // An edit screen not passed in `screens` is fetched with loadScreen as soon
+  // as the list shows — not when Edit is first pressed — or the list's columns
+  // would show stored values ("in_progress") until then.
+  const [loadedScreens, setLoadedScreens] = useState({})
+  const knownScreens = useMemo(() => ({ ...loadedScreens, ...(screens || {}) }), [loadedScreens, screens])
+  const editScreenIds = check.ok && !inputs.length
+    ? [...new Set(doc.nodes.filter((n) => n.type === 'list' && n.props.editScreen).map((n) => n.props.editScreen))].join('|')
+    : ''
+  useEffect(() => {
+    if (!editScreenIds || !loadScreen) return undefined
+    let cancelled = false
+    editScreenIds.split('|').filter((id) => !(screens && screens[id])).forEach((id) => {
+      loadScreen(id).then(
+        (found) => { if (!cancelled && found) setLoadedScreens((m) => (m[id] ? m : { ...m, [id]: found })) },
+        () => { /* shown when Edit is pressed, where the person is looking */ }
+      )
+    })
+    return () => { cancelled = true }
+  }, [editScreenIds])                                          // eslint-disable-line react-hooks/exhaustive-deps
+
   const fieldsFor = useCallback((node) => {
     if (inputs.length || !node || !node.props.editScreen) return inputs
-    const editDoc = screens && screens[node.props.editScreen]
+    const editDoc = knownScreens[node.props.editScreen]
     return editDoc && validateDocument(editDoc, controls).ok ? inputNodes(editDoc, controls) : []
-  }, [inputs, screens, controls])
+  }, [inputs, knownScreens, controls])
   const optionNodes = useMemo(() => {
     if (!check.ok) return []
     const borrowed = doc.nodes.filter((n) => n.type === 'list').flatMap((n) => (inputs.length ? [] : fieldsFor(n)))
@@ -290,7 +311,7 @@ export function useFactoryScreen({
 
   // ── popup: a list's Edit / New in its edit screen ─────────────────────
   const [popup, setPopup] = useState(null)   // { node, screenId, record, document, loading, error }
-  const screensRef = useRef(screens); screensRef.current = screens
+  const screensRef = useRef(knownScreens); screensRef.current = knownScreens
   const fetchRecordRef = useRef(fetchRecord); fetchRecordRef.current = fetchRecord
   const loadScreenRef = useRef(loadScreen); loadScreenRef.current = loadScreen
 
