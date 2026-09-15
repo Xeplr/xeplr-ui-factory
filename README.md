@@ -15,10 +15,15 @@ It is built to work with Claude: ask for *"a form for employees with name, email
 
 ```sh
 npx xeplr-factory screens employee.entity.json -o src/screens/employee
-#  employee-list.screen.json   EmployeeList.jsx
-#  employee-edit.screen.json   EditEmployee.jsx
-#  employee.hooks.js           server hooks for its records: save / get / delete × before / after / error / override
+#  employee-list.screen.json   EmployeeList.jsx     the list page — uses EditEmployee.jsx's hooks
+#  employee-edit.screen.json   EditEmployee.jsx     the form page, holding the FRONT-END hooks (EmployeeHooks extends FactoryHooks)
+#  employee.hooks.js           SERVER hooks: save / get / delete × before / after / error / override
+#  employee.model.js           SERVER model: EmployeeModel extends FactoryModel — getters / setters for values
 ```
+
+`--no-pages` leaves out the two `.jsx` (for an app whose pages live elsewhere). `--force` replaces only the screen JSON: the pages, hooks and model are your code and are always kept.
+
+**Rules:** records live in real tables, never JSON · a form's **key** (`employee`) names its screens and table and never changes once published; its **label** (the screens' name) is renamed any time · rules that must hold go in server hooks, never front-end hooks.
 
 See [examples/](./examples) for exactly what it writes.
 
@@ -196,7 +201,7 @@ const screen = screenFromSpec({
 It lays the fields out as a tidy one- or two-column form and returns a checked document. The same is available on the command line:
 
 ```sh
-npx xeplr-factory screens entity.json -o dir   # an entity → list + edit screens and pages
+npx xeplr-factory screens entity.json -o dir   # an entity → list + edit screens, pages, server hooks + model  (--no-pages, --force)
 npx xeplr-factory migration edit.screen.json   # preview the SQL Publish would run
 npx xeplr-factory generate spec.json -o screen.json   # one screen from a spec
 npx xeplr-factory validate screen.json      # every problem, with its path
@@ -248,9 +253,10 @@ src/
   validateDocument.js    ─ the document checker
   values.js              ─ values, validation, autosave readiness, records and list columns, formSchema
   generate.js            ─ screenFromSpec, screensFromSpec (list + edit), entity names
-  scaffold.js            ─ an entity → its screen JSON, .jsx pages and hooks stub
+  scaffold.js            ─ an entity → its screen JSON, .jsx pages (with front-end hooks), server hooks + model stubs
+  hooks.js               ─ FactoryHooks: get / save / delete / actions — extend and call super
   tableSchema.js         ─ a form → its table; the publish plan (create / add / widen / confirmed drops)
-  remote.js              ─ createFactoryApi: the calls to @xeplr/factory's routes
+  remote.js              ─ createFactoryApi({ fetch }): the calls to @xeplr/factory's routes — fetch may be window.fetch or @xeplr/ui-account's authFetch (which returns parsed bodies); includes createEntity({ key, label })
   model.js               ─ everything above, React-free
   useFactoryBuilder.js   ─ builder controller
   useFactoryScreen.js    ─ screen controller
