@@ -31,6 +31,9 @@ console.log('\nscreens: an entity becomes a list screen and an edit screen')
   writeFileSync(path.join(out, 'EditEmployee.jsx'), '// my page\n')
   check('...unless forced', run(['screens', example, '-o', out, '--force']).status === 0)
   check('...and even forced, the hooks file is kept', readFileSync(path.join(out, 'employee.hooks.js'), 'utf8') === '// my hooks\n')
+  const noPages = path.join(dir, 'api-only')
+  run(['screens', example, '-o', noPages, '--no-pages'])
+  check('--no-pages writes the screens and the server files only', ['employee-list.screen.json', 'employee-edit.screen.json', 'employee.hooks.js', 'employee.model.js'].every((f) => { try { readFileSync(path.join(noPages, f)); return true } catch (_) { return false } }) && (() => { try { readFileSync(path.join(noPages, 'EditEmployee.jsx')); return false } catch (_) { return true } })())
   check('...and the pages, which hold the front-end hooks', readFileSync(path.join(out, 'EditEmployee.jsx'), 'utf8') === '// my page\n')
 }
 

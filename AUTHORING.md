@@ -2,9 +2,35 @@
 
 This guide is for whoever **writes** a screen definition — usually Claude, from a request like *"make a form for a new employee with name, email, department and start date"*. A person then refines the result in the builder.
 
-## The workflow
+> **In an app made by `@xeplr/cli`**, read the project's own `CLAUDE.md` first — it says where each file below goes in that app and how to wire it in. This guide is what the files mean.
 
-A request for "a form for employees" is an **entity**, and an entity is **two screens**: a list, and an add / edit form the list opens in a popup.
+## What a new UI is made of
+
+A request for "a form for employees" is an **entity**. Every entity is the same set of files — create all of them, even the ones that only run the defaults:
+
+| file | what | runs |
+|---|---|---|
+| `employee.entity.json` | the spec: name and fields | — |
+| `employee-list.screen.json` | the **list** screen | browser |
+| `employee-edit.screen.json` | the **add / edit form** the list opens in a popup | browser |
+| `EditEmployee.jsx` | the form's page, holding the **front-end hooks** class (`EmployeeHooks extends FactoryHooks`) | browser |
+| `EmployeeList.jsx` | the list's page — uses `EditEmployee.jsx`'s hooks | browser |
+| `employee.hooks.js` | **server hooks**: `save` / `get` / `delete` × `before` / `after` / `error` / `override` | server |
+| `employee.model.js` | **server model**: `EmployeeModel extends FactoryModel` — getters / setters for values | server |
+
+`npx xeplr-factory screens employee.entity.json -o <dir>` writes all of them from the spec (`--no-pages` leaves out the two `.jsx`). The hooks and the model start as defaults — every method calling `super` — and stay that way unless the request needs more.
+
+**Which file for which request:**
+
+| the request says… | change |
+|---|---|
+| a field, a label, a rule, a dropdown, the layout, a colour | the screen JSON (then validate) |
+| "show / hide / filter rows on screen", "an extra button on each row", "fill in X before saving" (convenience) | front-end hooks in `EditEmployee.jsx` |
+| "must", "only if", "check against…", "email when…", "only managers see…" | server hooks in `employee.hooks.js` |
+| "store as…", "convert…", "comma-separated / array", "work out X from Y" (data shape) | server model in `employee.model.js` |
+| a query in your own server code | `factory.table('employees')` — this company, active rows, the model applied |
+
+## The workflow
 
 1. **Write an entity spec** — the entity's name and its fields, in reading order. Do not write coordinates.
 2. **Generate** both screens and their pages:
@@ -49,8 +75,22 @@ A request for "a form for employees" is an **entity**, and an entity is **two sc
    `ctx.screen` says which screen is calling (`employee_list` or `employee_edit`). Keep them **methods** — `super` does not work in arrow functions. Do not delete the unchanged ones; they show what can be changed.
 
    Front-end hooks shape what the person sees and sends. **Anything that must hold goes in the server's hooks** (next step). The server keeps only values that are fields of the form: a value added in `save` that is not a field needs a server `save.before` that accepts it.
-7. **Server hooks, if the request needs them.** Anything beyond storing what the form shows — a value worked out on save, a check against other records, an email afterwards, a list narrowed to the user — goes in `employee.hooks.js`, never in the screen: `save`, `get` (list and one record) and `delete`, each with `before`, `after`, `error` and `override`. Register it with `factory.init({ hooks: { employee_edit: require('./employee.hooks') } })`. `override` replaces the whole operation — rules and the other hooks included — so use it only when the generic save / get / delete does not apply at all. The `screens` command never overwrites an existing hooks file, even with `--force`. Details: the [`@xeplr/factory` README](https://www.npmjs.com/package/@xeplr/factory#hooks).
-8. **Hand over.** The person opens the screens in the designer to move, resize and restyle controls.
+7. **Server model, if values need shaping.** `employee.model.js`:
+
+   ```js
+   class EmployeeModel extends FactoryModel {
+     static table = 'employees';
+     static fields = {
+       skills: { set: (v) => (Array.isArray(v) ? v.join(',') : v), get: (v) => (v ? v.split(',') : []) }
+     };
+     static toDb(values) { return super.toDb(values); }     // override for more than one field at a time
+     static fromDb(row) { return super.fromDb(row); }
+   }
+   ```
+
+   Setters run on every write (after `save.before`, before the screen's rules), getters on every read, on the routes and in `factory.table()`. Register it: `factory.init({ knex, hooks, models: [require('./employee.model')] })`.
+8. **Server hooks, if the request needs them.** Anything beyond storing what the form shows — a value worked out on save, a check against other records, an email afterwards, a list narrowed to the user — goes in `employee.hooks.js`, never in the screen: `save`, `get` (list and one record) and `delete`, each with `before`, `after`, `error` and `override`. Register it with `factory.init({ hooks: { employee_edit: require('./employee.hooks') } })`. `override` replaces the whole operation — rules and the other hooks included — so use it only when the generic save / get / delete does not apply at all. The `screens` command never overwrites an existing hooks file, even with `--force`. Details: the [`@xeplr/factory` README](https://www.npmjs.com/package/@xeplr/factory#hooks).
+9. **Hand over.** The person opens the screens in the designer to move, resize and restyle controls.
 
 There is **no submit button** to add: a screen saves itself as it is filled in. If the request mentions seeing or editing what was entered ("…and show the employees below"), add a `list`.
 

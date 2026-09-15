@@ -6,6 +6,7 @@
 //   employee-list.screen.json   EmployeeList.jsx   — the list; Edit / New open a popup
 //   employee-edit.screen.json   EditEmployee.jsx   — the add / edit form, also a page on its own
 //   employee.hooks.js                              — the server's hooks for its records (all empty)
+//   employee.model.js                              — the server's model: getters / setters for its values (none yet)
 //
 // The pages are thin on purpose: a screen document and the app's data calls,
 // nothing else. Changing what a screen shows is editing its JSON in the
@@ -30,7 +31,8 @@ export function scaffoldEntity(spec, controls) {
     [editJson]: JSON.stringify(edit, null, 2) + '\n',
     [`${names.listComponent}.jsx`]: listPage(names, listJson, editJson, list, edit),
     [`${names.editComponent}.jsx`]: editPage(names, editJson, edit),
-    [`${names.file}.hooks.js`]: hooksFile(names, edit)
+    [`${names.file}.hooks.js`]: hooksFile(names, edit),
+    [`${names.file}.model.js`]: modelFile(names, edit)
   }
   return { files, names, list, edit }
 }
@@ -102,6 +104,39 @@ module.exports = {
     // override: async function(ctx) { return { id: ctx.id } },
   }
 }
+`
+}
+
+function modelFile(n, edit) {
+  return `// The model for ${n.singular} records — how values are shaped between your code and
+// the "${edit.source}" table, like Sequelize's getters and setters.
+//
+// Register with @xeplr/factory:  factory.init({ knex, hooks, models: [require('./${n.file}.model')] })
+//
+// Used everywhere: the screens' routes and factory.table('${edit.source}'). Models shape
+// data; the hooks file decides behaviour.
+
+var { FactoryModel } = require('@xeplr/factory');
+
+class ${n.hooksClass.replace(/Hooks$/, 'Model')} extends FactoryModel {
+  static table = '${edit.source}';
+
+  // Per field: set(value, values) before it is written, get(value, row) after it is read.
+  //   tags: { set: (v) => (Array.isArray(v) ? v.join(',') : v), get: (v) => (v ? v.split(',') : []) }
+  static fields = {};
+
+  /** Every value about to be written. Override for more than one field at a time. */
+  static toDb(values) {
+    return super.toDb(values);
+  }
+
+  /** Every row just read. */
+  static fromDb(row) {
+    return super.fromDb(row);
+  }
+}
+
+module.exports = ${n.hooksClass.replace(/Hooks$/, 'Model')};
 `
 }
 
