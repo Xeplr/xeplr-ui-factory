@@ -8,7 +8,8 @@
    it shrinks, so the layout keeps its proportions. */
 
 .xeplr-factory-screen,
-.xeplr-factory-canvas {
+.xeplr-factory-canvas,
+.xeplr-factory-flow-builder {
   container-type: inline-size;
   --xf-u: min(1px, calc(100cqw / var(--xf-width, 800)));
   --xf-accent: var(--xeplr-accent, #2563eb);
@@ -340,6 +341,9 @@
 .xeplr-factory-step-card-first { color: var(--xf-accent); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
 
 .xeplr-factory-edge-label {
+  /* Above the curve's midpoint rather than on it, so a label never sits on the
+     card an arrow is arriving at. */
+  margin-top: -12px;
   padding: 1px 6px; border-radius: 999px; background: var(--xf-surface);
   border: 1px solid var(--xf-border); color: var(--xf-muted); font-size: 11px; white-space: nowrap;
 }

@@ -61,6 +61,9 @@ export default function FlowBuilderSample({ ctrl, className, style }) {
             {ctrl.validation.errors.length} problem{ctrl.validation.errors.length === 1 ? '' : 's'}
           </span>
         )}
+        {flow.steps.length > 1 && (
+          <button type="button" className="xeplr-factory-secondary" onClick={ctrl.tidy} title="Lay the screens out as the journey reads">Tidy</button>
+        )}
         {ctrl.canPublish && (
           <button type="button" className="xeplr-factory-primary" onClick={ctrl.publish} disabled={ctrl.publishing || !ctrl.validation.ok}>
             {ctrl.publishing ? 'Publishing…' : 'Publish'}
@@ -85,7 +88,7 @@ export default function FlowBuilderSample({ ctrl, className, style }) {
                 key={s.id}
                 type="button"
                 className="xeplr-factory-palette-item"
-                onClick={() => ctrl.addStep(s.id, { x: 40, y: 40 + flow.steps.length * 120 })}
+                onClick={() => ctrl.addStep(s.id, nextPlace(flow))}
                 title={`Add ${s.name || s.id} to the journey`}
               >
                 {s.name || s.id}
@@ -250,6 +253,12 @@ function StepPanel({ ctrl }) {
       )}
     </aside>
   )
+}
+
+/** Where the next screen goes: to the right of the last one, a row lower after four. */
+function nextPlace(flow) {
+  const n = flow.steps.length
+  return { x: 60 + (n % 4) * (STEP_W + 90), y: 80 + Math.floor(n / 4) * (STEP_H + 110) }
 }
 
 function screenName(ctrl, id) {

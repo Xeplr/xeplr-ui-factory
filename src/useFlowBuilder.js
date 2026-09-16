@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   createFlow, addStep, moveStep, setStep, removeStep,
-  addTransition, setTransition, removeTransition, validateFlow, firstStep, FLOW_END
+  addTransition, setTransition, removeTransition, validateFlow, firstStep, layoutFlow, FLOW_END
 } from './flow.js'
 import { inputNodes } from './document.js'
 
@@ -91,10 +91,12 @@ export function useFlowBuilder({ flow: given, name, screens = [], loadScreen, on
   }, [])
 
   const rename = useCallback((value) => update((f) => ({ ...f, name: value })), [update])
+  const screensRef = useRef(screens); screensRef.current = screens
   const add = useCallback((screen, at) => {
     let added = null
+    const known = screensRef.current.find((x) => x.id === screen)
     update((f) => {
-      const r = addStep(f, screen, { at })
+      const r = addStep(f, screen, { at, label: known && known.name ? known.name : undefined })
       added = r.step
       return r.flow
     })
@@ -110,6 +112,8 @@ export function useFlowBuilder({ flow: given, name, screens = [], loadScreen, on
   const connect = useCallback((fromKey, target, when = null) => update((f) => addTransition(f, fromKey, target, when)), [update])
   const changeTransition = useCallback((fromKey, index, patch) => update((f) => setTransition(f, fromKey, index, patch)), [update])
   const disconnect = useCallback((fromKey, index) => update((f) => removeTransition(f, fromKey, index)), [update])
+  /** Lays every step out by where it falls in the journey. */
+  const tidy = useCallback(() => update((f) => layoutFlow(f)), [update])
 
   // ── saving ────────────────────────────────────────────────────────────
   const timer = useRef(null)
@@ -167,6 +171,7 @@ export function useFlowBuilder({ flow: given, name, screens = [], loadScreen, on
     connect,
     setTransition: changeTransition,
     disconnect,
+    tidy,
     end: FLOW_END,
     status,
     saving,

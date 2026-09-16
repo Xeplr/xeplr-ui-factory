@@ -3,7 +3,7 @@
 // Plain script, like model.test.js: prints its checks, exits non-zero on failure.
 import {
   createFlow, flowKey, addStep, moveStep, setStep, removeStep,
-  addTransition, setTransition, removeTransition, firstStep, reachableSteps,
+  addTransition, setTransition, removeTransition, firstStep, reachableSteps, layoutFlow,
   validateFlow, describeWhen, FLOW_END, FLOW_OPERATORS
 } from '../src/model.js'
 import { createFlowsApi, asFlow } from '../src/flows.js'
@@ -57,6 +57,20 @@ console.log('\narrows decide where the journey goes')
     !gone.steps.some((s) => s.transitions.some((t) => t.target === 'contract_edit')))
 }
 
+console.log('\nlaying a journey out')
+{
+  let flow = build()
+  flow = setTransition(flow, 'employee_edit', 0, { target: 'payroll_edit' })
+  flow = addTransition(flow, 'employee_edit', 'contract_edit', { field: 'type', op: '=', value: 'contractor' })
+  flow = setTransition(flow, 'contract_edit', 0, { target: FLOW_END })
+  const laid = layoutFlow(flow)
+  const at = (k) => laid.steps.find((s) => s.stepKey === k).layout
+  check('the first screen is furthest left', at('employee_edit').x < at('contract_edit').x)
+  check('the branches of one step share a column', at('contract_edit').x === at('payroll_edit').x)
+  check('...one above the other, never on top of each other', at('contract_edit').y !== at('payroll_edit').y)
+  check('a flow with nothing in it is left alone', layoutFlow(createFlow({ name: 'x' })).steps.length === 0)
+}
+
 console.log('\nwhat the designer refuses to publish')
 {
   const flow = build()
@@ -102,12 +116,20 @@ console.log('\nthe calls a flow makes')
   check('the runner gets exactly the calls it needs', Object.keys(api.runnerProps).join() === 'startRun,loadRun,submitRun,myRuns')
   check('a client with no fetch is refused', (() => { try { createFlowsApi({}); return false } catch (_) { return true } })())
 
+  const plain = createFlowsApi({ fetch: async () => ({ runId: 'r2', status: 'waiting', stepKey: 'a', screen: 'a_edit' }) })
+  const run = await plain.startRun('x')
+  check('an answer without the xeplr envelope is read the same way', run.runId === 'r2' && run.screen === 'a_edit')
+  const listed = await createFlowsApi({ fetch: async () => ([{ key: 'one' }, { key: 'two' }]) }).listFlows()
+  check('...and so is a plain list', listed.length === 2)
+
   const loaded = asFlow({ id: 'w1', key: 'onboard', name: 'Onboard', status: 'draft',
     steps: [{ stepKey: 'person', label: null, screen: 'person_form', layout: null, transitions: [] }] })
   check('a flow from the server is a document the designer can check',
     loaded.kind === 'xeplr-flow' && loaded.version === 1 && validateFlow(loaded).ok)
   check('...a step with no name is called after its screen', loaded.steps[0].label === 'person_form')
   check('...and one with no place on the canvas gets one', loaded.steps[0].layout.x === 40)
+  const counted = asFlow({ id: 'w1', key: 'onboard', name: 'Onboard', status: 'published', steps: 3 })
+  check('an answer that counts the steps is not mistaken for a list of them', counted.stepCount === 3 && counted.steps.length === 0)
 }
 
 const failed = results.filter(([, ok]) => !ok)

@@ -33,9 +33,9 @@ export default function FlowRunnerSample({ run, screen, className, style, title,
 
   return (
     <div className={'xeplr-factory-flow' + (className ? ' ' + className : '')} style={style}>
-      {title !== false && (
+      {title && (
         <div className="xeplr-factory-flow-head">
-          <span className="xeplr-factory-flow-where">{title || run.document.name}</span>
+          <span className="xeplr-factory-flow-where">{title}</span>
           {run.sending && <span className="xeplr-factory-flow-sending">Working out what comes next…</span>}
         </div>
       )}

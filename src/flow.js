@@ -184,6 +184,44 @@ export function reachableSteps(flow) {
 }
 
 /**
+ * Lays the steps out as the journey reads: the first on the left, each step
+ * one column right of the step that leads to it, and the branches of one step
+ * stacked in the same column — so an arrow runs forward and never crosses a
+ * card to reach the one it means.
+ * @param size  { w, h, gapX, gapY, left, top } in pixels
+ */
+export function layoutFlow(flow, size = {}) {
+  const { w = 200, h = 86, gapX = 110, gapY = 50, left = 60, top = 60 } = size
+  const start = firstStep(flow)
+  if (!start) return flow
+  const byKey = new Map(flow.steps.map((s) => [s.stepKey, s]))
+  const depth = new Map([[start.stepKey, 0]])
+  const queue = [start.stepKey]
+  while (queue.length) {
+    const key = queue.shift()
+    ;(byKey.get(key).transitions || []).forEach((t) => {
+      if (!byKey.has(t.target) || depth.has(t.target)) return
+      depth.set(t.target, depth.get(key) + 1)
+      queue.push(t.target)
+    })
+  }
+  // Steps nothing reaches go in a column of their own at the end, where they
+  // are easy to see and to connect.
+  const deepest = Math.max(0, ...depth.values())
+  flow.steps.forEach((s) => { if (!depth.has(s.stepKey)) depth.set(s.stepKey, deepest + 1) })
+  const rows = new Map()
+  return {
+    ...flow,
+    steps: flow.steps.map((s) => {
+      const d = depth.get(s.stepKey)
+      const row = rows.get(d) || 0
+      rows.set(d, row + 1)
+      return { ...s, layout: { x: left + d * (w + gapX), y: top + row * (h + gapY) } }
+    })
+  }
+}
+
+/**
  * What is wrong with this flow, in the words of the person drawing it.
  * @param options.screens  the screen keys that exist, so a step cannot point at one that does not
  * @returns {{ ok, errors: [{ path, message }] }}

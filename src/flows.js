@@ -9,7 +9,9 @@
 //   const flows = createFlowsApi({ fetch: authFetch, base: '/api' })
 //   <FlowRunner {...flows.runnerProps} flowKey="employee_registration" />
 //
-// Responses are xeplr's { code, message, error, dataArray }.
+// Answers may come as xeplr's { code, message, dataArray } or as the plain
+// object or list itself — the workflow service speaks the second. Both are read
+// the same way (payload()), so a client never cares which service it is talking to.
 
 import { FLOW_KIND, FLOW_VERSION } from './flow.js'
 
@@ -26,7 +28,9 @@ export function asFlow(row) {
     key: row.key,
     name: row.name,
     status: row.status,
-    steps: (row.steps || []).map((s) => ({
+    // A list or a publish answer counts the steps rather than listing them.
+    ...(Array.isArray(row.steps) ? {} : { stepCount: Number(row.steps) || 0 }),
+    steps: (Array.isArray(row.steps) ? row.steps : []).map((s) => ({
       stepKey: s.stepKey,
       screen: s.screen,
       label: s.label || s.screen,
@@ -59,15 +63,23 @@ export function createFlowsApi({ fetch: doFetch, base = '' } = {}) {
       let json = null
       try { json = await res.json() } catch (_) { /* not JSON — reported below */ }
       if (!res.ok) throw failure(method, path, res.status, json)
-      return json ? json.dataArray : []
+      return payload(json)
     }
-    return res && Array.isArray(res.dataArray) ? res.dataArray : []
+    return payload(res)
+  }
+
+  /** The payload, enveloped or not. */
+  function payload(json) {
+    if (json === null || json === undefined) return []
+    if (typeof json === 'object' && !Array.isArray(json) && Array.isArray(json.dataArray)) return json.dataArray
+    return json
   }
 
   function failure(method, path, status, json, fallback) {
     const err = new Error((json && json.message) || fallback || `${method} ${path} failed (${status})`)
     err.status = status
     err.fields = json && json.error && json.error.fields
+    err.code = json && json.code
     return err
   }
   const one = (rows) => (Array.isArray(rows) ? rows[0] : rows)
@@ -82,7 +94,8 @@ export function createFlowsApi({ fetch: doFetch, base = '' } = {}) {
       name: flow.name,
       steps: flow.steps.map((s) => ({ stepKey: s.stepKey, label: s.label, screen: s.screen, layout: s.layout, transitions: s.transitions }))
     }))),
-    publishFlow: async (key) => asFlow(one(await call('POST', `/${enc(key)}/publish`))),
+    // Answers with the flow's status, not its steps — nothing to rebuild from it.
+    publishFlow: async (key) => one(await call('POST', `/${enc(key)}/publish`)),
 
     // running
     startRun: async (key) => one(await call('POST', `/${enc(key)}/runs`)),

@@ -25,5 +25,5 @@ export { createFlowsApi } from './flows.js'
 export {
   FLOW_KIND, FLOW_VERSION, FLOW_END, FLOW_OPERATORS, VALUELESS_OPERATORS,
   createFlow, flowKey, addStep, uniqueStepKey, moveStep, setStep, removeStep,
-  addTransition, setTransition, removeTransition, firstStep, reachableSteps, validateFlow, describeWhen
+  addTransition, setTransition, removeTransition, firstStep, reachableSteps, layoutFlow, validateFlow, describeWhen
 } from './flow.js'
