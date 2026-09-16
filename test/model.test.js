@@ -491,6 +491,25 @@ console.log('\na stepper, and the controls on each of its steps')
     Object.keys(validateValues(doc, {})).join() === 'connection')
 }
 
+console.log('\na list that opens a page, and a hook on the steps')
+{
+  const { FactoryHooks, hookMethod } = require('../src/hooks.js')
+  check('a list opens a popup unless it is told otherwise', CONTROLS.list.defaults.openIn === 'popup')
+  check('...and may open a page instead', CONTROLS.list.props.includes('openIn'))
+  const listDoc = screensFromSpec({ entity: 'task', fields: [{ label: 'Title' }] }).list
+  const pageList = { ...listDoc, nodes: listDoc.nodes.map((n) => ({ ...n, props: { ...n.props, openIn: 'page' } })) }
+  check('...which the checker accepts', validateDocument(pageList).ok)
+  check('...and nothing else', !validateDocument({ ...listDoc, nodes: listDoc.nodes.map((n) => ({ ...n, props: { ...n.props, openIn: 'tab' } })) }).ok)
+
+  check('the default step hook lets every move through', new FactoryHooks().step({ from: 0, to: 1, direction: 'next' }) === true)
+  class Held extends FactoryHooks {
+    step(ctx) { return ctx.direction === 'next' && !ctx.values.title ? false : super.step(ctx) }
+  }
+  check('a hook can keep the person on a step', hookMethod(new Held(), 'step')({ from: 0, to: 1, direction: 'next', values: {} }) === false)
+  check('...and let them through once it is filled in', hookMethod(new Held(), 'step')({ from: 0, to: 1, direction: 'next', values: { title: 'x' } }) === true)
+  check('...and a plain object with no step hook still moves', hookMethod({}, 'step')({ from: 0, to: 1, direction: 'jump' }) === true)
+}
+
 console.log('\nthe stylesheet')
 {
   // A class in two components is a class whose layout rule reaches a place it

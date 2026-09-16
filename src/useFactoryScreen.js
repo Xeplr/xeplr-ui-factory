@@ -35,6 +35,8 @@ export const AUTOSAVE_DELAY = 700
  * @param recordKey     the id field on a record (default 'id')
  * @param onSave        async (values, { id, source, document }) → saved record | void
  * @param fetchOptions  async ({ table, node }) → [{ id, name }]
+ * @param onOpenRecord  ({ screen, id, record, source }) → void — where a list whose "Opens in" is a page sends Edit / New
+ * @param onDone        () → void — a page's "Done": back to wherever the person came from
  * @param uploadFile    async (file, { screen, field, node }) → { path } — what a file field saves
  * @param fileUrl       (path) → the address an attached file is read back from
  * @param fetchRecords  async ({ source, node }) → records, for lists
@@ -49,6 +51,7 @@ export const AUTOSAVE_DELAY = 700
  */
 export function useFactoryScreen({
   document: doc, record, recordKey = 'id', onSave, fetchOptions, fetchRecords, fetchRecord, onDelete, onChange, screens, loadScreen, hooks, uploadFile, fileUrl,
+  onOpenRecord, onDone,
   autosaveDelay = AUTOSAVE_DELAY, controls = CONTROLS
 } = {}) {
   const check = useMemo(() => validateDocument(doc, controls), [doc, controls])
@@ -174,7 +177,31 @@ export function useFactoryScreen({
       nodes: stepperNodes,
       active: at,
       count: (id) => stepsOf(stepperNodes.find((n) => n.id === id)).length,
-      go: (id, index) => setOpenSteps((o) => ({ ...o, [id]: index })),
+      /**
+       * Move, if the app's `step` hook lets it: false keeps the person where
+       * they are, a number sends them somewhere else. The hook runs for Next,
+       * Back and a click on the bar alike, so a rule cannot be walked around.
+       */
+      go: async (id, index, direction) => {
+        const from = at(id)
+        const last = stepsOf(stepperNodes.find((n) => n.id === id)).length - 1
+        const to = Math.min(Math.max(index, 0), Math.max(last, 0))
+        if (to === from) return from
+        const decide = hookMethod(hooksRef.current, 'step')
+        const answer = await decide({
+          from,
+          to,
+          direction: direction || (to > from ? 'next' : 'back'),
+          values: live.current.values,
+          stepper: id,
+          screen: doc.id,
+          document: doc
+        })
+        if (answer === false) return from
+        const where = Number.isInteger(answer) ? Math.min(Math.max(answer, 0), Math.max(last, 0)) : to
+        setOpenSteps((o) => ({ ...o, [id]: where }))
+        return where
+      },
       /** The fields on this step, so Next can hold at a step that is not filled in. */
       fieldsOn: (id, index) => inputNodes(doc, controls).filter((n) => {
         const step = stepOf(n)
@@ -406,9 +433,19 @@ export function useFactoryScreen({
   const fetchRecordRef = useRef(fetchRecord); fetchRecordRef.current = fetchRecord
   const loadScreenRef = useRef(loadScreen); loadScreenRef.current = loadScreen
 
-  /** Edit (a record) or New (null) in the list's edit screen. */
+  /**
+   * Edit (a record) or New (null) in the list's edit screen — in a popup, or
+   * on a page of the app's own when the list says so. A page is the app's to
+   * open: the factory has no router, so it asks.
+   */
+  const openRecordRef = useRef(onOpenRecord); openRecordRef.current = onOpenRecord
   const openEditor = useCallback(async (node, rec) => {
     const screenId = node.props.editScreen
+    if (node.props.openIn === 'page') {
+      if (!openRecordRef.current) throw new Error('This list opens records on a page, but no onOpenRecord was provided to go there')
+      const id = rec ? rec[live.current.recordKey] : null
+      return openRecordRef.current({ screen: screenId, id, record: rec || null, source: listSource(doc, node), node })
+    }
     const base = { node, screenId, record: rec || null, document: null, loading: true, error: null }
     setPopup(base)
     try {
@@ -464,6 +501,7 @@ export function useFactoryScreen({
     setValue,
     touch,
     optionsFor,
+    done: onDone || null,
     steps: stepControl,
     visibleNodes,
     upload,

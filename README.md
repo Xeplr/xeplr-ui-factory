@@ -153,7 +153,17 @@ Rules that must hold belong in the server's hooks; the browser only shapes what 
 
 ### Lists of saved records
 
-A **List** control shows the records of the table the screen saves to (or another), in `@xeplr/ui-table`, with the columns you tick. Its **Edit in** names the edit screen: **Edit** and **New** open that screen in a popup, where it saves itself and the list refreshes behind it. **Delete** removes a row after a confirmation. Dropdown columns show names, not ids — read from the edit screen's fields.
+A **List** control shows the records of the table the screen saves to (or another), in `@xeplr/ui-table`, with the columns you tick. Its **Edit in** names the edit screen: **Edit** and **New** open that screen in a popup, where it saves itself and the list refreshes behind it.
+
+**Opens in: a page of its own** sends them to a page in your app instead. The factory has no router, so it asks — `onOpenRecord` on the list's screen, and `onDone` on the page, which draws a **Done** button that saves what is pending and calls it:
+
+```jsx
+<FactoryScreen document={taskList} {...factory.screenProps}
+  onOpenRecord={({ id }) => navigate(id ? `/tasks/${id}` : '/tasks/new')} />
+
+<FactoryScreen document={taskEdit} record={task} {...factory.screenProps}
+  onDone={() => navigate('/tasks')} />
+``` **Delete** removes a row after a confirmation. Dropdown columns show names, not ids — read from the edit screen's fields.
 
 The edit screen comes from `screens` (`{ id → document }`) or your `loadScreen(id)`. A list on a form with no **Edit in** opens rows in that form's own fields instead.
 
@@ -206,6 +216,19 @@ one with no step means.
 document stays flat, so a control is still moved, styled, checked and saved
 exactly as before; the step only decides when it is on screen. Renaming a step
 keeps its `key`, so the controls on it stay where they are.
+
+A stepper also gives the front-end hooks a **`step`** method, run before every
+move — Next, Back and a click on the bar alike, so a rule cannot be walked
+around by clicking ahead:
+
+```js
+class TaskHooks extends FactoryHooks {
+  step(ctx) {                       // { from, to, direction, values, screen }
+    if (ctx.direction === 'next' && ctx.from === 0 && !ctx.values.title) return false
+    return super.step(ctx)          // false stays, a number goes there instead
+  }
+}
+```
 
 **A step is not a separate form.** Every field is a column, is checked, and is
 saved, whichever step is showing — a screen still saves itself as it is filled

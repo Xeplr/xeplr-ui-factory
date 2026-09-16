@@ -119,6 +119,9 @@
 .xeplr-factory-stepnav { display: flex; align-items: center; gap: 12px; padding: 10px 0; }
 .xeplr-factory-stepnav-where { flex: 1; text-align: center; color: var(--xf-muted); font-size: 12px; }
 
+/* Done — a page's way back, when the list opens records on one. */
+.xeplr-factory-done { display: flex; justify-content: flex-end; padding: 10px 0; }
+
 /* Which step the builder is on. */
 .xeplr-factory-building { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0 auto 8px; padding: 6px 0; }
 .xeplr-factory-building-what { color: var(--xf-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }

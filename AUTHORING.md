@@ -159,7 +159,7 @@ Names are derived once and agree everywhere: ids `employee_list` / `employee_edi
 | `columns` | `1` or `2` (default `2`) |
 | `heading` | `true` (default) puts the name at the top; a string uses that text; `false` for none |
 | `fields` | **required** — in reading order |
-| `list` | `true`, or `{ title, source, columns: [{ field, label }], pageSize, actions: ["new","edit","delete"] }` — saved records below the fields |
+| `list` | `true`, or `{ title, source, columns: [{ field, label }], pageSize, actions: ["new","edit","delete"], openIn: "popup" \| "page" }` — saved records below the fields |
 | `width` | design width in px (default `800`) |
 | `style` | screen-wide defaults: `{ fontFamily, fontSize, color, background }` |
 

@@ -54,6 +54,27 @@ export class FactoryHooks {
   }
 
   /**
+   * Before a stepper moves — Next, Back, or a click on the bar itself.
+   *
+   *   step(ctx) {
+   *     if (ctx.direction === 'next' && ctx.from === 0 && !ctx.values.title) return false
+   *     return super.step(ctx)
+   *   }
+   *
+   * @param ctx.from       the step being left, counting from 0
+   * @param ctx.to         the step asked for
+   * @param ctx.direction  'next' | 'back' | 'jump' (a click on the bar)
+   * @param ctx.values     what the form holds
+   * @param ctx.stepper    the stepper's node id
+   * @returns false to stay where you are, a step number to go somewhere else,
+   *          anything else to move as asked. The step's own required fields are
+   *          checked before this runs, so this is for your rules, not theirs.
+   */
+  step(ctx) {
+    return true
+  }
+
+  /**
    * Extra buttons on each row, beside Edit and Delete:
    *   [{ label: 'Mark done', onClick: (record, ctx) => … }]
    * ctx.refresh() reloads the list.

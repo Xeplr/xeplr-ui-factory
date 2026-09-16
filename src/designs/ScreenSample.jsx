@@ -31,15 +31,15 @@ function StepNav({ ctrl, node }) {
   const at = ctrl.steps.active(node.id)
   const last = ctrl.steps.count(node.id) - 1
   const unfinished = ctrl.steps.fieldsOn(node.id, at).filter((n) => ctrl.allErrors[n.props.name])
-  const go = (to) => {
+  const go = (to, direction) => {
     if (to > at && unfinished.length) { unfinished.forEach((n) => ctrl.touch(n)); return }
-    ctrl.steps.go(node.id, Math.min(Math.max(to, 0), last))
+    ctrl.steps.go(node.id, Math.min(Math.max(to, 0), last), direction)
   }
   return (
     <div className="xeplr-factory-stepnav">
-      <button type="button" className="xeplr-factory-secondary" onClick={() => go(at - 1)} disabled={at === 0}>Back</button>
+      <button type="button" className="xeplr-factory-secondary" onClick={() => go(at - 1, 'back')} disabled={at === 0}>Back</button>
       <span className="xeplr-factory-stepnav-where">Step {at + 1} of {last + 1}</span>
-      <button type="button" className="xeplr-factory-primary" onClick={() => go(at + 1)} disabled={at === last}>Next</button>
+      <button type="button" className="xeplr-factory-primary" onClick={() => go(at + 1, 'next')} disabled={at === last}>Next</button>
     </div>
   )
 }
@@ -105,7 +105,7 @@ export default function ScreenSample({ ctrl, className, style, renderPopup }) {
               error={node.props?.name ? ctrl.errors[node.props.name] : undefined}
               options={CHOICE_TYPES.includes(node.type) ? ctrl.optionsFor(node) : undefined}
               upload={node.type === 'file' ? ctrl.upload : undefined}
-              stepper={node.type === 'stepper' ? { active: ctrl.steps.active(node.id), onStep: (i) => ctrl.steps.go(node.id, i) } : undefined}
+              stepper={node.type === 'stepper' ? { active: ctrl.steps.active(node.id), onStep: (i) => ctrl.steps.go(node.id, i, 'jump') } : undefined}
               onChange={(raw) => ctrl.setValue(node, raw)}
               onBlur={() => ctrl.touch(node)}
               list={node.type === 'list' ? {
@@ -131,6 +131,13 @@ export default function ScreenSample({ ctrl, className, style, renderPopup }) {
       {ctrl.steps.nodes.map((node) => (
         <StepNav key={node.id} ctrl={ctrl} node={node} />
       ))}
+      {ctrl.done && (
+        <div className="xeplr-factory-done">
+          <button type="button" className="xeplr-factory-primary" onClick={() => ctrl.flush().then(ctrl.done, ctrl.done)}>
+            {ctrl.status === 'pending' || ctrl.status === 'saving' ? 'Saving…' : 'Done'}
+          </button>
+        </div>
+      )}
       {ctrl.popup && renderPopup && renderPopup(ctrl.popup, ctrl)}
     </div>
   )

@@ -319,6 +319,9 @@ function checkStyle(style, allowed, at, err, owner) {
  * must be set.
  */
 function checkList(props, doc, at, err) {
+  if (props.openIn !== undefined && props.openIn !== 'popup' && props.openIn !== 'page') {
+    err(`${at}.props.openIn`, 'must be "popup" or "page"')
+  }
   if (props.title !== undefined && typeof props.title !== 'string') err(`${at}.props.title`, 'must be a string')
   if (props.source !== undefined && !(nonEmptyString(props.source) && TABLE_NAME.test(props.source))) err(`${at}.props.source`, 'must name the table to list records from')
   if (props.source === undefined && doc.source === undefined) err(`${at}.props.source`, 'is required when the screen has no "source" — which table should the list read?')
