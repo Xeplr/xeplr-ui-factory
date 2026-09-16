@@ -21,3 +21,9 @@ export {
   columnForField, tableForScreen, columnSql, widening, diffTables, migrationFor, nextMigrationName,
   createStatements, addStatements, alterStatement, dropStatement, columnFromDatabase, planTableChange
 } from './tableSchema.js'
+export { createFlowsApi } from './flows.js'
+export {
+  FLOW_KIND, FLOW_VERSION, FLOW_END, FLOW_OPERATORS, VALUELESS_OPERATORS,
+  createFlow, flowKey, addStep, uniqueStepKey, moveStep, setStep, removeStep,
+  addTransition, setTransition, removeTransition, firstStep, reachableSteps, validateFlow, describeWhen
+} from './flow.js'

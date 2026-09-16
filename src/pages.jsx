@@ -1,6 +1,8 @@
 import { useFactoryBuilder } from './useFactoryBuilder.js'
 import { useFactoryScreen } from './useFactoryScreen.js'
-import { BuilderSample, ScreenSample, ScreenModal } from './designs/index.js'
+import { useFlowRun } from './useFlowRun.js'
+import { useFlowBuilder } from './useFlowBuilder.js'
+import { BuilderSample, ScreenSample, ScreenModal, FlowRunnerSample, FlowBuilderSample } from './designs/index.js'
 
 /**
  * The builder, ready-made. Saves itself — there is no Save button.
@@ -93,4 +95,67 @@ export function FactoryScreen(props) {
       )}
     />
   )
+}
+
+/**
+ * A FLOW, running: one screen at a time, and the run decides which comes next.
+ *
+ * The journey is not in this page. It asks the run what to show, renders that
+ * screen — which saves itself into its own table, as anywhere else — and hands
+ * back what was filled in; the arrows leaving that step decide the rest.
+ *
+ * @prop flowKey    the flow to start
+ * @prop runId      a run to pick up instead of starting one
+ * @prop startRun   async (flowKey) → { runId, status, stepKey, screen }
+ * @prop loadRun    async (runId) → { runId, status, stepKey, screen, values }
+ * @prop submitRun  async (runId, values, recordId) → { status, stepKey, screen }
+ * @prop onStep     (step) → void — each move, for the address bar
+ * @prop onFinish   (run) → void — the journey is over
+ * @prop renderDone what to show at the end (default: a plain "All done")
+ * Everything a screen needs — loadScreen, onSave, fetchOptions, uploadFile… —
+ * is passed straight through, so `{...factory.screenProps}` covers it.
+ */
+export function FlowRunner(props) {
+  const run = useFlowRun(props)
+  const screen = useFactoryScreen({
+    ...props,
+    document: run.document || EMPTY_SCREEN,
+    record: run.values || undefined
+  })
+  return (
+    <FlowRunnerSample
+      run={run}
+      screen={screen}
+      title={props.title}
+      renderDone={props.renderDone}
+      className={props.className}
+      style={props.style}
+    />
+  )
+}
+
+// A screen the runner can hold before the run has said what to show. Valid, so
+// the controller has nothing to complain about, and never drawn.
+const EMPTY_SCREEN = {
+  kind: 'xeplr-screen', version: 1, id: 'flow_waiting', name: 'Waiting',
+  units: 'fraction', aspect: 1, width: 800, nodes: []
+}
+
+/**
+ * The FLOW designer, ready-made: screens on a canvas, arrows between them.
+ *
+ * Saves itself once what is drawn makes sense; Publish is deliberate, because
+ * a published flow is what people walk through.
+ *
+ * @prop flow       the flow to edit (omit for a new one)
+ * @prop name       name for a new flow
+ * @prop screens    [{ id, name }] — the published screens a step can show
+ * @prop loadScreen async (id) → the screen document, so an arrow can offer its fields
+ * @prop onSave     async (flow) → void
+ * @prop onPublish  async (key) → void
+ * @prop onChange   (flow) → void
+ */
+export function FlowBuilder(props) {
+  const ctrl = useFlowBuilder(props)
+  return <FlowBuilderSample ctrl={ctrl} className={props.className} style={props.style} />
 }

@@ -11,12 +11,14 @@ export * from './model.js'
 // Controllers
 export { useFactoryBuilder } from './useFactoryBuilder.js'
 export { useFactoryScreen, normaliseOptions, AUTOSAVE_DELAY } from './useFactoryScreen.js'
+export { useFlowRun } from './useFlowRun.js'
+export { useFlowBuilder, FLOW_AUTOSAVE_DELAY } from './useFlowBuilder.js'
 
 // Designs
-export { BuilderSample, ScreenSample, ListView, ScreenModal, ControlView, VIEWS, Palette, DRAG_TYPE, PropertyPanel, EDITORS } from './designs/index.js'
+export { BuilderSample, ScreenSample, ListView, ScreenModal, FlowRunnerSample, FlowBuilderSample, ControlView, VIEWS, Palette, DRAG_TYPE, PropertyPanel, EDITORS } from './designs/index.js'
 
 // Front-end hooks — extend FactoryHooks, override what you need, call super
 export { FactoryHooks } from './hooks.js'
 
 // Ready-made
-export { FactoryBuilder, FactoryScreen } from './pages.jsx'
+export { FactoryBuilder, FactoryScreen, FlowRunner, FlowBuilder } from './pages.jsx'

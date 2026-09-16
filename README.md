@@ -178,6 +178,55 @@ import schemaHandler from '@xeplr/schema-handler'          // CommonJS: default 
 const clean = schemaHandler.applySchema(formSchema(screen), req.body)   // throws ValidationError listing each field
 ```
 
+## Flows — screens, one after another
+
+A screen is a form; a **flow** is the journey across several of them. Design it
+the same way you design a form — screens on a canvas, arrows between them:
+
+```jsx
+import { FlowBuilder, FlowRunner, createFlowsApi } from '@xeplr/ui-factory'
+const flows = createFlowsApi({ fetch: authFetch, base: '/api' })
+
+<FlowBuilder {...flows.builderProps} flow={flow} screens={published} loadScreen={factory.loadScreen} />
+<FlowRunner  {...flows.runnerProps} {...factory.screenProps} flowKey="employee_registration" runId={runId} />
+```
+
+An arrow is a question asked once its screen is filled in — the first one that
+fits wins, and the one with no test ("otherwise") catches the rest:
+
+```json
+{ "stepKey": "details", "screen": "employee_edit",
+  "transitions": [
+    { "when": { "field": "type", "op": "=", "value": "contractor" }, "target": "contract" },
+    { "when": null, "target": "payroll" }
+  ] }
+```
+
+**The browser does not run the journey.** `createFlowsApi` talks to a service
+that does — Xeplr Workflow — so a run remembers where it got to: a journey can
+be left and picked up later, by someone else, on another day. Without such a
+service there are no flows; the factory has no engine of its own, on purpose.
+
+**Each screen still saves itself, into its own table.** What travels with the
+run is only what the arrows need and the id of the row that was written
+(`recordId`), so the data is exactly where it would be without a flow.
+
+`validateFlow(flow, { screens })` is the same check on both sides: a screen
+that exists, arrows that point somewhere, one "otherwise" at the end, and
+nothing unreachable.
+
+### A flow and a stepper
+
+Both walk someone through something, and they answer different questions:
+
+| | stepper | flow |
+|---|---|---|
+| where | steps of ONE screen | several screens |
+| when | one sitting | over days, if need be |
+| who | one person | can change hands |
+| decides | a `step` hook, in the browser | the engine, on the server |
+| needs | nothing | a workflow service |
+
 ## Controls
 
 | type | value | validation |

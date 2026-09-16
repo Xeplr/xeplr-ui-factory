@@ -318,3 +318,47 @@
 .xeplr-factory-confirm-text { flex: 1; line-height: 1.5; }
 .xeplr-factory-confirm-text ul { margin: 4px 0; padding-left: 18px; }
 .xeplr-factory-confirm-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* ── flows: screens joined by arrows ──────────────────────────────────────
+   The designer wears the builder's chrome (bar, palette, panel); what is new
+   is the step card on the canvas, the label on an arrow, and the rows that
+   say where a step goes next. */
+.xeplr-factory-flow-builder { display: flex; flex-direction: column; height: 100%; min-height: 0; color: var(--xeplr-text-primary, #1a1a19); }
+.xeplr-factory-flow-key { margin-right: auto; padding: 2px 6px; border-radius: 4px; background: var(--xf-border); font-size: 11px; }
+.xeplr-factory-flow-canvas { height: 100%; }
+
+.xeplr-factory-step-card {
+  display: flex; flex-direction: column; justify-content: center; gap: 2px;
+  width: 100%; height: 100%; box-sizing: border-box; padding: 10px 12px;
+  border: 1px solid var(--xf-border); border-radius: 10px; background: var(--xf-surface);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.xeplr-factory-step-card.is-selected { border-color: var(--xf-accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--xf-accent) 30%, transparent); }
+.xeplr-factory-step-card.has-error { border-color: var(--xf-danger); }
+.xeplr-factory-step-card-name { font-weight: 640; color: var(--xf-ink); }
+.xeplr-factory-step-card-screen { color: var(--xf-muted); font-size: 12px; }
+.xeplr-factory-step-card-first { color: var(--xf-accent); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+
+.xeplr-factory-edge-label {
+  padding: 1px 6px; border-radius: 999px; background: var(--xf-surface);
+  border: 1px solid var(--xf-border); color: var(--xf-muted); font-size: 11px; white-space: nowrap;
+}
+
+.xeplr-factory-arrow { padding: 8px 0; border-top: 1px dashed var(--xf-border); }
+.xeplr-factory-arrow:first-of-type { border-top: none; }
+.xeplr-factory-arrow-when { font-weight: 600; font-size: 12px; }
+.xeplr-factory-arrow-test { display: grid; gap: 4px; }
+.xeplr-factory-arrow-target { display: flex; align-items: center; gap: 6px; margin-top: 6px; color: var(--xf-muted); font-size: 12px; }
+.xeplr-factory-arrow-target select { flex: 1; }
+.xeplr-factory-arrow-add { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.xeplr-factory-danger-link { border: none; background: none; color: var(--xf-danger); font: inherit; cursor: pointer; padding: 0; }
+
+/* ── a flow, running ─────────────────────────────────────────────────────── */
+.xeplr-factory-flow { display: flex; flex-direction: column; gap: 8px; }
+.xeplr-factory-flow-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.xeplr-factory-flow-where { font-weight: 640; }
+.xeplr-factory-flow-sending, .xeplr-factory-flow-loading { color: var(--xf-muted); font-size: 12px; }
+.xeplr-factory-flow-done {
+  padding: 16px; border-radius: 8px; border: 1px solid var(--xf-border);
+  background: var(--xf-surface); color: var(--xf-ink);
+}

@@ -58,8 +58,13 @@ function StepNav({ ctrl, node, children }) {
 function DoneButton({ ctrl }) {
   const saving = ctrl.status === 'pending' || ctrl.status === 'saving'
   return (
-    <button type="button" className="xeplr-factory-secondary" onClick={() => ctrl.flush().then(ctrl.done, ctrl.done)}>
-      {saving ? 'Saving…' : 'Done'}
+    <button
+      type="button"
+      className={ctrl.doneLabel ? 'xeplr-factory-primary' : 'xeplr-factory-secondary'}
+      disabled={!ctrl.canSave && ctrl.status === 'invalid'}
+      onClick={() => ctrl.flush().then(ctrl.done, ctrl.done)}
+    >
+      {saving ? 'Saving…' : (ctrl.doneLabel || 'Done')}
     </button>
   )
 }

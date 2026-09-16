@@ -547,9 +547,22 @@ console.log('\nthe stylesheet')
       used.get(c).add(f)
     })
   })
-  // The handful that are deliberately shared: buttons, and the messages every
-  // part of the package says the same way.
-  const SHARED = ['xeplr-factory-primary', 'xeplr-factory-secondary', 'xeplr-factory-danger', 'xeplr-factory-icon-button', 'xeplr-factory-hint', 'xeplr-factory-invalid']
+  // Two kinds are deliberately shared, and are listed rather than assumed.
+  //
+  // Buttons and messages: every part of the package says these the same way.
+  // The DESIGNER CHROME: the screen designer and the flow designer are one
+  // product with two canvases — same bar, same palette, same panel — so they
+  // wear the same clothes on purpose. Anything else sharing a name is the bug
+  // this check exists for: a control's layout rule reaching the panel.
+  const SHARED = [
+    'xeplr-factory-primary', 'xeplr-factory-secondary', 'xeplr-factory-danger', 'xeplr-factory-icon-button',
+    'xeplr-factory-hint', 'xeplr-factory-invalid',
+    'xeplr-factory-bar', 'xeplr-factory-bar-status', 'xeplr-factory-bar-status--', 'xeplr-factory-name',
+    'xeplr-factory-problems', 'xeplr-factory-publish', 'xeplr-factory-body', 'xeplr-factory-stage', 'xeplr-factory-empty',
+    'xeplr-factory-palette', 'xeplr-factory-palette-group', 'xeplr-factory-palette-title', 'xeplr-factory-palette-item',
+    'xeplr-factory-panel', 'xeplr-factory-panel-empty', 'xeplr-factory-panel-head', 'xeplr-factory-panel-type', 'xeplr-factory-panel-errors',
+    'xeplr-factory-group', 'xeplr-factory-prop', 'xeplr-factory-prop-label', 'xeplr-factory-prop-input', 'xeplr-factory-add'
+  ]
   const clashes = [...used.entries()].filter(([c, fs2]) => fs2.size > 1 && !SHARED.includes(c)).map(([c]) => c)
   check('no class is used by two components that did not agree to share it', clashes.length === 0, clashes.join(', '))
 
