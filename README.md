@@ -196,6 +196,11 @@ const clean = schemaHandler.applySchema(formSchema(screen), req.body)   // throw
 | `label` | — | text with a heading, subheading or text preset |
 | `list` | — | saved records, with New / Edit / Delete |
 
+A screen is a **sheet**: it paints its own surface, so a screen designed in
+dark ink stays readable inside a dark app. Give the screen a `background` in
+its own style to change it, or set `--xeplr-factory-paper` on the host for all
+of them.
+
 Every control also takes `style` — see [AUTHORING.md](./AUTHORING.md#styles) for the keys. Sizes are pixels at the screen's design `width` (default 800): a screen is shown at that size, never stretched, and scaled down only on a narrower display.
 
 ### Steps

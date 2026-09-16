@@ -19,8 +19,23 @@
   --xf-danger: var(--xeplr-danger, #c2372e);
 }
 
-/* ── the screen ─────────────────────────────────────────────────────────── */
-.xeplr-factory-screen { position: relative; width: 100%; color: var(--xf-ink); }
+/* ── the screen ───────────────────────────────────────────────────────────
+   A screen is a SHEET: it paints its own surface, the way the builder's canvas
+   does. Without that it is transparent, and a screen designed in dark ink
+   disappears into a dark app — what you designed is not what you get. The
+   screen's own `background` style overrides this (screenStyle), as does the
+   host with --xeplr-factory-paper. */
+.xeplr-factory-screen {
+  position: relative; width: 100%;
+  color: var(--xf-ink);
+  background: var(--xeplr-factory-paper, var(--xf-surface));
+  border-radius: calc(8 * var(--xf-u));
+}
+/* The status line and the step buttons live on the sheet, so they keep a
+   margin of their own rather than touching its edge. */
+.xeplr-factory-screen > .xeplr-factory-status,
+.xeplr-factory-screen > .xeplr-factory-stepnav,
+.xeplr-factory-screen > .xeplr-factory-done { padding-inline: calc(12 * var(--xf-u)); }
 .xeplr-factory-status {
   display: flex; justify-content: space-between; gap: 12px; min-height: 18px;
   padding: 4px 2px 8px; font-size: 12px; color: var(--xf-muted);
