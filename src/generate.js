@@ -247,7 +247,7 @@ function round(v) {
 // The list names the edit screen (`editScreen`), which is the only link
 // between them; both save to and read from the same table.
 
-const ENTITY_KEYS = ['entity', 'plural', 'source', 'fields', 'columns', 'listColumns', 'pageSize', 'actions', 'width', 'style', 'aspect']
+const ENTITY_KEYS = ['entity', 'plural', 'source', 'fields', 'columns', 'listColumns', 'pageSize', 'actions', 'width', 'style', 'aspect', 'openIn']
 
 /**
  * @param spec
@@ -301,7 +301,9 @@ export function screensFromSpec(spec, controls = CONTROLS) {
       editScreen: edit.id,
       columns: listColumns,
       pageSize: spec.pageSize || 10,
-      actions: spec.actions || ['new', 'edit', 'delete']
+      actions: spec.actions || ['new', 'edit', 'delete'],
+      // 'page' sends Edit / New to a page of the app's own — see onOpenRecord.
+      openIn: spec.openIn || 'popup'
     }
   }, controls))
 
