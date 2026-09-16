@@ -27,7 +27,7 @@ const STATUS = {
  * filled in — and shows why, rather than moving on and leaving a problem
  * behind on a step nobody is looking at.
  */
-function StepNav({ ctrl, node }) {
+function StepNav({ ctrl, node, children }) {
   const at = ctrl.steps.active(node.id)
   const last = ctrl.steps.count(node.id) - 1
   const unfinished = ctrl.steps.fieldsOn(node.id, at).filter((n) => ctrl.allErrors[n.props.name])
@@ -40,7 +40,18 @@ function StepNav({ ctrl, node }) {
       <button type="button" className="xeplr-factory-secondary" onClick={() => go(at - 1, 'back')} disabled={at === 0}>Back</button>
       <span className="xeplr-factory-stepnav-where">Step {at + 1} of {last + 1}</span>
       <button type="button" className="xeplr-factory-primary" onClick={() => go(at + 1, 'next')} disabled={at === last}>Next</button>
+      {children}
     </div>
+  )
+}
+
+/** Leaves the page — after whatever is still being saved has gone out. */
+function DoneButton({ ctrl }) {
+  const saving = ctrl.status === 'pending' || ctrl.status === 'saving'
+  return (
+    <button type="button" className="xeplr-factory-secondary" onClick={() => ctrl.flush().then(ctrl.done, ctrl.done)}>
+      {saving ? 'Saving…' : 'Done'}
+    </button>
   )
 }
 
@@ -128,15 +139,13 @@ export default function ScreenSample({ ctrl, className, style, renderPopup }) {
           </div>
         ))}
       </form>
-      {ctrl.steps.nodes.map((node) => (
-        <StepNav key={node.id} ctrl={ctrl} node={node} />
+      {ctrl.steps.nodes.map((node, i) => (
+        <StepNav key={node.id} ctrl={ctrl} node={node}>
+          {ctrl.done && i === ctrl.steps.nodes.length - 1 && <DoneButton ctrl={ctrl} />}
+        </StepNav>
       ))}
-      {ctrl.done && (
-        <div className="xeplr-factory-done">
-          <button type="button" className="xeplr-factory-primary" onClick={() => ctrl.flush().then(ctrl.done, ctrl.done)}>
-            {ctrl.status === 'pending' || ctrl.status === 'saving' ? 'Saving…' : 'Done'}
-          </button>
-        </div>
+      {ctrl.done && !ctrl.steps.nodes.length && (
+        <div className="xeplr-factory-done"><DoneButton ctrl={ctrl} /></div>
       )}
       {ctrl.popup && renderPopup && renderPopup(ctrl.popup, ctrl)}
     </div>
