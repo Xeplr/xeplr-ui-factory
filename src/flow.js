@@ -29,10 +29,13 @@
 export const FLOW_KIND = 'xeplr-flow'
 export const FLOW_VERSION = 1
 
-/** Where a journey can end, instead of another step. */
-export const FLOW_END = 'end'
+/** Where a journey can end, instead of another step — the engine's own word for a journey that finished. */
+export const FLOW_END = 'end_success'
 
-/** The tests an arrow can carry. The engine compares one value; more than one comparison is more steps. */
+/**
+ * The tests an arrow can carry, spelled the way the workflow engine accepts
+ * them. One comparison per arrow; more than one is more steps.
+ */
 export const FLOW_OPERATORS = [
   { op: '=', label: 'is' },
   { op: '!=', label: 'is not' },
@@ -41,12 +44,15 @@ export const FLOW_OPERATORS = [
   { op: '<', label: 'is less than' },
   { op: '<=', label: 'is at most' },
   { op: 'contains', label: 'contains' },
-  { op: 'empty', label: 'is empty' },
-  { op: 'not_empty', label: 'is not empty' }
+  { op: 'notContains', label: 'does not contain' },
+  { op: 'startsWith', label: 'starts with' },
+  { op: 'endsWith', label: 'ends with' },
+  { op: 'isEmpty', label: 'is empty' },
+  { op: 'isNotEmpty', label: 'is not empty' }
 ]
 
 /** The comparisons that need no value typed beside them. */
-export const VALUELESS_OPERATORS = ['empty', 'not_empty']
+export const VALUELESS_OPERATORS = ['isEmpty', 'isNotEmpty']
 
 const KEY = /^[A-Za-z][A-Za-z0-9_]*$/
 const MAX_KEY = 63
@@ -220,7 +226,7 @@ export function validateFlow(flow, options = {}) {
     step.transitions.forEach((t, j) => {
       const tp = `${at}.transitions[${j}]`
       if (!t || typeof t !== 'object') { err(tp, 'must be { when, target }'); return }
-      if (!String(t.target || '').trim()) err(`${tp}.target`, 'must name the step this arrow goes to, or "end"')
+      if (!String(t.target || '').trim()) err(`${tp}.target`, `must name the step this arrow goes to, or "${FLOW_END}"`)
       if (t.when === null || t.when === undefined) {
         if (otherwiseAt !== -1) err(tp, 'a step can have only one "otherwise" — the others need a test')
         otherwiseAt = j

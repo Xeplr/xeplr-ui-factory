@@ -6,7 +6,7 @@ import {
   addTransition, setTransition, removeTransition, firstStep, reachableSteps,
   validateFlow, describeWhen, FLOW_END, FLOW_OPERATORS
 } from '../src/model.js'
-import { createFlowsApi } from '../src/flows.js'
+import { createFlowsApi, asFlow } from '../src/flows.js'
 
 const results = []
 const check = (name, cond, detail) => { results.push([name, cond]); console.log((cond ? '  ok   ' : '  FAIL ') + name + (!cond && detail ? ' — ' + detail : '')) }
@@ -73,7 +73,7 @@ console.log('\nwhat the designer refuses to publish')
   check('a comparison with nothing to compare against',
     !bad(addTransition(flow, 'contract_edit', 'payroll_edit', { field: 'a', op: '=', value: '' })).ok)
   check('...except the ones that need no value',
-    bad(addTransition(flow, 'contract_edit', 'payroll_edit', { field: 'a', op: 'not_empty' })).ok)
+    bad(addTransition(flow, 'contract_edit', 'payroll_edit', { field: 'a', op: 'isNotEmpty' })).ok)
   check('a step nothing leads to', !bad({ ...flow, steps: [...flow.steps, { stepKey: 'orphan', screen: 'payroll_edit', label: 'Orphan', layout: { x: 0, y: 0 }, transitions: [] }] }).ok)
   check('a flow with no screens at all', !bad(createFlow({ name: 'Empty' })).ok)
   check('a key that is not a key', !bad({ ...flow, key: '2 bad' }).ok)
@@ -101,6 +101,13 @@ console.log('\nthe calls a flow makes')
   check('journeys still going can be listed', seen[3] === 'GET /api/flows/employee_registration/runs?mine=1')
   check('the runner gets exactly the calls it needs', Object.keys(api.runnerProps).join() === 'startRun,loadRun,submitRun,myRuns')
   check('a client with no fetch is refused', (() => { try { createFlowsApi({}); return false } catch (_) { return true } })())
+
+  const loaded = asFlow({ id: 'w1', key: 'onboard', name: 'Onboard', status: 'draft',
+    steps: [{ stepKey: 'person', label: null, screen: 'person_form', layout: null, transitions: [] }] })
+  check('a flow from the server is a document the designer can check',
+    loaded.kind === 'xeplr-flow' && loaded.version === 1 && validateFlow(loaded).ok)
+  check('...a step with no name is called after its screen', loaded.steps[0].label === 'person_form')
+  check('...and one with no place on the canvas gets one', loaded.steps[0].layout.x === 40)
 }
 
 const failed = results.filter(([, ok]) => !ok)

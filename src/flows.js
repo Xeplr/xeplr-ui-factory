@@ -11,6 +11,31 @@
 //
 // Responses are xeplr's { code, message, error, dataArray }.
 
+import { FLOW_KIND, FLOW_VERSION } from './flow.js'
+
+/**
+ * A flow as the server sends it → the document the designer edits. The server
+ * stores steps, not the document's envelope, so the envelope is put back here
+ * and a step with no label is named after its screen.
+ */
+export function asFlow(row) {
+  if (!row) return row
+  return {
+    kind: FLOW_KIND,
+    version: FLOW_VERSION,
+    key: row.key,
+    name: row.name,
+    status: row.status,
+    steps: (row.steps || []).map((s) => ({
+      stepKey: s.stepKey,
+      screen: s.screen,
+      label: s.label || s.screen,
+      layout: s.layout || { x: 40, y: 40 },
+      transitions: s.transitions || []
+    }))
+  }
+}
+
 /**
  * @param options.fetch  a fetch that adds auth and tenant headers (authFetch)
  * @param options.base   prefix before /flows (default '')
@@ -51,10 +76,13 @@ export function createFlowsApi({ fetch: doFetch, base = '' } = {}) {
   const api = {
     // designing
     listFlows: () => call('GET', ''),
-    createFlow: async (spec) => one(await call('POST', '', spec)),
-    loadFlow: async (key) => one(await call('GET', `/${enc(key)}`)),
-    saveFlow: async (flow) => one(await call('PUT', `/${enc(flow.key)}`, { name: flow.name, steps: flow.steps })),
-    publishFlow: async (key) => one(await call('POST', `/${enc(key)}/publish`)),
+    createFlow: async (spec) => asFlow(one(await call('POST', '', spec))),
+    loadFlow: async (key) => asFlow(one(await call('GET', `/${enc(key)}`))),
+    saveFlow: async (flow) => asFlow(one(await call('PUT', `/${enc(flow.key)}`, {
+      name: flow.name,
+      steps: flow.steps.map((s) => ({ stepKey: s.stepKey, label: s.label, screen: s.screen, layout: s.layout, transitions: s.transitions }))
+    }))),
+    publishFlow: async (key) => asFlow(one(await call('POST', `/${enc(key)}/publish`))),
 
     // running
     startRun: async (key) => one(await call('POST', `/${enc(key)}/runs`)),
