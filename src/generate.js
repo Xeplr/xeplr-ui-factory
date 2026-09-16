@@ -24,13 +24,13 @@
 // there it is edited like any other.
 
 import { CONTROLS, CHOICE_TYPES } from './controls.js'
-import { createScreen, addControl, MARGIN, GAP, slugify, camelName } from './document.js'
+import { createScreen, addControl, MARGIN, GAP, slugify, camelName, stepsOf } from './document.js'
 import { assertValidDocument } from './validateDocument.js'
 
 /** Heights by control, as page fractions (a page is as tall as it is wide). */
 export const SPEC_HEIGHTS = {
   text: 0.08, number: 0.08, date: 0.08, datetime: 0.08, dropdown: 0.08,
-  file: 0.1,
+  file: 0.1, stepper: 0.09,
   textarea: 0.18,
   // A group is as tall as its options make it — see heightOf().
   radio: 0.14, multiselect: 0.18,
@@ -45,7 +45,7 @@ export const SPEC_HEIGHTS = {
  */
 export const ROW_GAP = 0.04
 
-const FIELD_KEYS = ['type', 'label', 'name', 'required', 'placeholder', 'default', 'validation', 'data', 'options', 'table', 'layout', 'accept', 'maxSize', 'width', 'text', 'variant', 'style']
+const FIELD_KEYS = ['type', 'label', 'name', 'required', 'placeholder', 'default', 'validation', 'data', 'options', 'table', 'layout', 'accept', 'maxSize', 'step', 'steps', 'showNumbers', 'width', 'text', 'variant', 'style']
 const SPEC_KEYS = ['name', 'id', 'source', 'columns', 'heading', 'fields', 'list', 'aspect', 'width', 'style']
 const LIST_KEYS = ['title', 'source', 'columns', 'pageSize', 'actions', 'style']
 
@@ -82,20 +82,48 @@ export function screenFromSpec(spec, controls = CONTROLS) {
   let col = 0
   let rowH = 0
 
+  // A stepper on the screen, and where each of its steps starts: every step is
+  // laid out from just under the bar, so they sit on top of one another rather
+  // than running down a page as long as all of them put together.
+  let stepper = null
+  let stepTop = 0
+  let step = null
+
   const place = (type, props, width) => {
     const h = heightOf(type, props)
-    const isFull = width === 'full' || columns === 1 || type === 'textarea' || type === 'label' || type === 'list'
+    const isFull = width === 'full' || columns === 1 || type === 'textarea' || type === 'label' || type === 'list' || type === 'stepper'
+    let node
     if (isFull) {
       if (col > 0) { y += rowH + ROW_GAP; col = 0; rowH = 0 }
-      ;({ document: doc } = addControl(doc, type, { at: { x: MARGIN, y: round(y) }, size: { w: round(full), h }, props }, controls))
+      ;({ document: doc, node } = addControl(doc, type, { at: { x: MARGIN, y: round(y) }, size: { w: round(full), h }, props, step }, controls))
       y += h + ROW_GAP
-      return
+    } else {
+      const x = MARGIN + col * (colW + GAP)
+      ;({ document: doc, node } = addControl(doc, type, { at: { x: round(x), y: round(y) }, size: { w: colW, h }, props, step }, controls))
+      rowH = Math.max(rowH, h)
+      col++
+      if (col === columns) { y += rowH + ROW_GAP; col = 0; rowH = 0 }
     }
-    const x = MARGIN + col * (colW + GAP)
-    ;({ document: doc } = addControl(doc, type, { at: { x: round(x), y: round(y) }, size: { w: colW, h }, props }, controls))
-    rowH = Math.max(rowH, h)
-    col++
-    if (col === columns) { y += rowH + ROW_GAP; col = 0; rowH = 0 }
+    if (type === 'stepper') {
+      stepper = node
+      stepTop = y
+      step = { of: node.id, index: 0 }
+    }
+    return node
+  }
+
+  /** Move the layout to a step: back to the top, under the bar. */
+  const openStep = (which) => {
+    const steps = stepsOf(stepper)
+    const index = typeof which === 'number' ? which - 1 : steps.findIndex((s) => s.key === which || s.label === which)
+    if (index < 0 || index >= steps.length) {
+      throw new Error(`screenFromSpec: step ${JSON.stringify(which)} is not one of ${steps.map((s) => s.label).join(', ')}`)
+    }
+    if (step && step.index === index) return
+    step = { of: stepper.id, index }
+    y = stepTop
+    col = 0
+    rowH = 0
   }
 
   if (spec.heading !== false) {
@@ -109,6 +137,10 @@ export function screenFromSpec(spec, controls = CONTROLS) {
     const type = field.type || 'text'
     if (!controls[type]) throw new Error(`screenFromSpec: ${at}.type "${type}" is not a control — one of: ${Object.keys(controls).join(', ')}`)
     if (field.width !== undefined && field.width !== 'half' && field.width !== 'full') throw new Error(`screenFromSpec: ${at}.width must be "half" or "full"`)
+    if (field.step !== undefined) {
+      if (!stepper) throw new Error(`screenFromSpec: ${at}.step needs a stepper before it — { "type": "stepper", "steps": [...] }`)
+      openStep(field.step)
+    }
     place(type, propsFromField(type, field, at), field.width)
   })
 
@@ -126,6 +158,18 @@ export function screenFromSpec(spec, controls = CONTROLS) {
 }
 
 function propsFromField(type, field, at) {
+  if (type === 'stepper') {
+    const steps = field.steps
+    if (!Array.isArray(steps) || steps.length < 2) throw new Error(`screenFromSpec: ${at} is a stepper — give it steps: ["Connect", "Transform", …]`)
+    const props = {
+      steps: steps.map((s, i) => (typeof s === 'string'
+        ? { key: slugify(s, '_') || `step_${i + 1}`, label: s }
+        : s))
+    }
+    if (field.showNumbers !== undefined) props.showNumbers = field.showNumbers
+    if (field.style) props.style = field.style
+    return props
+  }
   if (type === 'label') {
     const props = { text: field.text ?? field.label ?? '', variant: field.variant || 'subheading' }
     if (field.style) props.style = field.style

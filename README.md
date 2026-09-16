@@ -182,10 +182,35 @@ const clean = schemaHandler.applySchema(formSchema(screen), req.body)   // throw
 | `radio` | option id | — |
 | `multiselect` | array of option ids | `minItems`, `maxItems` |
 | `file` | the stored file's path | `accept` (extensions), `maxSize` (MB) |
+| `stepper` | — | a journey across the top; every other control says which step it is on |
 | `label` | — | text with a heading, subheading or text preset |
 | `list` | — | saved records, with New / Edit / Delete |
 
 Every control also takes `style` — see [AUTHORING.md](./AUTHORING.md#styles) for the keys. Sizes are pixels at the screen's design `width` (default 800): a screen is shown at that size, never stretched, and scaled down only on a narrower display.
+
+### Steps
+
+A **stepper** turns one screen into several: a bar of steps across the top, and
+one step's controls showing at a time. Type the steps as one line — `Connect,
+Transform, Review` — and **click a step on the canvas to build it**: what you
+drop while it is open belongs to it, and the canvas shows only that step. A
+control can be put on *every* step instead (a heading, a list), which is what
+one with no step means.
+
+```json
+{ "id": "n7", "type": "stepper", "props": { "steps": [{ "key": "connect", "label": "Connect" }, { "key": "review", "label": "Review" }] } }
+{ "id": "n8", "type": "text", "step": { "of": "n7", "index": 0 }, "props": { "name": "host", "label": "Host" } }
+```
+
+`step` sits on the **node**, beside `x`/`y`/`w`/`h` — not in `props`. The
+document stays flat, so a control is still moved, styled, checked and saved
+exactly as before; the step only decides when it is on screen. Renaming a step
+keeps its `key`, so the controls on it stay where they are.
+
+**A step is not a separate form.** Every field is a column, is checked, and is
+saved, whichever step is showing — a screen still saves itself as it is filled
+in. **Next** holds at a step whose own fields are not filled in, and says which,
+rather than moving on and leaving a problem behind where nobody is looking.
 
 ### Options: dropdown, radio group, multi-select
 

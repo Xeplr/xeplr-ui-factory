@@ -22,6 +22,28 @@ const STATUS = {
   invalid: 'Fix the highlighted fields to save'
 }
 
+/**
+ * Back and Next, under the page. Next holds at a step whose own fields are not
+ * filled in — and shows why, rather than moving on and leaving a problem
+ * behind on a step nobody is looking at.
+ */
+function StepNav({ ctrl, node }) {
+  const at = ctrl.steps.active(node.id)
+  const last = ctrl.steps.count(node.id) - 1
+  const unfinished = ctrl.steps.fieldsOn(node.id, at).filter((n) => ctrl.allErrors[n.props.name])
+  const go = (to) => {
+    if (to > at && unfinished.length) { unfinished.forEach((n) => ctrl.touch(n)); return }
+    ctrl.steps.go(node.id, Math.min(Math.max(to, 0), last))
+  }
+  return (
+    <div className="xeplr-factory-stepnav">
+      <button type="button" className="xeplr-factory-secondary" onClick={() => go(at - 1)} disabled={at === 0}>Back</button>
+      <span className="xeplr-factory-stepnav-where">Step {at + 1} of {last + 1}</span>
+      <button type="button" className="xeplr-factory-primary" onClick={() => go(at + 1)} disabled={at === last}>Next</button>
+    </div>
+  )
+}
+
 export default function ScreenSample({ ctrl, className, style, renderPopup }) {
   const { document: doc } = ctrl
 
@@ -37,7 +59,10 @@ export default function ScreenSample({ ctrl, className, style, renderPopup }) {
   }
 
   const aspect = doc.aspect
-  const pageHeight = (contentBottom(doc) + MARGIN) * aspect * 100
+  // Only what the open steps show — the page is as tall as the step being
+  // filled in, not as tall as every step stacked up.
+  const shown = ctrl.visibleNodes && ctrl.visibleNodes.length ? ctrl.visibleNodes : doc.nodes
+  const pageHeight = (contentBottom(doc, shown) + MARGIN) * aspect * 100
   const fieldNodes = inputNodes(doc)
   const statusText = ctrl.status === 'error' ? `Not saved — ${ctrl.saveError}` : STATUS[ctrl.status]
   // A screen with no fields of its own (a list screen) has nothing to save.
@@ -62,7 +87,7 @@ export default function ScreenSample({ ctrl, className, style, renderPopup }) {
         noValidate
         aria-label={doc.name}
       >
-        {[...doc.nodes].sort((a, b) => (a.z || 0) - (b.z || 0)).map((node) => (
+        {[...shown].sort((a, b) => (a.z || 0) - (b.z || 0)).map((node) => (
           <div
             key={node.id}
             className={`xeplr-factory-node xeplr-factory-node--${node.type}`}
@@ -80,6 +105,7 @@ export default function ScreenSample({ ctrl, className, style, renderPopup }) {
               error={node.props?.name ? ctrl.errors[node.props.name] : undefined}
               options={CHOICE_TYPES.includes(node.type) ? ctrl.optionsFor(node) : undefined}
               upload={node.type === 'file' ? ctrl.upload : undefined}
+              stepper={node.type === 'stepper' ? { active: ctrl.steps.active(node.id), onStep: (i) => ctrl.steps.go(node.id, i) } : undefined}
               onChange={(raw) => ctrl.setValue(node, raw)}
               onBlur={() => ctrl.touch(node)}
               list={node.type === 'list' ? {
@@ -102,6 +128,9 @@ export default function ScreenSample({ ctrl, className, style, renderPopup }) {
           </div>
         ))}
       </form>
+      {ctrl.steps.nodes.map((node) => (
+        <StepNav key={node.id} ctrl={ctrl} node={node} />
+      ))}
       {ctrl.popup && renderPopup && renderPopup(ctrl.popup, ctrl)}
     </div>
   )

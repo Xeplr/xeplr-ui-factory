@@ -168,7 +168,7 @@ Each field:
 | key | meaning |
 |---|---|
 | `label` | **required** for inputs — shown above the field |
-| `type` | `text` (default), `textarea`, `number`, `date`, `datetime`, `checkbox`, `dropdown`, `radio`, `multiselect`, `file`, or `label` for a section heading |
+| `type` | `text` (default), `textarea`, `number`, `date`, `datetime`, `checkbox`, `dropdown`, `radio`, `multiselect`, `file`, `stepper`, or `label` for a section heading |
 | `name` | the key the value is saved under; defaults to the label in camelCase (`"Date of birth"` → `dateOfBirth`) |
 | `required` | `true` to require a value (a checkbox must be ticked) |
 | `placeholder` | text, textarea, number, dropdown |
@@ -179,6 +179,8 @@ Each field:
 | `table` | dropdown, radio, multiselect: read options from this table in the app's database |
 | `layout` | radio, multiselect: `"vertical"` (default) or `"horizontal"` |
 | `accept` | file: the extensions it takes, e.g. `".pdf,.docx"` |
+| `steps` | stepper: `["Connect", "Transform", "Review"]` — at least two |
+| `step` | which step this field is on: the step's label, or its number from 1. Needs a `stepper` earlier in `fields`; without a `step` a field shows on every step |
 | `maxSize` | file: the largest file in megabytes (default 10) |
 | `text`, `variant` | `label` only — `variant` is `heading`, `subheading` (default for a section) or `text` |
 | `style` | how it looks — see Styles |
@@ -248,6 +250,7 @@ A dropdown **always saves an `id` and shows a `name`.**
 | several of a set — tags, skills, days | `multiselect` |
 | a document, a contract, a spreadsheet, a photo | `file` with `accept` (`".pdf,.docx"`) |
 | a section title between groups | `{ "type": "label", "text": "…", "variant": "subheading" }` |
+| a long form people work through in stages | a `stepper`, then `step` on each field |
 
 Keep labels short and in sentence case ("Start date", not "START DATE:"). Mark only what the request needs as required.
 

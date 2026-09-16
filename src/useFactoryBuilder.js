@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CONTROLS, controlGroups } from './controls.js'
 import {
-  createScreen, renameScreen, setScreenProperty, addControl as addControlTo, moveNode, setNodeProperty,
+  createScreen, renameScreen, setScreenProperty, addControl as addControlTo, moveNode, setNodeProperty, setNodeStep,
+  steppers, stepsOf, stepOf, nodesForSteps,
   removeNodes
 } from './document.js'
 import { validateDocument } from './validateDocument.js'
@@ -98,17 +99,42 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
   /** A screen property by path — `source`, `width`, `style.fontSize`. */
   const setScreen = useCallback((path, value) => update((d) => setScreenProperty(d, path, value)), [update])
 
+  // ── steps ─────────────────────────────────────────────────────────────
+  // Which step of each stepper is open on the canvas. Everything dropped while
+  // a step is open belongs to that step, and the canvas shows only that step —
+  // so one screen holds as many little screens as it has steps.
+  const [openSteps, setOpenSteps] = useState({})
+  const stepperNodes = useMemo(() => steppers(doc, controls), [doc, controls])
+  const [building, setBuilding] = useState(null)      // the stepper being built
+  const activeStepper = stepperNodes.find((n) => n.id === building) || stepperNodes[stepperNodes.length - 1] || null
+  const stepAt = useCallback((id) => (Number.isInteger(openSteps[id]) ? openSteps[id] : 0), [openSteps])
+
+  const goToStep = useCallback((id, index) => {
+    setBuilding(id)
+    setOpenSteps((o) => ({ ...o, [id]: index }))
+  }, [])
+
+  /** The step a new control lands on: the one open on the stepper being built. */
+  const dropStep = useCallback(() => (
+    activeStepper ? { of: activeStepper.id, index: stepAt(activeStepper.id) } : null
+  ), [activeStepper, stepAt])
+
+  /** Moves a control to a step, or to none — shown whatever step is open. */
+  const setStep = useCallback((id, step) => update((d) => setNodeStep(d, id, step)), [update])
+
+  const visibleNodes = useMemo(() => nodesForSteps(doc, openSteps, controls), [doc, openSteps, controls])
+
   /** Adds a control and selects it, so its properties are open straight away. */
   const addControl = useCallback((type, at) => {
     let added = null
     update((d) => {
-      const r = addControlTo(d, type, { at }, controls)
+      const r = addControlTo(d, type, { at, step: dropStep() }, controls)
       added = r.node
       return r.document
     })
     if (added) setSelected(new Set([added.id]))
     return added
-  }, [update, controls])
+  }, [update, controls, dropStep])
 
   const moveControl = useCallback((id, patch) => update((d) => moveNode(d, id, patch)), [update])
 
@@ -271,6 +297,17 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
     setScreen,
     addControl,
     moveControl,
+    steps: {
+      nodes: stepperNodes,
+      building: activeStepper ? activeStepper.id : null,
+      active: stepAt,
+      count: (id) => stepsOf(stepperNodes.find((n) => n.id === id)).length,
+      labels: (id) => stepsOf(stepperNodes.find((n) => n.id === id)),
+      go: goToStep,
+      of: stepOf,
+      set: setStep
+    },
+    visibleNodes,
     setProperty,
     removeSelected,
     duplicateSelected,

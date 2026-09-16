@@ -142,6 +142,16 @@ export function acceptList(accept) {
     .map((s) => (s.startsWith('.') ? s : '.' + s))
 }
 
+/**
+ * A STEP a control belongs to, on the node itself (beside x/y/w/h/z) rather
+ * than in its props: it is not something the control does, it is where the
+ * control is. A node with no `step` is on the screen whatever step is showing
+ * — a heading, a list, the stepper itself.
+ *
+ *   node.step = { of: '<the stepper node's id>', index: 0 }
+ */
+export const STEP_LIMIT = 12
+
 /** Largest upload a file field may take, in bytes. */
 export const MAX_FILE_MB = 200
 
@@ -401,6 +411,31 @@ export const CONTROLS = {
         ]
       },
       ...styleGroups(INPUT_STYLES.filter((k) => k !== 'textAlign'))
+    ]
+  },
+
+  stepper: {
+    type: 'stepper',
+    label: 'Stepper',
+    group: 'Content',
+    input: false,
+    defaultSize: { w: 0.92, h: 0.09 },
+    // Steps are typed as one line — "Connect, Transform, Review" — because
+    // that is how someone describes them. Each becomes { key, label }.
+    defaults: { steps: [{ key: 'step_1', label: 'Step 1' }, { key: 'step_2', label: 'Step 2' }], showNumbers: true },
+    props: ['steps', 'showNumbers', 'style'],
+    validation: [],
+    styles: ['fontFamily', 'fontSize', 'fontWeight', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'],
+    properties: [
+      {
+        key: 'steps',
+        title: 'Steps',
+        fields: [
+          { path: 'props.steps', label: 'Steps', type: 'steps', help: 'One line, separated by commas. Click a step on the canvas to build it.' },
+          { path: 'props.showNumbers', label: 'Number the steps', type: 'toggle' }
+        ]
+      },
+      ...styleGroups(['fontFamily', 'fontSize', 'fontWeight', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'])
     ]
   },
 

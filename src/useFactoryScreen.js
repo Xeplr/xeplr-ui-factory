@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CONTROLS, CHOICE_TYPES } from './controls.js'
-import { inputNodes } from './document.js'
+import { inputNodes, nodesForSteps, steppers, stepsOf, stepOf } from './document.js'
 import { validateDocument } from './validateDocument.js'
 import { initialValues, parseInput, saveState, fieldError, optionValue, recordValues, listSource } from './values.js'
 import { hookMethod } from './hooks.js'
@@ -143,6 +143,45 @@ export function useFactoryScreen({
     })
     return () => { cancelled = true }
   }, [optionNodes])
+
+  // ── steps ─────────────────────────────────────────────────────────────
+  // A stepper shows one step at a time. Which step each is open at lives here;
+  // the fields of the steps not showing are still filled in, still checked and
+  // still saved — a step is what the person sees, not a separate form.
+  const [openSteps, setOpenSteps] = useState({})
+  const stepperNodes = useMemo(() => (check.ok ? steppers(doc, controls) : []), [check.ok, doc, controls])
+  const visibleNodes = useMemo(() => (check.ok ? nodesForSteps(doc, openSteps, controls) : []), [check.ok, doc, openSteps, controls])
+
+  // A screen whose steps changed under it (a field moved to another step, a
+  // step removed) must not stay open at a step that is gone.
+  useEffect(() => {
+    setOpenSteps((open) => {
+      let changed = false
+      const next = {}
+      stepperNodes.forEach((n) => {
+        const count = stepsOf(n).length
+        const at = Number.isInteger(open[n.id]) ? open[n.id] : 0
+        next[n.id] = Math.min(Math.max(at, 0), Math.max(count - 1, 0))
+        if (next[n.id] !== open[n.id]) changed = true
+      })
+      return changed || Object.keys(next).length !== Object.keys(open).length ? next : open
+    })
+  }, [stepperNodes])
+
+  const stepControl = useMemo(() => {
+    const at = (id) => (Number.isInteger(openSteps[id]) ? openSteps[id] : 0)
+    return {
+      nodes: stepperNodes,
+      active: at,
+      count: (id) => stepsOf(stepperNodes.find((n) => n.id === id)).length,
+      go: (id, index) => setOpenSteps((o) => ({ ...o, [id]: index })),
+      /** The fields on this step, so Next can hold at a step that is not filled in. */
+      fieldsOn: (id, index) => inputNodes(doc, controls).filter((n) => {
+        const step = stepOf(n)
+        return step && step.of === id && step.index === index
+      })
+    }
+  }, [stepperNodes, openSteps, doc, controls])
 
   // ── a file field's upload ─────────────────────────────────────────────
   const uploadRef = useRef(uploadFile); uploadRef.current = uploadFile
@@ -425,6 +464,8 @@ export function useFactoryScreen({
     setValue,
     touch,
     optionsFor,
+    steps: stepControl,
+    visibleNodes,
     upload,
     fileUrl,
     flush,

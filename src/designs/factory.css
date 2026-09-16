@@ -90,6 +90,45 @@
 .xeplr-factory-file-clear:hover { color: var(--xf-ink); border-color: var(--xf-accent); }
 .xeplr-factory-file-input { padding: calc(5 * var(--xf-u)); }
 
+/* ── stepper ──────────────────────────────────────────────────────────────
+   The journey across the top: a circle per step, joined by a line. The line is
+   drawn behind the circles, from the middle of one to the middle of the next. */
+.xeplr-factory-stepper { display: flex; align-items: center; width: 100%; height: 100%; overflow: hidden; }
+.xeplr-factory-steps { display: flex; align-items: flex-start; width: 100%; margin: 0; padding: 0; list-style: none; }
+.xeplr-factory-step { flex: 1; position: relative; min-width: 0; text-align: center; }
+.xeplr-factory-step + .xeplr-factory-step::before {
+  content: ''; position: absolute; top: calc(13 * var(--xf-u)); right: 50%; left: -50%; height: 2px;
+  background: var(--xf-border);
+}
+.xeplr-factory-step.is-active::before, .xeplr-factory-step.is-done::before { background: var(--xf-accent); }
+.xeplr-factory-step-button {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: calc(4 * var(--xf-u));
+  width: 100%; padding: 0; border: none; background: none; color: var(--xf-muted); font: inherit; cursor: pointer;
+}
+.xeplr-factory-step-mark {
+  display: flex; align-items: center; justify-content: center;
+  width: calc(26 * var(--xf-u)); height: calc(26 * var(--xf-u)); min-width: 18px; min-height: 18px;
+  border-radius: 50%; background: var(--xf-border); color: var(--xf-ink); font-weight: 600;
+}
+.xeplr-factory-step-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.xeplr-factory-step.is-active .xeplr-factory-step-mark,
+.xeplr-factory-step.is-done .xeplr-factory-step-mark { background: var(--xf-accent); color: #fff; }
+.xeplr-factory-step.is-active .xeplr-factory-step-button { color: var(--xf-accent); font-weight: 600; }
+
+/* Back / Next, under the page. */
+.xeplr-factory-stepnav { display: flex; align-items: center; gap: 12px; padding: 10px 0; }
+.xeplr-factory-stepnav-where { flex: 1; text-align: center; color: var(--xf-muted); font-size: 12px; }
+
+/* Which step the builder is on. */
+.xeplr-factory-building { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0 auto 8px; padding: 6px 0; }
+.xeplr-factory-building-what { color: var(--xf-muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+.xeplr-factory-building-step {
+  border: 1px solid var(--xf-border); background: var(--xf-surface); color: var(--xf-muted);
+  border-radius: 999px; padding: 3px 10px; font: inherit; font-size: 12px; cursor: pointer;
+}
+.xeplr-factory-building-step.is-active { border-color: var(--xf-accent); color: var(--xf-accent); font-weight: 600; }
+.xeplr-factory-building-every { display: flex; align-items: center; gap: 6px; margin-left: auto; color: var(--xf-muted); font-size: 12px; }
+
 /* A label's size and weight are inline — its preset, overridden by its style. */
 .xeplr-factory-text { margin: 0; color: var(--xf-ink); height: 100%; overflow: hidden; line-height: 1.25; box-sizing: border-box; }
 .xeplr-factory-text--text { color: var(--xf-muted); }
@@ -167,6 +206,7 @@
 .xeplr-factory-palette-icon--multiselect { height: 11px; background: repeating-linear-gradient(to bottom, var(--xf-muted) 0 2px, transparent 2px 5px); border: none; }
 .xeplr-factory-palette-icon--datetime { border-top-width: 3px; }
 .xeplr-factory-palette-icon--file { border-radius: 2px; border-top: 3px solid var(--xf-muted); height: 12px; width: 10px; }
+.xeplr-factory-palette-icon--stepper { height: 8px; border-radius: 999px; background: linear-gradient(to right, var(--xf-muted) 0 30%, transparent 30%); border: none; }
 .xeplr-factory-palette-icon--label { border: none; border-top: 2px solid var(--xf-muted); border-bottom: 2px solid var(--xf-muted); height: 6px; }
 .xeplr-factory-palette-icon--list { height: 12px; background: repeating-linear-gradient(to bottom, var(--xf-muted) 0 1.5px, transparent 1.5px 4px); border: none; }
 .xeplr-factory-palette-icon--textarea { height: 14px; }

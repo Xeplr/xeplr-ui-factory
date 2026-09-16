@@ -3,11 +3,12 @@
 //
 //   import { screenFromSpec, validateDocument, formSchema } from '@xeplr/ui-factory/model'
 
-export { CONTROLS, OPTION_ID, OPTION_LABEL, LABEL_VARIANTS, LABEL_PRESETS, LIST_ACTIONS, STYLE_KEYS, SCREEN_STYLE_KEYS, FONT_FAMILIES, LAYOUTS, CHOICE_TYPES, MULTI_SEPARATOR, FILE_KINDS, MAX_FILE_MB, acceptList, controlGroups, withControls } from './controls.js'
+export { CONTROLS, OPTION_ID, OPTION_LABEL, LABEL_VARIANTS, LABEL_PRESETS, LIST_ACTIONS, STYLE_KEYS, SCREEN_STYLE_KEYS, FONT_FAMILIES, LAYOUTS, CHOICE_TYPES, STEP_LIMIT, MULTI_SEPARATOR, FILE_KINDS, MAX_FILE_MB, acceptList, controlGroups, withControls } from './controls.js'
 export {
   DOCUMENT_KIND, DOCUMENT_VERSION, DEFAULT_ASPECT, DEFAULT_WIDTH, MARGIN, GAP,
   createScreen, renameScreen, setScreenProperty, addControl, moveNode, setNodeProperty, getNodeProperty, removeNodes,
-  inputNodes, readingOrder, contentBottom, camelName, slugify, uniqueFieldName, nextPosition
+  inputNodes, readingOrder, contentBottom, camelName, slugify, uniqueFieldName, nextPosition,
+  steppers, stepsOf, stepOf, setNodeStep, nodesForSteps
 } from './document.js'
 export { validateDocument, assertValidDocument } from './validateDocument.js'
 export { formSchema, initialValues, parseInput, validateValues, fieldError, sameId, optionValue, chooseable, saveState, recordValues, displayValue, fileLabel, toDbValue, fromDbValue, listColumns, listSource } from './values.js'

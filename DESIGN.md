@@ -45,6 +45,7 @@ And the renderer: `<FactoryScreen document onSave fetchRecords onDelete fetchOpt
 | `radio` | id | the same options, shown as a group |
 | `multiselect` | array of ids | the same options; one text column, comma separated |
 | `file` | path | uploaded through @xeplr/factory; `accept` and `maxSize` are enforced there |
+| `stepper` | — | steps across the top; `node.step = { of, index }` puts a control on one |
 | `label` | — | static text on the screen |
 | `list` | — | saved records: New / Edit / Delete |
 

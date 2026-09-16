@@ -117,11 +117,36 @@ export default function BuilderSample({ ctrl, renderPreview, className, style })
             onDragOver={(e) => { if ([...e.dataTransfer.types].includes(DRAG_TYPE)) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy' } }}
             onDrop={onDrop}
           >
+            {ctrl.steps.building && (
+              <div className="xeplr-factory-building" style={{ maxWidth: doc.width }}>
+                <span className="xeplr-factory-building-what">Building</span>
+                {ctrl.steps.labels(ctrl.steps.building).map((s2, i) => (
+                  <button
+                    key={s2.key}
+                    type="button"
+                    className={'xeplr-factory-building-step' + (i === ctrl.steps.active(ctrl.steps.building) ? ' is-active' : '')}
+                    onClick={() => ctrl.steps.go(ctrl.steps.building, i)}
+                  >
+                    {s2.label}
+                  </button>
+                ))}
+                {ctrl.selectedNode && ctrl.selectedNode.type !== 'stepper' && (
+                  <label className="xeplr-factory-building-every">
+                    <input
+                      type="checkbox"
+                      checked={!ctrl.steps.of(ctrl.selectedNode)}
+                      onChange={(e) => ctrl.steps.set(ctrl.selectedNode.id, e.target.checked ? null : { of: ctrl.steps.building, index: ctrl.steps.active(ctrl.steps.building) })}
+                    />
+                    <span>Show the selected control on every step</span>
+                  </label>
+                )}
+              </div>
+            )}
             <div className="xeplr-factory-frame" style={{ maxWidth: doc.width }}>
               <XeplrCanvas
                 className="xeplr-factory-canvas"
                 style={screenStyle(doc)}
-                items={doc.nodes}
+                items={ctrl.visibleNodes}
                 units="fraction"
                 pageAspect={doc.aspect}
                 features={{ resize: true, marquee: true }}
@@ -131,11 +156,20 @@ export default function BuilderSample({ ctrl, renderPreview, className, style })
                 minSizeFor={() => ({ minWidth: 16, minHeight: 12 })}
                 renderItem={(node, { selected }) => (
                   <div className={`xeplr-factory-design-node${ctrl.errorsByNode[node.id] ? ' has-error' : ''}${selected ? ' is-selected' : ''}`}>
-                    <ControlView node={node} mode="design" list={node.type === 'list' ? { doc } : undefined} />
+                    <ControlView
+                      node={node}
+                      mode="design"
+                      list={node.type === 'list' ? { doc } : undefined}
+                      // Clicking a step on the canvas OPENS it: the canvas then
+                      // shows that step's controls, and what you drop joins them.
+                      stepper={node.type === 'stepper' ? { active: ctrl.steps.active(node.id), onStep: (i) => ctrl.steps.go(node.id, i) } : undefined}
+                    />
                   </div>
                 )}
-                underlay={doc.nodes.length === 0 && (
-                  <div className="xeplr-factory-empty">Drag controls here from the left</div>
+                underlay={ctrl.visibleNodes.length === 0 && (
+                  <div className="xeplr-factory-empty">
+                    {doc.nodes.length === 0 ? 'Drag controls here from the left' : 'This step is empty — drop a control to start it'}
+                  </div>
                 )}
               />
             </div>

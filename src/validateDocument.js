@@ -10,7 +10,7 @@
 // Loud by design: a screen that half-renders — a dropdown with no options, two
 // fields writing the same key — looks like a data problem to whoever uses it.
 
-import { CONTROLS, LABEL_VARIANTS, LIST_ACTIONS, STYLE_KEYS, SCREEN_STYLE_KEYS, LAYOUTS, MULTI_SEPARATOR, MAX_FILE_MB, acceptList } from './controls.js'
+import { CONTROLS, LABEL_VARIANTS, LIST_ACTIONS, STYLE_KEYS, SCREEN_STYLE_KEYS, LAYOUTS, MULTI_SEPARATOR, MAX_FILE_MB, STEP_LIMIT, acceptList } from './controls.js'
 import { DOCUMENT_KIND, DOCUMENT_VERSION } from './document.js'
 import { RESERVED_COLUMNS, MAX_IDENTIFIER } from './tableSchema.js'
 
@@ -100,6 +100,8 @@ export function validateDocument(doc, controls = CONTROLS) {
       if (props.layout !== undefined && !LAYOUTS.includes(props.layout)) err(`${at}.props.layout`, `must be one of: ${LAYOUTS.join(', ')}`)
     }
     if (node.type === 'file') checkFile(props, at, err)
+    if (node.type === 'stepper') checkSteps(props, at, err)
+    checkStep(node, doc, at, err)
     if (node.type === 'list') checkList(props, doc, at, err)
     if (node.type === 'label') {
       if (typeof props.text !== 'string') err(`${at}.props.text`, 'must be a string')
@@ -155,6 +157,46 @@ function dateWord(valueType, isDatetime) {
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 const ISO_DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/
+
+/**
+ * A stepper's steps: at least two, each with a key of its own, so a control can
+ * be tied to one and stay tied to it when the others are renamed.
+ */
+function checkSteps(props, at, err) {
+  const steps = props.steps
+  if (!Array.isArray(steps)) { err(`${at}.props.steps`, 'must be an array of { key, label }'); return }
+  if (steps.length < 2) err(`${at}.props.steps`, 'needs at least two steps — one step is not a journey')
+  if (steps.length > STEP_LIMIT) err(`${at}.props.steps`, `has ${steps.length} steps — at most ${STEP_LIMIT}`)
+  const seen = new Set()
+  steps.forEach((s, j) => {
+    const p = `${at}.props.steps[${j}]`
+    if (!s || typeof s !== 'object') { err(p, 'must be { key, label }'); return }
+    if (!nonEmptyString(s.key)) err(`${p}.key`, 'must be a non-empty string — what the controls on this step point at')
+    else if (seen.has(s.key)) err(`${p}.key`, `"${s.key}" appears twice`)
+    else seen.add(s.key)
+    if (!nonEmptyString(s.label)) err(`${p}.label`, 'must be a non-empty string — what the person reads')
+    const extra = Object.keys(s).filter((k) => k !== 'key' && k !== 'label')
+    if (extra.length) err(p, `only "key" and "label" are used — remove: ${extra.join(', ')}`)
+  })
+  if (props.showNumbers !== undefined && typeof props.showNumbers !== 'boolean') err(`${at}.props.showNumbers`, 'must be true or false')
+}
+
+/** A node's `step`: a stepper that exists, and one of its steps. */
+function checkStep(node, doc, at, err) {
+  if (node.step === undefined) return
+  const step = node.step
+  if (!step || typeof step !== 'object' || Array.isArray(step)) { err(`${at}.step`, 'must be { of, index } — the stepper, and which step'); return }
+  const extra = Object.keys(step).filter((k) => k !== 'of' && k !== 'index')
+  if (extra.length) err(`${at}.step`, `only "of" and "index" are used — remove: ${extra.join(', ')}`)
+  if (!nonEmptyString(step.of)) { err(`${at}.step.of`, 'must be the id of a stepper on this screen'); return }
+  if (step.of === node.id) { err(`${at}.step.of`, 'a stepper cannot be a step of itself'); return }
+  const owner = (doc.nodes || []).find((n) => n && n.id === step.of)
+  if (!owner || owner.type !== 'stepper') { err(`${at}.step.of`, `"${step.of}" is not a stepper on this screen`); return }
+  const count = Array.isArray(owner.props?.steps) ? owner.props.steps.length : 0
+  if (!Number.isInteger(step.index) || step.index < 0 || step.index >= count) {
+    err(`${at}.step.index`, `must be a step of "${step.of}" — it has ${count}`)
+  }
+}
 
 /** A file field: which extensions it takes, and how big a file may be. */
 function checkFile(props, at, err) {

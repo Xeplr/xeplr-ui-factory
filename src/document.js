@@ -68,7 +68,7 @@ export function setScreenProperty(doc, path, value) {
  * control's top-left) or, without one, below everything already on the screen.
  * Returns { document, node }.
  */
-export function addControl(doc, type, { at, props, size } = {}, controls = CONTROLS) {
+export function addControl(doc, type, { at, props, size, step } = {}, controls = CONTROLS) {
   const def = controls[type]
   if (!def) throw new Error(`Unknown control type "${type}"`)
   const dims = { ...def.defaultSize, ...size }
@@ -88,7 +88,71 @@ export function addControl(doc, type, { at, props, size } = {}, controls = CONTR
     z: nextZ(doc),
     props: merged
   }
+  // Dropped while a step is open: the control belongs to that step. A stepper
+  // never belongs to itself.
+  if (step && type !== 'stepper') node.step = { of: step.of, index: step.index }
   return { document: { ...doc, nodes: [...doc.nodes, node] }, node }
+}
+
+// ── steps ────────────────────────────────────────────────────────────────
+// A stepper shows one step at a time, and every other control says which step
+// it belongs to. The document stays FLAT — nothing is nested — so a control is
+// still moved, styled and checked exactly as it was; `step` only decides when
+// it is on screen.
+
+/** Every stepper on the screen, in reading order. */
+export function steppers(doc, controls = CONTROLS) {
+  return (doc.nodes || []).filter((n) => n.type === 'stepper' && controls[n.type])
+}
+
+/** A stepper's steps, always as [{ key, label }]. */
+export function stepsOf(node) {
+  return (node && node.props && Array.isArray(node.props.steps) ? node.props.steps : []).map((s, i) => ({
+    key: (s && s.key) || `step_${i + 1}`,
+    label: (s && s.label) || `Step ${i + 1}`
+  }))
+}
+
+/** Which step a node is on, or null for "every step". */
+export function stepOf(node) {
+  const step = node && node.step
+  return step && typeof step.of === 'string' && Number.isInteger(step.index) ? step : null
+}
+
+/**
+ * Puts a node on a step — or on none, with `null`, which shows it whatever
+ * step is open.
+ */
+export function setNodeStep(doc, id, step) {
+  return mapNode(doc, id, (n) => {
+    const next = { ...n }
+    if (step === null || step === undefined) delete next.step
+    else next.step = { of: step.of, index: step.index }
+    return next
+  })
+}
+
+/**
+ * The nodes to show, given which step each stepper is open at.
+ * @param active  { [stepper node id]: index } — missing means its first step
+ */
+export function nodesForSteps(doc, active = {}, controls = CONTROLS) {
+  const open = (id) => (Number.isInteger(active[id]) ? active[id] : 0)
+  const byId = new Map((doc.nodes || []).map((n) => [n.id, n]))
+  const shown = (node, seen) => {
+    const step = stepOf(node)
+    if (!step) return true
+    const owner = byId.get(step.of)
+    // A step of a stepper that is gone shows nothing: the control is orphaned,
+    // and the checker says so rather than the screen quietly losing it.
+    if (!owner || owner.type !== 'stepper') return false
+    if (step.index !== open(owner.id)) return false
+    // A stepper inside another stepper's step is only open when that one is.
+    if (seen.has(owner.id)) return false
+    seen.add(owner.id)
+    return shown(owner, seen)
+  }
+  return (doc.nodes || []).filter((n) => shown(n, new Set()))
 }
 
 /** Merges a geometry patch — what the canvas reports on drop. */
@@ -160,8 +224,8 @@ export function readingOrder(nodes) {
 }
 
 /** Where the lowest control ends, as a page fraction. */
-export function contentBottom(doc) {
-  return doc.nodes.reduce((max, n) => Math.max(max, (n.y || 0) + (n.h || 0)), 0)
+export function contentBottom(doc, nodes) {
+  return (nodes || doc.nodes).reduce((max, n) => Math.max(max, (n.y || 0) + (n.h || 0)), 0)
 }
 
 // ── naming ───────────────────────────────────────────────────────────────

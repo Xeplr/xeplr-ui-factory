@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { LABEL_PRESETS } from '../controls.js'
+import { stepsOf } from '../document.js'
 import ListView from './ListView.jsx'
 import { fieldStyle, labelStyle, boxStyle } from './styles.js'
 
@@ -12,7 +13,7 @@ import { fieldStyle, labelStyle, boxStyle } from './styles.js'
 
 const ids = (node) => `xeplr-factory-${node.id}`
 
-export default function ControlView({ node, mode = 'live', value, error, options, onChange, onBlur, disabled, list, upload }) {
+export default function ControlView({ node, mode = 'live', value, error, options, onChange, onBlur, disabled, list, upload, stepper }) {
   const View = VIEWS[node.type]
   if (!View) {
     return <div className="xeplr-factory-unknown">Unknown control “{node.type}”</div>
@@ -31,6 +32,7 @@ export default function ControlView({ node, mode = 'live', value, error, options
       disabled={design || disabled}
       list={list}
       upload={upload}
+      stepper={stepper}
     />
   )
 }
@@ -325,6 +327,42 @@ export function fileName(path) {
   return sep === -1 ? cut : cut.slice(sep + 2)
 }
 
+/**
+ * The journey across the top: a circle per step, the ones behind it done. It is
+ * the same bar on the canvas and on a live screen — clicking a step opens it,
+ * which in the builder is how you get at that step's controls.
+ */
+function StepperView({ node, p, design, stepper }) {
+  const steps = stepsOf(node)
+  const active = stepper && Number.isInteger(stepper.active) ? stepper.active : 0
+  const go = stepper && stepper.onStep
+  const text = boxStyle(p.style)
+  return (
+    <div className="xeplr-factory-stepper" style={{ ...fieldStyle(p.style), ...text }}>
+      <ol className="xeplr-factory-steps">
+        {steps.map((s, i) => {
+          const state = i === active ? 'is-active' : i < active ? 'is-done' : ''
+          return (
+            <li key={s.key} className={`xeplr-factory-step ${state}`} aria-current={i === active ? 'step' : undefined}>
+              <button
+                type="button"
+                className="xeplr-factory-step-button"
+                // On the canvas a press must still be able to drag the control,
+                // so the step is taken on click, never on mousedown.
+                onClick={(e) => { if (go) { e.stopPropagation(); go(i) } }}
+                tabIndex={design ? -1 : undefined}
+              >
+                <span className="xeplr-factory-step-mark" aria-hidden="true">{i < active ? '✓' : (p.showNumbers === false ? '' : i + 1)}</span>
+                <span className="xeplr-factory-step-label">{s.label}</span>
+              </button>
+            </li>
+          )
+        })}
+      </ol>
+    </div>
+  )
+}
+
 function LabelView({ p }) {
   const variant = p.variant || 'text'
   const preset = LABEL_PRESETS[variant] || LABEL_PRESETS.text
@@ -355,6 +393,7 @@ export const VIEWS = {
   multiselect: MultiselectView,
   datetime: DatetimeView,
   file: FileView,
+  stepper: StepperView,
   label: LabelView,
   list: ListControl
 }

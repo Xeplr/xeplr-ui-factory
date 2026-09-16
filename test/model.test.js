@@ -9,7 +9,8 @@ import {
   saveState, recordValues, displayValue, listColumns, listSource, setScreenProperty,
   screensFromSpec, entityNames, scaffoldEntity,
   tableForScreen, columnForField, migrationFor, nextMigrationName, planTableChange, columnFromDatabase,
-  toDbValue, fromDbValue, acceptList, widening, chooseable, fileLabel
+  toDbValue, fromDbValue, acceptList, widening, chooseable, fileLabel,
+  steppers, stepsOf, stepOf, setNodeStep, nodesForSteps
 } from '../src/model.js'
 import { normaliseOptions } from '../src/useFactoryScreen.js'
 
@@ -435,6 +436,59 @@ console.log('\nthe controls added for choices, time and files')
   check('the schema a server checks knows the radio options', formSchema(doc).find((f) => f.name === 'priority').options.join() === 'low,high')
   check('a group is laid out as tall as its options', radio.h > 0.08 && multi.h > 0.08)
   check('side by side is one line high', screenFromSpec({ ...SPEC, fields: [{ ...SPEC.fields[0], layout: 'horizontal' }] }).nodes[1].h < radio.h)
+}
+
+console.log('\na stepper, and the controls on each of its steps')
+{
+  const doc = screenFromSpec({
+    name: 'Dataset', source: 'datasets', columns: 1,
+    fields: [
+      { type: 'stepper', steps: ['Connect', 'Transform', 'Review'] },
+      { label: 'Connection', step: 'Connect', required: true },
+      { label: 'Tables', type: 'multiselect', options: ['Orders', 'Items'], step: 'Transform' },
+      { label: 'Notes', type: 'textarea', step: 'Review' }
+    ]
+  })
+  const bar = doc.nodes.find((n) => n.type === 'stepper')
+  const byName = (name) => doc.nodes.find((n) => n.props.name === name)
+
+  check('a spec makes the stepper and puts each field on its step', validateDocument(doc).ok && stepsOf(bar).length === 3)
+  check('...one stepper, found on the screen', steppers(doc).length === 1 && steppers(doc)[0].id === bar.id)
+  check('...each step starts under the bar, not below the step before it',
+    byName('connection').y === byName('tables').y && byName('tables').y === byName('notes').y)
+  check('a field says which step it is on', stepOf(byName('tables')).index === 1)
+  check('the heading and the bar are on every step', stepOf(bar) === null && stepOf(doc.nodes[0]) === null)
+
+  check('the screen shows one step at a time', nodesForSteps(doc, {}).map((n) => n.props.name).filter(Boolean).join() === 'connection')
+  check('...and the next step when it is opened', nodesForSteps(doc, { [bar.id]: 1 }).map((n) => n.props.name).filter(Boolean).join() === 'tables')
+  check('...with what belongs to every step still there', nodesForSteps(doc, { [bar.id]: 2 }).some((n) => n.id === bar.id))
+
+  const everywhere = setNodeStep(doc, byName('notes').id, null)
+  check('a control can be moved off its step, onto all of them',
+    nodesForSteps(everywhere, {}).some((n) => n.props.name === 'notes') && validateDocument(everywhere).ok)
+  check('...and onto another step', stepOf(setNodeStep(doc, byName('notes').id, { of: bar.id, index: 0 }).nodes.find((n) => n.props.name === 'notes')).index === 0)
+
+  check('a fields step must be one the stepper has',
+    !validateDocument(setNodeStep(doc, byName('notes').id, { of: bar.id, index: 9 })).ok)
+  check('...of a stepper that is on the screen',
+    !validateDocument(setNodeStep(doc, byName('notes').id, { of: 'no_such_node', index: 0 })).ok)
+  check('a stepper needs at least two steps',
+    !validateDocument({ ...doc, nodes: doc.nodes.map((n) => (n.type === 'stepper' ? { ...n, props: { ...n.props, steps: [{ key: 'a', label: 'Only' }] } } : n)) }).ok)
+  check('two steps cannot share a key',
+    !validateDocument({ ...doc, nodes: doc.nodes.map((n) => (n.type === 'stepper' ? { ...n, props: { ...n.props, steps: [{ key: 'a', label: 'One' }, { key: 'a', label: 'Two' }] } } : n)) }).ok)
+  check('a field on a step nobody can reach is refused, not hidden',
+    !validateDocument({ ...doc, nodes: doc.nodes.filter((n) => n.type !== 'stepper') }).ok)
+  check('a step in a spec that the stepper does not have is refused',
+    throws(() => screenFromSpec({ name: 'X', source: 't', fields: [{ type: 'stepper', steps: ['A', 'B'] }, { label: 'Q', step: 'Nope' }] }), /is not one of A, B/))
+  check('a field on a step with no stepper is refused',
+    throws(() => screenFromSpec({ name: 'X', source: 't', fields: [{ label: 'Q', step: 'A' }] }), /needs a stepper before it/))
+  check('a stepper with one step is refused in a spec too',
+    throws(() => screenFromSpec({ name: 'X', source: 't', fields: [{ type: 'stepper', steps: ['Only'] }] }), /give it steps/))
+
+  check('every field is still a column, whichever step it is on',
+    tableForScreen(doc).columns.map((c) => c.name).join() === 'connection,tables,notes')
+  check('...and still checked, whichever step is showing',
+    Object.keys(validateValues(doc, {})).join() === 'connection')
 }
 
 check('every control declares what the panel and checker need',

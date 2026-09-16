@@ -417,6 +417,40 @@ function StaticOptions({ data, onChange, errors }) {
   )
 }
 
+/**
+ * The steps, as one line: "Connect, Transform, Review". A step KEEPS ITS KEY
+ * while it is renamed — the controls on it point at the key — so editing the
+ * line matches by position, and only a step that is added or removed changes
+ * which controls are shown.
+ */
+function StepsEditor({ id, value, onChange }) {
+  const steps = Array.isArray(value) ? value : []
+  return (
+    <input
+      id={id}
+      className="xeplr-factory-prop-input"
+      type="text"
+      value={steps.map((s) => s.label).join(', ')}
+      placeholder="Connect, Transform, Review"
+      onChange={(e) => {
+        const labels = e.target.value.split(',').map((t) => t.trim()).filter(Boolean)
+        onChange(labels.map((label, i) => ({
+          key: steps[i] ? steps[i].key : uniqueStepKey(steps, slugify(label, '_') || `step_${i + 1}`),
+          label
+        })))
+      }}
+    />
+  )
+}
+
+function uniqueStepKey(steps, base) {
+  const taken = new Set(steps.map((s) => s.key))
+  if (!taken.has(base)) return base
+  let n = 2
+  while (taken.has(`${base}_${n}`)) n++
+  return `${base}_${n}`
+}
+
 export const EDITORS = {
   text: TextEditor,
   textarea: TextareaEditor,
@@ -424,6 +458,7 @@ export const EDITORS = {
   date: DateEditor,
   datetime: DatetimeEditor,
   accept: AcceptEditor,
+  steps: StepsEditor,
   toggle: ToggleEditor,
   toggleValue: ToggleValueEditor,
   select: SelectEditor,
