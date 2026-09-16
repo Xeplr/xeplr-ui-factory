@@ -43,6 +43,27 @@ export function createFactoryApi({ fetch: doFetch, base = '' } = {}) {
     return res && Array.isArray(res.dataArray) ? res.dataArray : []
   }
 
+  /**
+   * The same call, with a body the browser must describe itself (a FormData's
+   * multipart boundary). Nothing sets Content-Type here — see authFetch.
+   */
+  async function send(method, path, body) {
+    let res
+    try {
+      res = await doFetch(`${base}/factory${path}`, { method, body })
+    } catch (err) {
+      if (err && err.body !== undefined && err.status) throw failure(method, path, err.status, err.body, err.message)
+      throw err
+    }
+    if (res && typeof res.json === 'function' && typeof res.ok === 'boolean') {
+      let json = null
+      try { json = await res.json() } catch (_) { /* not JSON — reported below */ }
+      if (!res.ok) throw failure(method, path, res.status, json)
+      return json ? json.dataArray : []
+    }
+    return res && Array.isArray(res.dataArray) ? res.dataArray : []
+  }
+
   function failure(method, path, status, json, fallback) {
     const err = new Error((json && json.message) || fallback || `${method} ${path} failed (${status})`)
     err.status = status
@@ -77,9 +98,18 @@ export function createFactoryApi({ fetch: doFetch, base = '' } = {}) {
     fetchRecord: async ({ screen, id }) => one(await call('GET', `/records/${enc(screen)}/${enc(id)}`)),
     onSave: async (values, { id, screen }) => one(await call('POST', `/records/${enc(screen)}/save`, { id, values })),
     onDelete: ({ id, screen }) => call('POST', `/records/${enc(screen)}/delete`, { id }),
-    fetchOptions: ({ table }) => call('GET', `/options/${enc(table)}`)
+    fetchOptions: ({ table }) => call('GET', `/options/${enc(table)}`),
+
+    // A file field's upload. The answer's `path` is what the record stores;
+    // the file itself is read back through the same route, with auth.
+    uploadFile: async (file, { screen, field }) => {
+      const form = new FormData()
+      form.append('file', file)
+      return one(await send('POST', `/files/${enc(screen)}/${enc(field)}`, form))
+    },
+    fileUrl: (path) => `${base}/factory/files/${String(path).split('/').map(enc).join('/')}`
   }
-  api.screenProps = { loadScreen: api.loadScreen, onSave: api.onSave, fetchRecords: api.fetchRecords, fetchRecord: api.fetchRecord, onDelete: api.onDelete, fetchOptions: api.fetchOptions }
+  api.screenProps = { loadScreen: api.loadScreen, onSave: api.onSave, fetchRecords: api.fetchRecords, fetchRecord: api.fetchRecord, onDelete: api.onDelete, fetchOptions: api.fetchOptions, uploadFile: api.uploadFile, fileUrl: api.fileUrl }
   api.builderProps = { onSave: api.saveDraft, onPublish: api.publish, listTables: api.listTables, fetchOptions: api.fetchOptions, fetchRecords: api.fetchRecords }
   return api
 }

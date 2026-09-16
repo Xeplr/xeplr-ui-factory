@@ -87,6 +87,7 @@ import { FactoryScreen } from '@xeplr/ui-factory'
   fetchRecord={async ({ screen, id }) => api.record(screen, id)}   // optional: Edit loads the record fresh
   onDelete={async ({ id, source }) => api.remove(source, id)}
   fetchOptions={async ({ table }) => api.options(table)}
+  uploadFile={async (file, { screen, field }) => api.upload(file, screen, field)}  // a file field: → { path }
   screens={{ employee_edit: editScreen }}             // what a list's Edit / New open in a popup
 />
 ```
@@ -95,7 +96,23 @@ import { FactoryScreen } from '@xeplr/ui-factory'
 
 If `onSave` throws an error with `fields: [{ field, message }]` (what `createFactoryApi` does with the server's 422 — a rule, or a hook's `reject`), each message shows on its field until that field is changed.
 
-Values arrive typed: numbers as numbers, checkboxes as booleans, dates as `"YYYY-MM-DD"`, and a dropdown as the option's own `id` (a table's numeric id stays a number).
+Values arrive typed: numbers as numbers, checkboxes as booleans, dates as `"YYYY-MM-DD"`, a date and time as `"YYYY-MM-DDTHH:MM"`, a dropdown or radio group as the option's own `id` (a table's numeric id stays a number), a multi-select as an **array** of ids, and a file as the stored file's **path**.
+
+### Where each value is kept
+
+A record is columns in a real table, never JSON — so the two types that are not
+one scalar have a rule of their own:
+
+* **Multi-select** — every chosen id in ONE `text` column, joined by commas. An
+  option id may therefore not contain a comma; the checker refuses one that
+  does. `toDbValue` / `fromDbValue` do the conversion, and both the browser and
+  the server use them, so it is written once.
+* **File** — the column holds the path the upload answered with, not the file.
+  The file itself is stored by `@xeplr/factory` and read back through its
+  authenticated route; nothing is ever served without a check.
+* **Date and time** — a `timestamp` column, read back as text so no timezone can
+  move the moment. A `date` column may be widened to `timestamp` on publish
+  (the day becomes midnight); the reverse is refused, as it would lose the time.
 
 ### Front-end hooks
 
@@ -159,16 +176,20 @@ const clean = schemaHandler.applySchema(formSchema(screen), req.body)   // throw
 | `textarea` | string | `minLength`, `maxLength` |
 | `number` | number | `min`, `max`, `integer` |
 | `date` | `"YYYY-MM-DD"` | `min`, `max` |
+| `datetime` | `"YYYY-MM-DDTHH:MM"` | `min`, `max` |
 | `checkbox` | boolean | `required` = must be ticked |
 | `dropdown` | option id | — |
+| `radio` | option id | — |
+| `multiselect` | array of option ids | `minItems`, `maxItems` |
+| `file` | the stored file's path | `accept` (extensions), `maxSize` (MB) |
 | `label` | — | text with a heading, subheading or text preset |
 | `list` | — | saved records, with New / Edit / Delete |
 
 Every control also takes `style` — see [AUTHORING.md](./AUTHORING.md#styles) for the keys. Sizes are pixels at the screen's design `width` (default 800): a screen is shown at that size, never stretched, and scaled down only on a narrower display.
 
-### Dropdown options
+### Options: dropdown, radio group, multi-select
 
-A dropdown **always saves an `id` and shows a `name`**, from either source:
+All three **save an `id` and show a `name`**, from either source:
 
 ```json
 { "source": "static", "options": [{ "id": "ft", "name": "Full time" }, { "id": "pt", "name": "Part time" }] }

@@ -11,7 +11,7 @@
 // them. validateValues() below applies the same rules in the browser, with
 // messages written for the person filling the form in rather than for a log.
 
-import { CONTROLS } from './controls.js'
+import { CONTROLS, MULTI_SEPARATOR } from './controls.js'
 import { inputNodes } from './document.js'
 
 /** schema-handler field schema for the screen's inputs, in reading order. */
@@ -24,7 +24,9 @@ export function formSchema(doc, controls = CONTROLS) {
     if (p.label) field.description = p.label
     if (p.required) field.required = true
     if (p.default !== undefined) field.default = p.default
-    if (node.type === 'dropdown' && p.data?.source === 'static') {
+    // A multi-select's value is an array, so schema-handler's `options` (which
+    // compares one value) cannot check it — chooseable(node) does, on both sides.
+    if ((node.type === 'dropdown' || node.type === 'radio') && p.data?.source === 'static') {
       field.options = p.data.options.map((o) => o.id)
     }
     const v = p.validation && { ...p.validation }
@@ -44,6 +46,7 @@ export function initialValues(doc, provided = {}, controls = CONTROLS) {
     if (provided[name] !== undefined) out[name] = provided[name]
     else if (node.props.default !== undefined) out[name] = node.props.default
     else if (node.type === 'checkbox') out[name] = false
+    else if (node.type === 'multiselect') out[name] = []
   })
   return out
 }
@@ -55,12 +58,13 @@ export function initialValues(doc, provided = {}, controls = CONTROLS) {
  */
 export function parseInput(node, raw) {
   if (node.type === 'checkbox') return Boolean(raw)
+  if (node.type === 'multiselect') return Array.isArray(raw) ? raw : fromDbValue(node, raw) || []
   if (raw === undefined || raw === null || raw === '') return undefined
   if (node.type === 'number') {
     const n = typeof raw === 'number' ? raw : Number(String(raw).trim())
     return Number.isFinite(n) ? n : raw   // left as typed; validation says why
   }
-  if (node.type === 'dropdown') return raw
+  if (node.type === 'dropdown' || node.type === 'radio') return raw
   return String(raw)
 }
 
@@ -89,6 +93,15 @@ export function fieldError(node, value, loadedOptions) {
 
   if (node.type === 'checkbox') {
     return p.required && value !== true ? `${label} must be ticked` : null
+  }
+  if (node.type === 'multiselect') {
+    const chosen = Array.isArray(value) ? value : []
+    if (!chosen.length) return p.required ? `${label} is required` : null
+    if (v.minItems != null && chosen.length < v.minItems) return `${label}: choose at least ${v.minItems}`
+    if (v.maxItems != null && chosen.length > v.maxItems) return `${label}: choose at most ${v.maxItems}`
+    const allowed = chooseable(node, loadedOptions)
+    if (allowed && chosen.some((c) => !allowed.some((o) => sameId(o.id, c)))) return `${label} has a choice that is no longer offered`
+    return null
   }
   if (value === undefined || value === null || value === '') {
     return p.required ? `${label} is required` : null
@@ -119,14 +132,31 @@ export function fieldError(node, value, loadedOptions) {
       if (v.max && day > v.max) return `${label} must be on or before ${v.max}`
       return null
     }
-    case 'dropdown': {
-      const opts = p.data?.source === 'static' ? p.data.options : loadedOptions
+    case 'datetime': {
+      if (typeof value !== 'string' || Number.isNaN(Date.parse(value))) return `${label} must be a date and time`
+      // ISO strings compare correctly as text, and comparing text keeps a
+      // timezone from shifting the moment that was typed in.
+      const at = value.slice(0, 16)
+      if (v.min && at < v.min.slice(0, 16)) return `${label} must be at or after ${v.min.replace('T', ' ')}`
+      if (v.max && at > v.max.slice(0, 16)) return `${label} must be at or before ${v.max.replace('T', ' ')}`
+      return null
+    }
+    case 'dropdown':
+    case 'radio': {
+      const opts = chooseable(node, loadedOptions)
       if (Array.isArray(opts) && !opts.some((o) => sameId(o.id, value))) return `${label} must be one of the options`
       return null
     }
     default:
       return null
   }
+}
+
+/** The options a choice field offers: its own list, or the loaded rows. */
+export function chooseable(node, loadedOptions) {
+  const data = node.props.data || {}
+  const opts = data.source === 'static' ? data.options : loadedOptions
+  return Array.isArray(opts) ? opts : null
 }
 
 /**
@@ -176,8 +206,9 @@ export function recordValues(doc, record, controls = CONTROLS) {
   inputNodes(doc, controls).forEach((node) => {
     const name = node.props.name
     const v = record ? record[name] : undefined
-    if (v !== undefined && v !== null) out[name] = node.type === 'date' && typeof v === 'string' ? v.slice(0, 10) : v
+    if (v !== undefined && v !== null) out[name] = fromDbValue(node, v)
     else if (node.type === 'checkbox') out[name] = false
+    else if (node.type === 'multiselect') out[name] = []
   })
   return out
 }
@@ -200,10 +231,58 @@ export function displayValue(node, value, options) {
   if (value === undefined || value === null || value === '') return ''
   if (!node) return typeof value === 'object' ? JSON.stringify(value) : value
   if (node.type === 'checkbox') return value ? 'Yes' : 'No'
-  if (node.type === 'dropdown') {
-    const opts = node.props.data?.source === 'static' ? node.props.data.options : options
-    const hit = (opts || []).find((o) => sameId(o.id, value))
-    return hit ? hit.name : String(value)
+  if (node.type === 'file') return fileLabel(value)
+  if (node.type === 'datetime') return String(value).replace('T', ' ').slice(0, 16)
+  if (node.type === 'dropdown' || node.type === 'radio') return optionName(node, value, options)
+  if (node.type === 'multiselect') {
+    return (fromDbValue(node, value) || []).map((v) => optionName(node, v, options)).join(', ')
+  }
+  return value
+}
+
+function optionName(node, value, options) {
+  const opts = node.props.data?.source === 'static' ? node.props.data.options : options
+  const hit = (opts || []).find((o) => sameId(o.id, value))
+  return hit ? hit.name : String(value)
+}
+
+/** The name at the end of a stored file path, without the id that keeps it apart. */
+export function fileLabel(path) {
+  const s = String(path)
+  const cut = s.slice(s.lastIndexOf('/') + 1)
+  const sep = cut.indexOf('__')
+  return sep === -1 ? cut : cut.slice(sep + 2)
+}
+
+// ── the database boundary ────────────────────────────────────────────────
+// Two types do not go into their column as they are read: a multi-select is
+// several ids in one text column, and a date-and-time comes back as the
+// database wrote it. Both sides of the wire use these, so the conversion is
+// written once.
+
+/** A screen value → what its column stores. */
+export function toDbValue(node, value) {
+  if (value === undefined || value === null) return value
+  if (node.type === 'multiselect') {
+    const list = Array.isArray(value) ? value : [value]
+    return list.length ? list.map((v) => String(v)).join(MULTI_SEPARATOR) : null
+  }
+  return value
+}
+
+/** What a column holds → the screen's value. */
+export function fromDbValue(node, value) {
+  if (value === undefined || value === null) return value
+  if (node.type === 'multiselect') {
+    if (Array.isArray(value)) return value
+    const s = String(value)
+    return s === '' ? [] : s.split(MULTI_SEPARATOR).filter((x) => x !== '')
+  }
+  if (node.type === 'date') return typeof value === 'string' ? value.slice(0, 10) : value
+  if (node.type === 'datetime') {
+    // "2026-09-16 14:30:00" or an ISO string → what <input type="datetime-local"> shows.
+    const s = value instanceof Date ? value.toISOString() : String(value)
+    return s.replace(' ', 'T').slice(0, 16)
   }
   return value
 }

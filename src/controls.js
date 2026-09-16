@@ -101,6 +101,50 @@ const FIELD_BASICS = (extra) => ({
 
 const PLACEHOLDER = { path: 'props.placeholder', label: 'Placeholder', type: 'text' }
 
+/**
+ * A multi-select keeps its chosen ids in ONE text column, joined by this. An
+ * option id may therefore not contain it — the document checker refuses one
+ * that does, rather than letting a value split itself in two on the way back.
+ */
+export const MULTI_SEPARATOR = ','
+
+/** The controls whose value is chosen from options — static, or a table's rows. */
+export const CHOICE_TYPES = ['dropdown', 'radio', 'multiselect']
+
+/** How a group of options is laid out — one per line, or side by side. */
+export const LAYOUTS = ['vertical', 'horizontal']
+
+const LAYOUT = { path: 'props.layout', label: 'Arrangement', type: 'select', options: [
+  { value: 'vertical', label: 'One per line' },
+  { value: 'horizontal', label: 'Side by side' }
+] }
+
+/**
+ * What a file field may accept, as EXTENSIONS. Extensions, not MIME types,
+ * because that is how people describe a file ("a PDF", "a spreadsheet") and
+ * how the server checks it — a browser's reported type is the sender's word
+ * for it, and can be anything.
+ */
+export const FILE_KINDS = {
+  document: { label: 'Documents', accept: '.pdf,.doc,.docx,.odt,.rtf,.txt' },
+  pdf: { label: 'PDF only', accept: '.pdf' },
+  spreadsheet: { label: 'Spreadsheets', accept: '.xls,.xlsx,.csv,.ods' },
+  image: { label: 'Images', accept: '.png,.jpg,.jpeg,.gif,.webp,.svg' },
+  any: { label: 'Any of the above', accept: '.pdf,.doc,.docx,.odt,.rtf,.txt,.xls,.xlsx,.csv,.ods,.png,.jpg,.jpeg,.gif,.webp,.svg' }
+}
+
+/** An extension list as one string → the same list, cleaned and lower-cased. */
+export function acceptList(accept) {
+  return String(accept || '')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean)
+    .map((s) => (s.startsWith('.') ? s : '.' + s))
+}
+
+/** Largest upload a file field may take, in bytes. */
+export const MAX_FILE_MB = 200
+
 export const CONTROLS = {
   text: {
     type: 'text',
@@ -242,6 +286,118 @@ export const CONTROLS = {
         title: 'Options',
         fields: [
           { path: 'props.data', label: 'Options come from', type: 'dataSource' }
+        ]
+      },
+      ...styleGroups(INPUT_STYLES.filter((k) => k !== 'textAlign'))
+    ]
+  },
+
+  radio: {
+    type: 'radio',
+    label: 'Radio group',
+    group: 'Inputs',
+    input: true,
+    // One of the options' ids — a table's may be numbers, like a dropdown.
+    valueType: null,
+    defaultSize: { w: 0.44, h: 0.14 },
+    defaults: { label: 'Choose one', data: { source: 'static', options: [] }, layout: 'vertical' },
+    props: ['name', 'label', 'required', 'default', 'data', 'layout', 'style'],
+    validation: [],
+    styles: INPUT_STYLES.filter((k) => k !== 'textAlign'),
+    properties: [
+      FIELD_BASICS(),
+      {
+        key: 'data',
+        title: 'Options',
+        fields: [
+          { path: 'props.data', label: 'Options come from', type: 'dataSource' },
+          LAYOUT
+        ]
+      },
+      ...styleGroups(INPUT_STYLES.filter((k) => k !== 'textAlign'))
+    ]
+  },
+
+  multiselect: {
+    type: 'multiselect',
+    label: 'Multi-select',
+    group: 'Inputs',
+    input: true,
+    // Several ids. Stored in ONE text column, joined by commas — which is why
+    // an option's id may not contain one (the document checker says so).
+    valueType: 'array',
+    defaultSize: { w: 0.44, h: 0.18 },
+    defaults: { label: 'Choose any', data: { source: 'static', options: [] }, layout: 'vertical' },
+    props: ['name', 'label', 'required', 'data', 'layout', 'validation', 'style'],
+    validation: ['minItems', 'maxItems'],
+    styles: INPUT_STYLES.filter((k) => k !== 'textAlign'),
+    properties: [
+      FIELD_BASICS(),
+      {
+        key: 'data',
+        title: 'Options',
+        fields: [
+          { path: 'props.data', label: 'Options come from', type: 'dataSource' },
+          LAYOUT
+        ]
+      },
+      {
+        key: 'validation',
+        title: 'Validation',
+        fields: [
+          { path: 'props.validation.minItems', label: 'Choose at least', type: 'number' },
+          { path: 'props.validation.maxItems', label: 'Choose at most', type: 'number' }
+        ]
+      },
+      ...styleGroups(INPUT_STYLES.filter((k) => k !== 'textAlign'))
+    ]
+  },
+
+  datetime: {
+    type: 'datetime',
+    label: 'Date & time',
+    group: 'Inputs',
+    input: true,
+    valueType: 'date',
+    defaultSize: { w: 0.44, h: 0.08 },
+    defaults: { label: 'Date and time' },
+    props: ['name', 'label', 'required', 'default', 'validation', 'style'],
+    validation: ['min', 'max'],
+    styles: INPUT_STYLES,
+    properties: [
+      FIELD_BASICS([{ path: 'props.default', label: 'Default value', type: 'datetime' }]),
+      {
+        key: 'validation',
+        title: 'Validation',
+        fields: [
+          { path: 'props.validation.min', label: 'Earliest', type: 'datetime' },
+          { path: 'props.validation.max', label: 'Latest', type: 'datetime' }
+        ]
+      },
+      ...styleGroups(INPUT_STYLES)
+    ]
+  },
+
+  file: {
+    type: 'file',
+    label: 'File upload',
+    group: 'Inputs',
+    input: true,
+    // The value is the stored file's path, as the upload answered with it.
+    valueType: 'string',
+    defaultSize: { w: 0.44, h: 0.1 },
+    defaults: { label: 'File', accept: FILE_KINDS.document.accept, maxSize: 10 },
+    props: ['name', 'label', 'required', 'accept', 'maxSize', 'style'],
+    validation: [],
+    styles: INPUT_STYLES.filter((k) => k !== 'textAlign'),
+    properties: [
+      FIELD_BASICS(),
+      {
+        key: 'file',
+        title: 'File',
+        fields: [
+          { path: 'props.accept', label: 'Allowed types', type: 'accept', help: 'Extensions, comma separated — the server refuses anything else' },
+          { path: 'props.maxSize', label: 'Largest size (MB)', type: 'number', min: 1, max: 200 }
         ]
       },
       ...styleGroups(INPUT_STYLES.filter((k) => k !== 'textAlign'))

@@ -10,7 +10,7 @@
 // Loud by design: a screen that half-renders — a dropdown with no options, two
 // fields writing the same key — looks like a data problem to whoever uses it.
 
-import { CONTROLS, LABEL_VARIANTS, LIST_ACTIONS, STYLE_KEYS, SCREEN_STYLE_KEYS } from './controls.js'
+import { CONTROLS, LABEL_VARIANTS, LIST_ACTIONS, STYLE_KEYS, SCREEN_STYLE_KEYS, LAYOUTS, MULTI_SEPARATOR, MAX_FILE_MB, acceptList } from './controls.js'
 import { DOCUMENT_KIND, DOCUMENT_VERSION } from './document.js'
 import { RESERVED_COLUMNS, MAX_IDENTIFIER } from './tableSchema.js'
 
@@ -93,7 +93,13 @@ export function validateDocument(doc, controls = CONTROLS) {
     }
 
     checkStyle(props.style, def.styles || [], `${at}.props.style`, err, `"${node.type}"`)
-    if (node.type === 'dropdown') checkDataSource(props.data, `${at}.props.data`, err)
+    if (node.type === 'dropdown' || node.type === 'radio' || node.type === 'multiselect') {
+      checkDataSource(props.data, `${at}.props.data`, err, node.type === 'multiselect')
+    }
+    if (node.type === 'radio' || node.type === 'multiselect') {
+      if (props.layout !== undefined && !LAYOUTS.includes(props.layout)) err(`${at}.props.layout`, `must be one of: ${LAYOUTS.join(', ')}`)
+    }
+    if (node.type === 'file') checkFile(props, at, err)
     if (node.type === 'list') checkList(props, doc, at, err)
     if (node.type === 'label') {
       if (typeof props.text !== 'string') err(`${at}.props.text`, 'must be a string')
@@ -130,16 +136,46 @@ function checkGeometry(node, at, err) {
 function checkDefault(node, def, at, err) {
   const v = node.props.default
   if (v === undefined) return
+  const isDatetime = node.type === 'datetime'
   const ok = {
     string: () => typeof v === 'string',
     number: () => typeof v === 'number' && Number.isFinite(v),
     boolean: () => typeof v === 'boolean',
-    date: () => typeof v === 'string' && ISO_DATE.test(v)
+    array: () => Array.isArray(v),
+    date: () => typeof v === 'string' && (isDatetime ? ISO_DATETIME.test(v) : ISO_DATE.test(v))
   }[def.valueType]
-  if (ok && !ok()) err(`${at}.props.default`, `must be a ${def.valueType === 'date' ? 'date as "YYYY-MM-DD"' : def.valueType}`)
+  if (ok && !ok()) err(`${at}.props.default`, `must be ${dateWord(def.valueType, isDatetime)}`)
+}
+
+function dateWord(valueType, isDatetime) {
+  if (valueType === 'date') return isDatetime ? 'a date and time as "YYYY-MM-DDTHH:MM"' : 'a date as "YYYY-MM-DD"'
+  if (valueType === 'array') return 'an array'
+  return `a ${valueType}`
 }
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+const ISO_DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/
+
+/** A file field: which extensions it takes, and how big a file may be. */
+function checkFile(props, at, err) {
+  if (props.accept !== undefined) {
+    if (typeof props.accept !== 'string') err(`${at}.props.accept`, 'must be a string of extensions, e.g. ".pdf,.docx"')
+    else {
+      const list = acceptList(props.accept)
+      if (!list.length) err(`${at}.props.accept`, 'names no extension — ".pdf,.docx", or leave it out for any file')
+      list.forEach((x) => {
+        if (!EXTENSION.test(x)) err(`${at}.props.accept`, `"${x}" is not an extension — letters and digits after a dot, e.g. ".xlsx"`)
+      })
+    }
+  }
+  if (props.maxSize !== undefined) {
+    if (!(Number.isFinite(props.maxSize) && props.maxSize > 0 && props.maxSize <= MAX_FILE_MB)) {
+      err(`${at}.props.maxSize`, `must be a number of megabytes from 1 to ${MAX_FILE_MB}`)
+    }
+  }
+}
+
+const EXTENSION = /^\.[a-z0-9]{1,12}$/
 
 function checkValidation(node, def, at, err) {
   const v = node.props.validation
@@ -161,14 +197,18 @@ function checkValidation(node, def, at, err) {
     } else if (key === 'pattern') {
       try { new RegExp(val) } catch (_) { err(path, `"${val}" is not a valid regular expression`) }
       if (typeof val !== 'string') err(path, 'must be a string')
+    } else if (key === 'minItems' || key === 'maxItems') {
+      if (!(Number.isInteger(val) && val >= 0)) err(path, 'must be a whole number, 0 or more')
     } else if (key === 'patternMessage') {
       if (typeof val !== 'string') err(path, 'must be a string')
     } else if (def.valueType === 'number') {
       if (!(typeof val === 'number' && Number.isFinite(val))) err(path, 'must be a number')
     } else if (def.valueType === 'date') {
-      if (!(typeof val === 'string' && ISO_DATE.test(val))) err(path, 'must be a date as "YYYY-MM-DD"')
+      const re = node.type === 'datetime' ? ISO_DATETIME : ISO_DATE
+      if (!(typeof val === 'string' && re.test(val))) err(path, `must be ${dateWord('date', node.type === 'datetime')}`)
     }
   })
+  if (v.minItems != null && v.maxItems != null && v.minItems > v.maxItems) err(`${at}.props.validation`, 'minItems is greater than maxItems — nothing could pass')
   if (v.minLength != null && v.maxLength != null && v.minLength > v.maxLength) err(`${at}.props.validation`, 'minLength is greater than maxLength — nothing could pass')
   if (typeof v.min === 'number' && typeof v.max === 'number' && v.min > v.max) err(`${at}.props.validation`, 'min is greater than max — nothing could pass')
   if (typeof v.min === 'string' && typeof v.max === 'string' && v.min > v.max) err(`${at}.props.validation`, 'min is after max — no date could pass')
@@ -178,7 +218,7 @@ function checkValidation(node, def, at, err) {
  * A dropdown's options: typed in, or read from a table. Either way each option
  * is { id, name } — the id is what is saved, the name is what is shown.
  */
-function checkDataSource(data, at, err) {
+function checkDataSource(data, at, err, multi) {
   if (!data || typeof data !== 'object') {
     err(at, 'is required — { "source": "static", "options": [{ "id", "name" }] } or { "source": "table", "table": "<name>" }')
     return
@@ -190,6 +230,7 @@ function checkDataSource(data, at, err) {
       const p = `${at}.options[${j}]`
       if (!o || typeof o !== 'object') { err(p, 'must be { id, name }'); return }
       if (!(typeof o.id === 'string' || typeof o.id === 'number') || o.id === '') err(`${p}.id`, 'must be a non-empty string or a number')
+      else if (multi && String(o.id).includes(MULTI_SEPARATOR)) err(`${p}.id`, `"${o.id}" contains "${MULTI_SEPARATOR}" — several choices are stored in one column, separated by it`)
       else if (seen.has(o.id)) err(`${p}.id`, `"${o.id}" appears twice`)
       else seen.add(o.id)
       if (!nonEmptyString(o.name)) err(`${p}.name`, 'must be a non-empty string — what the user sees')

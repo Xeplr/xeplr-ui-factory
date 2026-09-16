@@ -168,15 +168,18 @@ Each field:
 | key | meaning |
 |---|---|
 | `label` | **required** for inputs — shown above the field |
-| `type` | `text` (default), `textarea`, `number`, `date`, `checkbox`, `dropdown`, or `label` for a section heading |
+| `type` | `text` (default), `textarea`, `number`, `date`, `datetime`, `checkbox`, `dropdown`, `radio`, `multiselect`, `file`, or `label` for a section heading |
 | `name` | the key the value is saved under; defaults to the label in camelCase (`"Date of birth"` → `dateOfBirth`) |
 | `required` | `true` to require a value (a checkbox must be ticked) |
 | `placeholder` | text, textarea, number, dropdown |
 | `default` | starting value — a string, a number, `true`/`false`, or a date as `"YYYY-MM-DD"` |
 | `validation` | see below |
 | `width` | `"full"` to take the whole row in a two-column form (textareas and labels always do) |
-| `options` | dropdown: `["Full time", "Part time"]` (ids are made from the names: `full_time`) or `[{ "id": "ft", "name": "Full time" }]` |
-| `table` | dropdown: read options from this table in the app's database |
+| `options` | dropdown, radio, multiselect: `["Full time", "Part time"]` (ids are made from the names: `full_time`) or `[{ "id": "ft", "name": "Full time" }]` |
+| `table` | dropdown, radio, multiselect: read options from this table in the app's database |
+| `layout` | radio, multiselect: `"vertical"` (default) or `"horizontal"` |
+| `accept` | file: the extensions it takes, e.g. `".pdf,.docx"` |
+| `maxSize` | file: the largest file in megabytes (default 10) |
 | `text`, `variant` | `label` only — `variant` is `heading`, `subheading` (default for a section) or `text` |
 | `style` | how it looks — see Styles |
 
@@ -188,7 +191,9 @@ Each field:
 | `textarea` | `minLength`, `maxLength` |
 | `number` | `min`, `max`, `integer` |
 | `date` | `min`, `max` — as `"YYYY-MM-DD"` |
-| `checkbox`, `dropdown` | none (use `required`) |
+| `datetime` | `min`, `max` — as `"YYYY-MM-DDTHH:MM"` |
+| `multiselect` | `minItems`, `maxItems` — how many may be chosen |
+| `checkbox`, `dropdown`, `radio`, `file` | none (use `required`) |
 
 Anything else is rejected, with the list of what is allowed.
 
@@ -236,9 +241,12 @@ A dropdown **always saves an `id` and shows a `name`.**
 | notes, description, address, comments | `textarea` |
 | amount, salary, quantity, age | `number` (`integer: true` for counts) |
 | a date — birth, start, due | `date` |
+| an appointment, a deadline with a time, when something happened | `datetime` |
 | yes/no, agree, active, remote | `checkbox` |
-| one of a known set | `dropdown` with `options` |
+| one of a known set | `dropdown` with `options` — a `radio` group when there are two or three and they should all be visible |
 | one of the app's records | `dropdown` with `table` |
+| several of a set — tags, skills, days | `multiselect` |
+| a document, a contract, a spreadsheet, a photo | `file` with `accept` (`".pdf,.docx"`) |
 | a section title between groups | `{ "type": "label", "text": "…", "variant": "subheading" }` |
 
 Keep labels short and in sentence case ("Start date", not "START DATE:"). Mark only what the request needs as required.

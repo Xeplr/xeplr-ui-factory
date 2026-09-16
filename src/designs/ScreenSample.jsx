@@ -1,6 +1,7 @@
 import ControlView from './ControlView.jsx'
 import { contentBottom, inputNodes, MARGIN } from '../document.js'
 import { screenStyle } from './styles.js'
+import { CHOICE_TYPES } from '../controls.js'
 
 // A saved screen, drawn. Presentation only — everything comes from
 // useFactoryScreen.
@@ -77,7 +78,8 @@ export default function ScreenSample({ ctrl, className, style, renderPopup }) {
               mode="live"
               value={node.props?.name ? ctrl.values[node.props.name] : undefined}
               error={node.props?.name ? ctrl.errors[node.props.name] : undefined}
-              options={node.type === 'dropdown' ? ctrl.optionsFor(node) : undefined}
+              options={CHOICE_TYPES.includes(node.type) ? ctrl.optionsFor(node) : undefined}
+              upload={node.type === 'file' ? ctrl.upload : undefined}
               onChange={(raw) => ctrl.setValue(node, raw)}
               onBlur={() => ctrl.touch(node)}
               list={node.type === 'list' ? {

@@ -1,6 +1,6 @@
 import { getAtPath } from '../propertyPath.js'
 import { slugify, inputNodes } from '../document.js'
-import { FONT_FAMILIES, STYLE_KEYS, SCREEN_STYLE_KEYS, LIST_ACTIONS } from '../controls.js'
+import { FONT_FAMILIES, STYLE_KEYS, SCREEN_STYLE_KEYS, LIST_ACTIONS, FILE_KINDS } from '../controls.js'
 
 // The selected control's properties, GENERATED from its entry in controls.js:
 // each field there names a path and an editor type, and this file owns only
@@ -150,6 +150,39 @@ function NumberEditor({ id, value, onChange }) {
 
 function DateEditor({ id, value, onChange }) {
   return <input id={id} className="xeplr-factory-prop-input" type="date" value={value ?? ''} onChange={(e) => onChange(e.target.value)} />
+}
+
+function DatetimeEditor({ id, value, onChange }) {
+  return <input id={id} className="xeplr-factory-prop-input" type="datetime-local" value={value ?? ''} onChange={(e) => onChange(e.target.value)} />
+}
+
+/**
+ * Which files a file field takes: one of the everyday sets, or a list typed
+ * out. The list is what is saved either way — the sets are a way in, not a
+ * second setting to keep in step.
+ */
+function AcceptEditor({ id, value, onChange }) {
+  const kind = Object.keys(FILE_KINDS).find((k) => FILE_KINDS[k].accept === value)
+  return (
+    <div className="xeplr-factory-prop-stack">
+      <select
+        id={id}
+        className="xeplr-factory-prop-input"
+        value={kind || '__custom'}
+        onChange={(e) => { const k = e.target.value; if (k !== '__custom') onChange(FILE_KINDS[k].accept) }}
+      >
+        {Object.entries(FILE_KINDS).map(([k, f]) => <option key={k} value={k}>{f.label}</option>)}
+        <option value="__custom">Just these…</option>
+      </select>
+      <input
+        className="xeplr-factory-prop-input"
+        type="text"
+        value={value ?? ''}
+        placeholder=".pdf,.docx"
+        onChange={(e) => onChange(e.target.value === '' ? undefined : e.target.value)}
+      />
+    </div>
+  )
 }
 
 /** A font family: the common ones, or anything typed. */
@@ -389,6 +422,8 @@ export const EDITORS = {
   textarea: TextareaEditor,
   number: NumberEditor,
   date: DateEditor,
+  datetime: DatetimeEditor,
+  accept: AcceptEditor,
   toggle: ToggleEditor,
   toggleValue: ToggleValueEditor,
   select: SelectEditor,

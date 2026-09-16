@@ -23,14 +23,17 @@
 // The result is an ordinary document, checked before it is returned; from
 // there it is edited like any other.
 
-import { CONTROLS } from './controls.js'
+import { CONTROLS, CHOICE_TYPES } from './controls.js'
 import { createScreen, addControl, MARGIN, GAP, slugify, camelName } from './document.js'
 import { assertValidDocument } from './validateDocument.js'
 
 /** Heights by control, as page fractions (a page is as tall as it is wide). */
 export const SPEC_HEIGHTS = {
-  text: 0.08, number: 0.08, date: 0.08, dropdown: 0.08,
+  text: 0.08, number: 0.08, date: 0.08, datetime: 0.08, dropdown: 0.08,
+  file: 0.1,
   textarea: 0.18,
+  // A group is as tall as its options make it — see heightOf().
+  radio: 0.14, multiselect: 0.18,
   checkbox: 0.05,
   list: 0.42,
   label: { heading: 0.07, subheading: 0.055, text: 0.045 }
@@ -42,7 +45,7 @@ export const SPEC_HEIGHTS = {
  */
 export const ROW_GAP = 0.04
 
-const FIELD_KEYS = ['type', 'label', 'name', 'required', 'placeholder', 'default', 'validation', 'data', 'options', 'table', 'width', 'text', 'variant', 'style']
+const FIELD_KEYS = ['type', 'label', 'name', 'required', 'placeholder', 'default', 'validation', 'data', 'options', 'table', 'layout', 'accept', 'maxSize', 'width', 'text', 'variant', 'style']
 const SPEC_KEYS = ['name', 'id', 'source', 'columns', 'heading', 'fields', 'list', 'aspect', 'width', 'style']
 const LIST_KEYS = ['title', 'source', 'columns', 'pageSize', 'actions', 'style']
 
@@ -134,17 +137,23 @@ function propsFromField(type, field, at) {
     if (field[k] !== undefined) props[k] = field[k]
   })
   if (type === 'dropdown' && props.placeholder === undefined) props.placeholder = 'Select…'
-  if (type === 'dropdown') {
-    props.data = dataFromField(field, at)
-    // A dropdown reading another table stores that row's id: name the column
+  if (CHOICE_TYPES.includes(type)) {
+    props.data = dataFromField(field, at, type)
+    if (field.layout !== undefined && type !== 'dropdown') props.layout = field.layout
+    // A field reading another table stores that row's id: name the column
     // for what it holds — "Department" → departmentId, a foreign key.
-    if (props.data.source === 'table' && props.name === undefined) props.name = camelName(field.label) + 'Id'
+    if (props.data.source === 'table' && props.name === undefined && type !== 'multiselect') props.name = camelName(field.label) + 'Id'
   }
-  else if (field.options || field.table || field.data) throw new Error(`screenFromSpec: ${at} — options/table/data only apply to a dropdown`)
+  else if (field.options || field.table || field.data) throw new Error(`screenFromSpec: ${at} — options/table/data only apply to ${CHOICE_TYPES.join(', ')}`)
+  if (type === 'file') {
+    ;['accept', 'maxSize'].forEach((k) => { if (field[k] !== undefined) props[k] = field[k] })
+  } else if (field.accept !== undefined || field.maxSize !== undefined) {
+    throw new Error(`screenFromSpec: ${at} — accept/maxSize only apply to a file`)
+  }
   return props
 }
 
-function dataFromField(field, at) {
+function dataFromField(field, at, type) {
   if (field.data) return field.data
   if (field.table) return { source: 'table', table: field.table }
   if (Array.isArray(field.options)) {
@@ -155,14 +164,25 @@ function dataFromField(field, at) {
         : o))
     }
   }
-  throw new Error(`screenFromSpec: ${at} is a dropdown — give it options: [...] or table: "<name>"`)
+  throw new Error(`screenFromSpec: ${at} is a ${type} — give it options: [...] or table: "<name>"`)
 }
 
 function heightOf(type, props) {
   const h = SPEC_HEIGHTS[type]
   if (type === 'label') return h[props.variant] || h.text
+  // A group of options grows with them: the label, then a line per option
+  // (or one line for all of them, side by side).
+  if (type === 'radio' || type === 'multiselect') {
+    const n = props.data?.source === 'static' ? (props.data.options || []).length : 4
+    const lines = props.layout === 'horizontal' ? 1 : Math.max(n, 1)
+    return round(LABEL_H + lines * OPTION_H)
+  }
   return h || 0.08
 }
+
+/** A field's label, and one option, as page fractions. */
+const LABEL_H = 0.035
+const OPTION_H = 0.03
 
 function unknownKeys(obj, allowed, at) {
   const extra = Object.keys(obj).filter((k) => !allowed.includes(k))

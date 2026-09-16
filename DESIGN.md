@@ -39,8 +39,12 @@ And the renderer: `<FactoryScreen document onSave fetchRecords onDelete fetchOpt
 | `textarea` | string | min/max length |
 | `number` | number | min, max, integer |
 | `date` | date | min, max |
+| `datetime` | date and time | min, max — a `timestamp` column |
 | `checkbox` | boolean | |
 | `dropdown` | id | data source: static or table |
+| `radio` | id | the same options, shown as a group |
+| `multiselect` | array of ids | the same options; one text column, comma separated |
+| `file` | path | uploaded through @xeplr/factory; `accept` and `maxSize` are enforced there |
 | `label` | — | static text on the screen |
 | `list` | — | saved records: New / Edit / Delete |
 

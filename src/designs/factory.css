@@ -71,6 +71,25 @@
 .xeplr-factory-check { display: flex; align-items: center; gap: calc(8 * var(--xf-u)); cursor: pointer; font-weight: 500; }
 .xeplr-factory-check input { width: calc(18 * var(--xf-u)); height: calc(18 * var(--xf-u)); min-width: 12px; min-height: 12px; margin: 0; accent-color: var(--xf-accent); }
 
+/* ── option groups (radio, multi-select) ───────────────────────────────────
+   The group scrolls rather than spilling over the control below it, so a long
+   list of options cannot cover the next field. */
+.xeplr-factory-group { display: flex; gap: calc(6 * var(--xf-u)) calc(16 * var(--xf-u)); overflow: auto; min-height: 0; }
+.xeplr-factory-group--vertical { flex-direction: column; }
+.xeplr-factory-group--horizontal { flex-direction: row; flex-wrap: wrap; align-items: center; }
+.xeplr-factory-option { display: flex; align-items: center; gap: calc(8 * var(--xf-u)); cursor: pointer; color: var(--xf-ink); }
+.xeplr-factory-option input { width: calc(16 * var(--xf-u)); height: calc(16 * var(--xf-u)); min-width: 11px; min-height: 11px; margin: 0; accent-color: var(--xf-accent); }
+
+/* ── file ─────────────────────────────────────────────────────────────────── */
+.xeplr-factory-file { display: flex; align-items: center; gap: calc(8 * var(--xf-u)); min-width: 0; }
+.xeplr-factory-file-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--xf-ink); }
+.xeplr-factory-file-clear {
+  flex: none; border: 1px solid var(--xf-border); background: var(--xf-surface); color: var(--xf-muted);
+  border-radius: calc(6 * var(--xf-u)); padding: calc(3 * var(--xf-u)) calc(8 * var(--xf-u)); cursor: pointer; font: inherit;
+}
+.xeplr-factory-file-clear:hover { color: var(--xf-ink); border-color: var(--xf-accent); }
+.xeplr-factory-file-input { padding: calc(5 * var(--xf-u)); }
+
 /* A label's size and weight are inline — its preset, overridden by its style. */
 .xeplr-factory-text { margin: 0; color: var(--xf-ink); height: 100%; overflow: hidden; line-height: 1.25; box-sizing: border-box; }
 .xeplr-factory-text--text { color: var(--xf-muted); }
@@ -144,6 +163,10 @@
 .xeplr-factory-palette-item:hover { border-color: var(--xf-accent); }
 .xeplr-factory-palette-icon { width: 14px; height: 10px; border: 1.5px solid var(--xf-muted); border-radius: 2px; flex: 0 0 auto; }
 .xeplr-factory-palette-icon--checkbox { width: 10px; }
+.xeplr-factory-palette-icon--radio { border-radius: 50%; width: 11px; height: 11px; }
+.xeplr-factory-palette-icon--multiselect { height: 11px; background: repeating-linear-gradient(to bottom, var(--xf-muted) 0 2px, transparent 2px 5px); border: none; }
+.xeplr-factory-palette-icon--datetime { border-top-width: 3px; }
+.xeplr-factory-palette-icon--file { border-radius: 2px; border-top: 3px solid var(--xf-muted); height: 12px; width: 10px; }
 .xeplr-factory-palette-icon--label { border: none; border-top: 2px solid var(--xf-muted); border-bottom: 2px solid var(--xf-muted); height: 6px; }
 .xeplr-factory-palette-icon--list { height: 12px; background: repeating-linear-gradient(to bottom, var(--xf-muted) 0 1.5px, transparent 1.5px 4px); border: none; }
 .xeplr-factory-palette-icon--textarea { height: 14px; }
@@ -184,6 +207,8 @@
   border: 1px solid var(--xf-border); border-radius: 5px; background: #fff; color: var(--xf-ink, #1a1a19);
 }
 .xeplr-factory-prop.has-error .xeplr-factory-prop-input { border-color: var(--xf-danger); }
+/* An editor made of two inputs — a set to pick from, and the list it fills in. */
+.xeplr-factory-prop-stack { display: flex; flex-direction: column; gap: 5px; }
 .xeplr-factory-prop-help { margin-top: 3px; color: var(--xf-muted); font-size: 11px; line-height: 1.4; }
 .xeplr-factory-prop-error { margin-top: 3px; color: var(--xf-danger); font-size: 11px; }
 .xeplr-factory-panel-errors { margin-top: 8px; padding: 8px; border-radius: 6px; color: var(--xf-danger); background: color-mix(in srgb, var(--xf-danger) 7%, transparent); font-size: 11px; }

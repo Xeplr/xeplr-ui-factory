@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { CONTROLS } from './controls.js'
+import { CONTROLS, CHOICE_TYPES } from './controls.js'
 import { inputNodes } from './document.js'
 import { validateDocument } from './validateDocument.js'
 import { initialValues, parseInput, saveState, fieldError, optionValue, recordValues, listSource } from './values.js'
@@ -19,6 +19,7 @@ import { hookMethod } from './hooks.js'
 //   fetchRecords({ source, screen, node })             → rows, for a list
 //   onDelete({ id, source, screen, record })
 //   fetchOptions({ table, node })              → [{ id, name }], for a table dropdown
+//   uploadFile(file, { screen, field, node })  → { path } — a file field's upload
 //
 // ── LIST → EDIT IN A POPUP ───────────────────────────────────────────────
 // A list whose `editScreen` names another screen opens that screen in a popup
@@ -34,6 +35,8 @@ export const AUTOSAVE_DELAY = 700
  * @param recordKey     the id field on a record (default 'id')
  * @param onSave        async (values, { id, source, document }) → saved record | void
  * @param fetchOptions  async ({ table, node }) → [{ id, name }]
+ * @param uploadFile    async (file, { screen, field, node }) → { path } — what a file field saves
+ * @param fileUrl       (path) → the address an attached file is read back from
  * @param fetchRecords  async ({ source, node }) → records, for lists
  * @param onDelete      async ({ id, source, record }) → void
  * @param onChange      (values) → void — every change, before any save
@@ -45,7 +48,7 @@ export const AUTOSAVE_DELAY = 700
  * @param hooks         a FactoryHooks (or an object with some of its methods) — get / save / delete / actions
  */
 export function useFactoryScreen({
-  document: doc, record, recordKey = 'id', onSave, fetchOptions, fetchRecords, fetchRecord, onDelete, onChange, screens, loadScreen, hooks,
+  document: doc, record, recordKey = 'id', onSave, fetchOptions, fetchRecords, fetchRecord, onDelete, onChange, screens, loadScreen, hooks, uploadFile, fileUrl,
   autosaveDelay = AUTOSAVE_DELAY, controls = CONTROLS
 } = {}) {
   const check = useMemo(() => validateDocument(doc, controls), [doc, controls])
@@ -116,7 +119,7 @@ export function useFactoryScreen({
   const fetchOptionsRef = useRef(fetchOptions); fetchOptionsRef.current = fetchOptions
   useEffect(() => {
     let cancelled = false
-    const tableNodes = optionNodes.filter((n) => n.type === 'dropdown' && n.props.data?.source === 'table')
+    const tableNodes = optionNodes.filter((n) => CHOICE_TYPES.includes(n.type) && n.props.data?.source === 'table')
     if (!tableNodes.length) { setOptions({}); return undefined }
     setOptions(Object.fromEntries(tableNodes.map((n) => [n.id, { loading: true, items: [], error: null }])))
     const byTable = new Map()
@@ -140,6 +143,15 @@ export function useFactoryScreen({
     })
     return () => { cancelled = true }
   }, [optionNodes])
+
+  // ── a file field's upload ─────────────────────────────────────────────
+  const uploadRef = useRef(uploadFile); uploadRef.current = uploadFile
+  const upload = useCallback(async (file, node) => {
+    if (!uploadRef.current) throw new Error('No uploadFile was provided, so a file cannot be attached')
+    const out = await uploadRef.current(file, { screen: doc.id, field: node.props.name, node })
+    if (!out || !out.path) throw new Error('The upload did not answer with the stored file')
+    return out
+  }, [doc.id])
 
   const optionsFor = useCallback((node) => {
     if (node.props.data?.source === 'static') return { loading: false, items: node.props.data.options, error: null }
@@ -229,7 +241,8 @@ export function useFactoryScreen({
   const onChangeRef = useRef(onChange); onChangeRef.current = onChange
   const setValue = useCallback((node, raw) => {
     let value = parseInput(node, raw)
-    if (node.type === 'dropdown' && value !== undefined) value = optionValue(optionsFor(node).items, value)
+    if ((node.type === 'dropdown' || node.type === 'radio') && value !== undefined) value = optionValue(optionsFor(node).items, value)
+    if (node.type === 'multiselect' && Array.isArray(value)) value = value.map((v) => optionValue(optionsFor(node).items, v))
     const name = node.props.name
     const next = { ...live.current.values }
     if (value === undefined) delete next[name]
@@ -412,6 +425,8 @@ export function useFactoryScreen({
     setValue,
     touch,
     optionsFor,
+    upload,
+    fileUrl,
     flush,
     saveNow: runSave,
     openRecord,

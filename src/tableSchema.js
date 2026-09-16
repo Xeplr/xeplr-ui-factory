@@ -51,10 +51,11 @@ export const MAX_IDENTIFIER = 63
 
 const TEXT_DEFAULT_LENGTH = 255
 const OPTION_MIN_LENGTH = 50
+const FILE_PATH_LENGTH = 255
 
 /**
  * The column a field is stored in.
- * @returns {{ name, type: 'varchar'|'text'|'integer'|'numeric'|'date'|'boolean', length?, references?, notNull?, default? }}
+ * @returns {{ name, type: 'varchar'|'text'|'integer'|'numeric'|'date'|'timestamp'|'boolean', length?, references?, notNull?, default? }}
  */
 export function columnForField(node) {
   const p = node.props || {}
@@ -69,9 +70,18 @@ export function columnForField(node) {
       return { ...base, type: v.integer ? 'integer' : 'numeric' }
     case 'date':
       return { ...base, type: 'date' }
+    case 'datetime':
+      return { ...base, type: 'timestamp' }
+    case 'file':
+      // The stored file's path, as the upload answered with it.
+      return { ...base, type: 'varchar', length: FILE_PATH_LENGTH }
+    case 'multiselect':
+      // Every chosen id in one text column, separated by commas.
+      return { ...base, type: 'text' }
     case 'checkbox':
       return { ...base, type: 'boolean', notNull: true, default: 'false' }
-    case 'dropdown': {
+    case 'dropdown':
+    case 'radio': {
       const data = p.data || {}
       if (data.source === 'table') {
         // A real foreign key to the other entity's id.
@@ -118,6 +128,8 @@ export function widening(from, to) {
   }
   if (from.type === 'varchar' && to.type === 'text') return { ok: true }
   if (from.type === 'integer' && to.type === 'numeric') return { ok: true }
+  // A date becomes that day at midnight; the other way round would lose the time.
+  if (from.type === 'date' && to.type === 'timestamp') return { ok: true }
   return { ok: false, reason: `${describe(from)} → ${describe(to)} is a different kind of value` }
 }
 
@@ -250,6 +262,8 @@ export function columnFromDatabase(c) {
     case 'int4': return { ...base, type: 'integer' }
     case 'numeric': return { ...base, type: 'numeric' }
     case 'date': return { ...base, type: 'date' }
+    case 'timestamp':
+    case 'timestamptz': return { ...base, type: 'timestamp' }
     case 'bool': return { ...base, type: 'boolean' }
     // Anything else (a timestamp, a bigint someone chose) is not a type a field
     // makes — so any change to it is refused rather than guessed at.

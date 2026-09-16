@@ -8,7 +8,8 @@ import {
   parseInput, validateValues, fieldError, optionValue, screenFromSpec, getAtPath, setAtPath,
   saveState, recordValues, displayValue, listColumns, listSource, setScreenProperty,
   screensFromSpec, entityNames, scaffoldEntity,
-  tableForScreen, columnForField, migrationFor, nextMigrationName, planTableChange, columnFromDatabase
+  tableForScreen, columnForField, migrationFor, nextMigrationName, planTableChange, columnFromDatabase,
+  toDbValue, fromDbValue, acceptList, widening, chooseable, fileLabel
 } from '../src/model.js'
 import { normaliseOptions } from '../src/useFactoryScreen.js'
 
@@ -168,7 +169,8 @@ console.log('\nspec → screen')
     screenFromSpec({ ...EMPLOYEE, columns: 1 }).nodes.filter((n) => n.props.name).every((n) => n.x === 0.04))
   check('an unknown key is refused with the allowed list', throws(() => screenFromSpec({ name: 'X', fields: [{ label: 'A', colour: 'red' }] }), /unknown key\(s\) colour — allowed/))
   check('a dropdown without options or table is refused', throws(() => screenFromSpec({ name: 'X', fields: [{ label: 'A', type: 'dropdown' }] }), /options: \[\.\.\.\] or table/))
-  check('options on a non-dropdown are refused', throws(() => screenFromSpec({ name: 'X', fields: [{ label: 'A', options: ['a'] }] }), /only apply to a dropdown/))
+  check('options on a field that has none are refused', throws(() => screenFromSpec({ name: 'X', fields: [{ label: 'A', options: ['a'] }] }), /only apply to dropdown, radio, multiselect/))
+  check('accept on a field that is not a file is refused', throws(() => screenFromSpec({ name: 'X', fields: [{ label: 'A', accept: '.pdf' }] }), /accept\/maxSize only apply to a file/))
   check('no name is refused', throws(() => screenFromSpec({ fields: [] }), /name is required/))
   check('heading: false leaves it out', screenFromSpec({ ...EMPLOYEE, heading: false }).nodes[0].type !== 'label')
 }
@@ -379,6 +381,61 @@ check('rows are reduced to { id, name }', JSON.stringify(normaliseOptions([{ id:
 check('a row with no id is dropped', normaliseOptions([{ name: 'x' }, { id: 0, name: 'zero' }]).length === 1)
 check('a missing name falls back to the id', normaliseOptions([{ id: 5 }])[0].name === '5')
 check('garbage is an empty list', normaliseOptions(null).length === 0)
+
+console.log('\nthe controls added for choices, time and files')
+{
+  const SPEC = {
+    name: 'Task', source: 'tasks', columns: 1,
+    fields: [
+      { label: 'Priority', type: 'radio', options: ['Low', 'High'], required: true },
+      { label: 'Tags', type: 'multiselect', options: ['Red', 'Blue'], validation: { minItems: 1, maxItems: 2 } },
+      { label: 'Due at', type: 'datetime' },
+      { label: 'Brief', type: 'file', accept: '.pdf,.DOCX', maxSize: 5 }
+    ]
+  }
+  const doc = screenFromSpec(SPEC)
+  const node = (type) => doc.nodes.find((n) => n.type === type)
+  const radio = node('radio'), multi = node('multiselect'), when = node('datetime'), file = node('file')
+
+  check('a spec makes all four, laid out and valid', validateDocument(doc).ok && doc.nodes.length === 5)
+  check('a radio group is one option id, like a dropdown', columnForField(radio).type === 'varchar')
+  check('a multi-select is one text column', columnForField(multi).type === 'text')
+  check('a date and time is a timestamp', columnForField(when).type === 'timestamp')
+  check('a file holds its path', columnForField(file).type === 'varchar' && columnForField(file).length === 255)
+  check('a date may become a date and time', widening({ type: 'date' }, { type: 'timestamp' }).ok)
+  check('...but not the other way round', !widening({ type: 'timestamp' }, { type: 'date' }).ok)
+  check('a timestamp column is recognised, not refused', columnFromDatabase({ name: 'x', udtName: 'timestamptz' }).type === 'timestamp')
+
+  check('several choices are stored in one column', toDbValue(multi, ['red', 'blue']) === 'red,blue')
+  check('...nothing chosen is nothing stored', toDbValue(multi, []) === null)
+  check('...and they come back as a list', JSON.stringify(fromDbValue(multi, 'red,blue')) === '["red","blue"]')
+  check('...an empty column is an empty list', JSON.stringify(fromDbValue(multi, '')) === '[]')
+  check('a saved moment comes back as the box shows it', fromDbValue(when, '2026-09-16 14:30:00') === '2026-09-16T14:30')
+  check('an option id may not contain the separator',
+    !validateDocument({ ...doc, nodes: doc.nodes.map((n) => (n.type === 'multiselect' ? { ...n, props: { ...n.props, data: { source: 'static', options: [{ id: 'a,b', name: 'A' }] } } } : n)) }).ok)
+
+  check('a required radio must be one of its options', fieldError(radio, 'nope') === 'Priority must be one of the options')
+  check('...and is required when nothing is chosen', fieldError(radio, undefined) === 'Priority is required')
+  check('too few choices are refused', fieldError(multi, []) === null && fieldError({ ...multi, props: { ...multi.props, required: true } }, []) === 'Tags is required')
+  check('too many choices are refused', /choose at most 2/.test(fieldError(multi, ['red', 'blue', 'green']) || ''))
+  check('a choice that is no longer offered is caught', /no longer offered/.test(fieldError(multi, ['pink']) || ''))
+  check('a moment outside the allowed range is refused',
+    /at or after/.test(fieldError({ ...when, props: { ...when.props, validation: { min: '2026-09-17T09:00' } } }, '2026-09-16T14:30') || ''))
+  check('a file field is empty or a path', fieldError(file, undefined) === null && fieldError(file, 'tasks/a1__brief.pdf') === null)
+  check('extensions are read as a list, however they are typed', acceptList('.pdf, DOCX ').join() === '.pdf,.docx')
+  check('a file shows the name it was uploaded with', fileLabel('shared/tasks/a1b2__quarter report.pdf') === 'quarter report.pdf')
+  check('an unreadable extension is refused', !validateDocument({ ...doc, nodes: doc.nodes.map((n) => (n.type === 'file' ? { ...n, props: { ...n.props, accept: 'pdf!' } } : n)) }).ok)
+  check('a file larger than the package allows is refused', !validateDocument({ ...doc, nodes: doc.nodes.map((n) => (n.type === 'file' ? { ...n, props: { ...n.props, maxSize: 500 } } : n)) }).ok)
+
+  check('a multi-select starts empty', JSON.stringify(initialValues(doc).tags) === '[]')
+  check('a record is read back into the boxes', JSON.stringify(recordValues(doc, { tags: 'red,blue', dueAt: '2026-09-16 14:30:00' }).tags) === '["red","blue"]')
+  check('a list shows the option names, not the ids', displayValue(multi, 'red,blue') === 'Red, Blue')
+  check('...and a file shows its name', displayValue(file, 'tasks/a1__brief.pdf') === 'brief.pdf')
+  check('options are the ones typed in, or the rows loaded', chooseable(radio).length === 2 && chooseable({ ...radio, props: { ...radio.props, data: { source: 'table', table: 't' } } }, [{ id: 1, name: 'One' }]).length === 1)
+  check('the schema a server checks knows the radio options', formSchema(doc).find((f) => f.name === 'priority').options.join() === 'low,high')
+  check('a group is laid out as tall as its options', radio.h > 0.08 && multi.h > 0.08)
+  check('side by side is one line high', screenFromSpec({ ...SPEC, fields: [{ ...SPEC.fields[0], layout: 'horizontal' }] }).nodes[1].h < radio.h)
+}
 
 check('every control declares what the panel and checker need',
   Object.values(CONTROLS).every((c) => c.type && c.label && c.defaultSize && Array.isArray(c.props) && Array.isArray(c.properties) && Array.isArray(c.validation)))
