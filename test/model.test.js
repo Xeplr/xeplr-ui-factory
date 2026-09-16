@@ -16,7 +16,7 @@ import { normaliseOptions } from '../src/useFactoryScreen.js'
 
 const require = createRequire(import.meta.url)
 const results = []
-const check = (name, cond) => { results.push([name, cond]); console.log((cond ? '  ok   ' : '  FAIL ') + name) }
+const check = (name, cond, detail) => { results.push([name, cond]); console.log((cond ? '  ok   ' : '  FAIL ') + name + (!cond && detail ? ' — ' + detail : '')) }
 const throws = (fn, re) => { try { fn(); return false } catch (e) { return re ? re.test(e.message) : true } }
 
 const EMPLOYEE = {
@@ -489,6 +489,33 @@ console.log('\na stepper, and the controls on each of its steps')
     tableForScreen(doc).columns.map((c) => c.name).join() === 'connection,tables,notes')
   check('...and still checked, whichever step is showing',
     Object.keys(validateValues(doc, {})).join() === 'connection')
+}
+
+console.log('\nthe stylesheet')
+{
+  // A class in two components is a class whose layout rule reaches a place it
+  // was never written for: .xeplr-factory-group, meant for a radio group, laid
+  // every property in the panel out in a row. Names are not shared by accident.
+  const fs = require('fs')
+  const dir = new URL('../src/designs/', import.meta.url).pathname
+  const files = fs.readdirSync(dir).filter((f) => f.endsWith('.jsx'))
+  const used = new Map()
+  files.forEach((f) => {
+    const text = fs.readFileSync(dir + f, 'utf8')
+    ;(text.match(/xeplr-factory-[a-z-]+/g) || []).forEach((c) => {
+      if (!used.has(c)) used.set(c, new Set())
+      used.get(c).add(f)
+    })
+  })
+  // The handful that are deliberately shared: buttons, and the messages every
+  // part of the package says the same way.
+  const SHARED = ['xeplr-factory-primary', 'xeplr-factory-secondary', 'xeplr-factory-danger', 'xeplr-factory-icon-button', 'xeplr-factory-hint', 'xeplr-factory-invalid']
+  const clashes = [...used.entries()].filter(([c, fs2]) => fs2.size > 1 && !SHARED.includes(c)).map(([c]) => c)
+  check('no class is used by two components that did not agree to share it', clashes.length === 0, clashes.join(', '))
+
+  const css = fs.readFileSync(dir + 'factory.css', 'utf8')
+  const newer = ['xeplr-factory-choices', 'xeplr-factory-choice', 'xeplr-factory-file', 'xeplr-factory-stepper', 'xeplr-factory-step', 'xeplr-factory-stepnav']
+  check('the classes added for the new controls are styled', newer.every((c) => css.includes('.' + c)))
 }
 
 check('every control declares what the panel and checker need',

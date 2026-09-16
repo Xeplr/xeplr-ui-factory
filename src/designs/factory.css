@@ -74,11 +74,11 @@
 /* ── option groups (radio, multi-select) ───────────────────────────────────
    The group scrolls rather than spilling over the control below it, so a long
    list of options cannot cover the next field. */
-.xeplr-factory-group { display: flex; gap: calc(6 * var(--xf-u)) calc(16 * var(--xf-u)); overflow: auto; min-height: 0; }
-.xeplr-factory-group--vertical { flex-direction: column; }
-.xeplr-factory-group--horizontal { flex-direction: row; flex-wrap: wrap; align-items: center; }
-.xeplr-factory-option { display: flex; align-items: center; gap: calc(8 * var(--xf-u)); cursor: pointer; color: var(--xf-ink); }
-.xeplr-factory-option input { width: calc(16 * var(--xf-u)); height: calc(16 * var(--xf-u)); min-width: 11px; min-height: 11px; margin: 0; accent-color: var(--xf-accent); }
+.xeplr-factory-choices { display: flex; gap: calc(6 * var(--xf-u)) calc(16 * var(--xf-u)); overflow: auto; min-height: 0; }
+.xeplr-factory-choices--vertical { flex-direction: column; }
+.xeplr-factory-choices--horizontal { flex-direction: row; flex-wrap: wrap; align-items: center; }
+.xeplr-factory-choice { display: flex; align-items: center; gap: calc(8 * var(--xf-u)); cursor: pointer; color: var(--xf-ink); }
+.xeplr-factory-choice input { width: calc(16 * var(--xf-u)); height: calc(16 * var(--xf-u)); min-width: 11px; min-height: 11px; margin: 0; accent-color: var(--xf-accent); }
 
 /* ── file ─────────────────────────────────────────────────────────────────── */
 .xeplr-factory-file { display: flex; align-items: center; gap: calc(8 * var(--xf-u)); min-width: 0; }

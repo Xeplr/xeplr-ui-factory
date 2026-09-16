@@ -195,9 +195,9 @@ function RadioView({ node, p, design, value, error, options, onChange, onBlur, d
   const text = boxStyle(p.style)
   return (
     <Field node={node} p={p} error={error || (!design && options.error) || null}>
-      <div className={`xeplr-factory-group xeplr-factory-group--${p.layout === 'horizontal' ? 'horizontal' : 'vertical'}`} role="radiogroup" aria-labelledby={`${ids(node)}-label`}>
+      <div className={`xeplr-factory-choices xeplr-factory-choices--${p.layout === 'horizontal' ? 'horizontal' : 'vertical'}`} role="radiogroup" aria-labelledby={`${ids(node)}-label`}>
         {items.map((o) => (
-          <label key={String(o.id)} className="xeplr-factory-option" style={{ fontSize: text.fontSize, fontWeight: text.fontWeight, fontStyle: text.fontStyle, color: text.color }}>
+          <label key={String(o.id)} className="xeplr-factory-choice" style={{ fontSize: text.fontSize, fontWeight: text.fontWeight, fontStyle: text.fontStyle, color: text.color }}>
             <input
               type="radio"
               name={p.name}
@@ -228,9 +228,9 @@ function MultiselectView({ node, p, design, value, error, options, onChange, onB
   }
   return (
     <Field node={node} p={p} error={error || (!design && options.error) || null}>
-      <div className={`xeplr-factory-group xeplr-factory-group--${p.layout === 'horizontal' ? 'horizontal' : 'vertical'}`} role="group" aria-labelledby={`${ids(node)}-label`}>
+      <div className={`xeplr-factory-choices xeplr-factory-choices--${p.layout === 'horizontal' ? 'horizontal' : 'vertical'}`} role="group" aria-labelledby={`${ids(node)}-label`}>
         {items.map((o) => (
-          <label key={String(o.id)} className="xeplr-factory-option" style={{ fontSize: text.fontSize, fontWeight: text.fontWeight, fontStyle: text.fontStyle, color: text.color }}>
+          <label key={String(o.id)} className="xeplr-factory-choice" style={{ fontSize: text.fontSize, fontWeight: text.fontWeight, fontStyle: text.fontStyle, color: text.color }}>
             <input
               type="checkbox"
               name={p.name}
