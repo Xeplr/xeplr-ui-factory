@@ -42,6 +42,8 @@ export class FactoryHooks {
   /**
    * Save — called on every autosave, so keep it quick and safe to repeat.
    * @param values  what the form holds
+   * @param ctx.steps  switch steps off or on as the record decides them —
+   *        ctx.steps.disable('approval'), ctx.steps.enable()
    * @returns the saved record (its id makes the next save an update)
    */
   save(values, ctx) {
@@ -61,14 +63,32 @@ export class FactoryHooks {
    *     return super.step(ctx)
    *   }
    *
+   * A screen with branches decides which of them apply from here:
+   *
+   *   step(ctx) {
+   *     if (ctx.from === 0) {
+   *       if (ctx.values.kind === 'simple') { ctx.disable(['pricing', 'approval']); return 'summary' }
+   *       ctx.enable()                       // every step applies again
+   *     }
+   *     return super.step(ctx)
+   *   }
+   *
    * @param ctx.from       the step being left, counting from 0
    * @param ctx.to         the step asked for
    * @param ctx.direction  'next' | 'back' | 'jump' (a click on the bar)
    * @param ctx.values     what the form holds
    * @param ctx.stepper    the stepper's node id
-   * @returns false to stay where you are, a step number to go somewhere else,
-   *          anything else to move as asked. The step's own required fields are
-   *          checked before this runs, so this is for your rules, not theirs.
+   * @param ctx.go         (step) → move there (a key or a number)
+   * @param ctx.disable    (steps) → switch them off: shown, but passed over by
+   *                       Next and Back and not clickable. A key, a number, or
+   *                       a list of either.
+   * @param ctx.enable     (steps) → switch them back on; no arguments, all of them
+   * @param ctx.steps      the same, for a screen with more than one stepper:
+   *                       disable(which, stepperId), active(id), disabled(id)
+   * @returns false to stay where you are, a step (its key or its number) to go
+   *          somewhere else, anything else to move as asked. The step's own
+   *          required fields are checked before this runs, so this is for your
+   *          rules, not theirs.
    */
   step(ctx) {
     return true

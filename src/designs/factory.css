@@ -129,6 +129,10 @@
 .xeplr-factory-step.is-active .xeplr-factory-step-mark,
 .xeplr-factory-step.is-done .xeplr-factory-step-mark { background: var(--xf-accent); color: #fff; }
 .xeplr-factory-step.is-active .xeplr-factory-step-button { color: var(--xf-accent); font-weight: 600; }
+/* A step the app has ruled out: still shown, so the journey reads the same,
+   but plainly not one of the stops. */
+.xeplr-factory-step.is-off .xeplr-factory-step-button { opacity: 0.4; cursor: default; }
+.xeplr-factory-step.is-off .xeplr-factory-step-label { text-decoration: line-through; }
 
 /* Back / Next, under the page. */
 .xeplr-factory-stepnav { display: flex; align-items: center; gap: 12px; padding: 10px 0; }

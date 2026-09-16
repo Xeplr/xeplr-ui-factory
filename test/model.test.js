@@ -10,7 +10,7 @@ import {
   screensFromSpec, entityNames, scaffoldEntity,
   tableForScreen, columnForField, migrationFor, nextMigrationName, planTableChange, columnFromDatabase,
   toDbValue, fromDbValue, acceptList, widening, chooseable, fileLabel,
-  steppers, stepsOf, stepOf, setNodeStep, nodesForSteps
+  steppers, stepsOf, stepOf, setNodeStep, nodesForSteps, resolveStep, reachableStep, nextOpenStep
 } from '../src/model.js'
 import { normaliseOptions } from '../src/useFactoryScreen.js'
 
@@ -508,6 +508,27 @@ console.log('\na list that opens a page, and a hook on the steps')
   check('a hook can keep the person on a step', hookMethod(new Held(), 'step')({ from: 0, to: 1, direction: 'next', values: {} }) === false)
   check('...and let them through once it is filled in', hookMethod(new Held(), 'step')({ from: 0, to: 1, direction: 'next', values: { title: 'x' } }) === true)
   check('...and a plain object with no step hook still moves', hookMethod({}, 'step')({ from: 0, to: 1, direction: 'jump' }) === true)
+}
+
+console.log('\nsteps an app has ruled out')
+{
+  const STEPS = [{ key: 'a', label: 'One' }, { key: 'b', label: 'Two' }, { key: 'c', label: 'Three' }, { key: 'd', label: 'Four' }]
+  check('a step can be named by its key', resolveStep(STEPS, 'c') === 2)
+  check('...by what it reads as', resolveStep(STEPS, 'Four') === 3)
+  check('...or by its number', resolveStep(STEPS, 1) === 1)
+  check('a name nothing answers to is no step', resolveStep(STEPS, 'nope') === -1 && resolveStep(STEPS, 9) === -1)
+
+  check('with nothing ruled out, you land where you aimed', reachableStep(4, 2, [], 'next', 0) === 2)
+  check('a step that is off is passed over, going forward', reachableStep(4, 1, [1, 2], 'next', 0) === 3)
+  check('...and going back', reachableStep(4, 2, [1, 2], 'back', 3) === 0)
+  check('nothing open that way falls back the other way', reachableStep(4, 3, [3], 'next', 0) === 2)
+  check('everything off leaves you where you are', reachableStep(3, 1, [0, 1, 2], 'next', 1) === 1)
+
+  check('Next skips the steps that are off', nextOpenStep(4, 0, [1, 2], 'next') === 3)
+  check('Back does too', nextOpenStep(4, 3, [1, 2], 'back') === 0)
+  check('at the end there is nothing next', nextOpenStep(4, 3, [], 'next') === null)
+  check('...nor when every step after it is off', nextOpenStep(4, 1, [2, 3], 'next') === null)
+  check('at the start there is nothing back', nextOpenStep(4, 0, [], 'back') === null)
 }
 
 console.log('\nthe stylesheet')

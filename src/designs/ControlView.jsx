@@ -341,7 +341,8 @@ function StepperView({ node, p, design, stepper }) {
     <div className="xeplr-factory-stepper" style={{ ...fieldStyle(p.style), ...text }}>
       <ol className="xeplr-factory-steps">
         {steps.map((s, i) => {
-          const state = i === active ? 'is-active' : i < active ? 'is-done' : ''
+          const off = Boolean(stepper && stepper.isDisabled && stepper.isDisabled(i))
+          const state = off ? 'is-off' : i === active ? 'is-active' : i < active ? 'is-done' : ''
           return (
             <li key={s.key} className={`xeplr-factory-step ${state}`} aria-current={i === active ? 'step' : undefined}>
               <button
@@ -349,7 +350,9 @@ function StepperView({ node, p, design, stepper }) {
                 className="xeplr-factory-step-button"
                 // On the canvas a press must still be able to drag the control,
                 // so the step is taken on click, never on mousedown.
-                onClick={(e) => { if (go) { e.stopPropagation(); go(i) } }}
+                onClick={(e) => { if (go && !off) { e.stopPropagation(); go(i) } }}
+                disabled={off}
+                aria-disabled={off || undefined}
                 tabIndex={design ? -1 : undefined}
               >
                 <span className="xeplr-factory-step-mark" aria-hidden="true">{i < active ? '✓' : (p.showNumbers === false ? '' : i + 1)}</span>

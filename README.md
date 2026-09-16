@@ -235,6 +235,25 @@ class TaskHooks extends FactoryHooks {
 }
 ```
 
+A screen with branches can **rule steps out** from the same hook — they stay on
+the bar, struck through, and Next and Back pass over them:
+
+```js
+step(ctx) {
+  if (ctx.from === 0 && ctx.values.kind === 'simple') {
+    ctx.disable(['pricing', 'approval'])   // by key, label or number
+    return 'summary'                        // and go straight there
+  }
+  ctx.enable()                              // every step applies again
+  return super.step(ctx)
+}
+```
+
+`ctx.go`, `ctx.disable` and `ctx.enable` act on that stepper; `ctx.steps` is the
+same for a screen with more than one (`ctx.steps.disable('approval', stepperId)`).
+`ctx.steps` is on `save` and `get` too, since a save is usually where an app
+learns which branch it is on. "Step 2 of 4" counts only the steps that apply.
+
 **A step is not a separate form.** Every field is a column, is checked, and is
 saved, whichever step is showing — a screen still saves itself as it is filled
 in. **Next** holds at a step whose own fields are not filled in, and says which,

@@ -155,6 +155,46 @@ export function nodesForSteps(doc, active = {}, controls = CONTROLS) {
   return (doc.nodes || []).filter((n) => shown(n, new Set()))
 }
 
+// Which step a move lands on. Pure, and the only place the rules live: a step
+// may be named by its key, its label or its number; a step that is switched
+// off is passed over, in the direction of travel, and only when there is
+// nothing that way is the other direction tried.
+
+/** A step named by key, label or number → its index, or -1. */
+export function resolveStep(steps, which) {
+  if (Number.isInteger(which)) return which >= 0 && which < steps.length ? which : -1
+  return steps.findIndex((s) => s.key === which || s.label === which)
+}
+
+/**
+ * The step actually reached when aiming at `index`.
+ * @param disabled  indexes switched off
+ * @param direction 'next' | 'back' | 'jump'
+ * @param from      where we are now, for when nothing is open either way
+ */
+export function reachableStep(count, index, disabled = [], direction = 'next', from = 0) {
+  if (count <= 0) return 0
+  const off = (i) => disabled.includes(i)
+  const clamp = (i) => Math.min(Math.max(i, 0), count - 1)
+  const way = direction === 'back' ? -1 : 1
+  let i = clamp(index)
+  while (i >= 0 && i < count && off(i)) i += way
+  if (i < 0 || i >= count) {
+    i = clamp(index)
+    while (i >= 0 && i < count && off(i)) i -= way
+  }
+  return i >= 0 && i < count ? i : clamp(from)
+}
+
+/** The nearest open step in this direction, or null when there is none. */
+export function nextOpenStep(count, at, disabled = [], direction = 'next') {
+  const step = direction === 'back' ? -1 : 1
+  const aim = at + step
+  if (aim < 0 || aim >= count) return null
+  const i = reachableStep(count, aim, disabled, direction, at)
+  return i === at || disabled.includes(i) ? null : i
+}
+
 /** Merges a geometry patch — what the canvas reports on drop. */
 export function moveNode(doc, id, patch) {
   const geometry = {}

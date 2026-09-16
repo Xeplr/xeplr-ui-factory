@@ -8,7 +8,7 @@ export {
   DOCUMENT_KIND, DOCUMENT_VERSION, DEFAULT_ASPECT, DEFAULT_WIDTH, MARGIN, GAP,
   createScreen, renameScreen, setScreenProperty, addControl, moveNode, setNodeProperty, getNodeProperty, removeNodes,
   inputNodes, readingOrder, contentBottom, camelName, slugify, uniqueFieldName, nextPosition,
-  steppers, stepsOf, stepOf, setNodeStep, nodesForSteps
+  steppers, stepsOf, stepOf, setNodeStep, nodesForSteps, resolveStep, reachableStep, nextOpenStep
 } from './document.js'
 export { validateDocument, assertValidDocument } from './validateDocument.js'
 export { formSchema, initialValues, parseInput, validateValues, fieldError, sameId, optionValue, chooseable, saveState, recordValues, displayValue, fileLabel, toDbValue, fromDbValue, listColumns, listSource } from './values.js'

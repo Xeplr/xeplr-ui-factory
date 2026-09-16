@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CONTROLS, CHOICE_TYPES } from './controls.js'
-import { inputNodes, nodesForSteps, steppers, stepsOf, stepOf } from './document.js'
+import { inputNodes, nodesForSteps, steppers, stepsOf, stepOf, resolveStep, reachableStep, nextOpenStep } from './document.js'
 import { validateDocument } from './validateDocument.js'
 import { initialValues, parseInput, saveState, fieldError, optionValue, recordValues, listSource } from './values.js'
 import { hookMethod } from './hooks.js'
@@ -152,6 +152,9 @@ export function useFactoryScreen({
   // the fields of the steps not showing are still filled in, still checked and
   // still saved — a step is what the person sees, not a separate form.
   const [openSteps, setOpenSteps] = useState({})
+  // Steps the app has switched off — { stepper id: [index, …] }. A screen may
+  // have branches; which of them apply is the app's to say, from its hooks.
+  const [disabledSteps, setDisabledSteps] = useState({})
   const stepperNodes = useMemo(() => (check.ok ? steppers(doc, controls) : []), [check.ok, doc, controls])
   const visibleNodes = useMemo(() => (check.ok ? nodesForSteps(doc, openSteps, controls) : []), [check.ok, doc, openSteps, controls])
 
@@ -173,42 +176,104 @@ export function useFactoryScreen({
 
   const stepControl = useMemo(() => {
     const at = (id) => (Number.isInteger(openSteps[id]) ? openSteps[id] : 0)
-    return {
+    const only = () => (stepperNodes.length === 1 ? stepperNodes[0].id : null)
+    const nodeFor = (id) => stepperNodes.find((n) => n.id === id) || stepperNodes[0] || null
+    const lastOf = (id) => stepsOf(nodeFor(id)).length - 1
+    /** A step named by its key ("planning"), its label, or its number from 0. */
+    const indexOf = (id, which) => resolveStep(stepsOf(nodeFor(id)), which)
+    const offList = (id) => disabledSteps[id] || []
+    const isOff = (id, index) => offList(id).includes(index)
+    const reachable = (id, index, direction) => reachableStep(lastOf(id) + 1, index, offList(id), direction, at(id))
+    const setOff = (id, list) => setDisabledSteps((d) => ({ ...d, [id || only()]: list }))
+
+    const control = {
       nodes: stepperNodes,
       active: at,
-      count: (id) => stepsOf(stepperNodes.find((n) => n.id === id)).length,
+      count: (id) => stepsOf(nodeFor(id)).length,
+      labels: (id) => stepsOf(nodeFor(id)),
+      indexOf,
+      /** Is this step switched off — shown, but not one you can be on? */
+      isDisabled: (id, index) => isOff(id, index),
+      disabled: (id) => (disabledSteps[id || only()] || []).slice(),
+      /**
+       * Switch steps off (a key, a number, or a list of them). A step that is
+       * off cannot be reached by Next, Back or a click, and Next passes over
+       * it. Switching off the step someone is on moves them to the nearest one
+       * that is open.
+       */
+      disable: (which, id) => {
+        const on = id || only()
+        if (!on) return []
+        const add = (Array.isArray(which) ? which : [which]).map((w) => indexOf(on, w)).filter((i) => i >= 0)
+        const next = [...new Set([...(disabledSteps[on] || []), ...add])]
+        setOff(on, next)
+        return next
+      },
+      /** Switch them back on. No arguments switches every step of it back on. */
+      enable: (which, id) => {
+        const on = id || only()
+        if (!on) return []
+        if (which === undefined) { setOff(on, []); return [] }
+        const drop = (Array.isArray(which) ? which : [which]).map((w) => indexOf(on, w))
+        const next = (disabledSteps[on] || []).filter((i) => !drop.includes(i))
+        setOff(on, next)
+        return next
+      },
       /**
        * Move, if the app's `step` hook lets it: false keeps the person where
        * they are, a number sends them somewhere else. The hook runs for Next,
        * Back and a click on the bar alike, so a rule cannot be walked around.
        */
       go: async (id, index, direction) => {
-        const from = at(id)
-        const last = stepsOf(stepperNodes.find((n) => n.id === id)).length - 1
-        const to = Math.min(Math.max(index, 0), Math.max(last, 0))
+        const on = id || only()
+        const from = at(on)
+        const way = direction || (index > from ? 'next' : 'back')
+        const to = reachable(on, indexOf(on, index), way)
         if (to === from) return from
         const decide = hookMethod(hooksRef.current, 'step')
         const answer = await decide({
           from,
           to,
-          direction: direction || (to > from ? 'next' : 'back'),
+          direction: way,
           values: live.current.values,
-          stepper: id,
+          stepper: on,
           screen: doc.id,
-          document: doc
+          document: doc,
+          // What the hook can DO from here: send them somewhere, or say which
+          // steps this answer makes beside the point.
+          steps: control,
+          go: (where) => control.go(on, where, 'jump'),
+          disable: (which) => control.disable(which, on),
+          enable: (which) => control.enable(which, on)
         })
         if (answer === false) return from
-        const where = Number.isInteger(answer) ? Math.min(Math.max(answer, 0), Math.max(last, 0)) : to
-        setOpenSteps((o) => ({ ...o, [id]: where }))
+        const asked = Number.isInteger(answer) || typeof answer === 'string' ? indexOf(on, answer) : to
+        const where = reachable(on, asked >= 0 ? asked : to, way)
+        setOpenSteps((o) => ({ ...o, [on]: where }))
         return where
+      },
+      /** The next step in this direction that is open, for Back and Next. */
+      nextOpen: (id, direction) => {
+        const on = id || only()
+        return nextOpenStep(lastOf(on) + 1, at(on), offList(on), direction)
       },
       /** The fields on this step, so Next can hold at a step that is not filled in. */
       fieldsOn: (id, index) => inputNodes(doc, controls).filter((n) => {
         const step = stepOf(n)
-        return step && step.of === id && step.index === index
+        return step && step.of === (id || only()) && step.index === index
       })
     }
-  }, [stepperNodes, openSteps, doc, controls])
+    return control
+  }, [stepperNodes, openSteps, disabledSteps, doc, controls])
+
+  live.current.steps = stepControl
+
+  // A step that is switched off cannot be the one showing.
+  useEffect(() => {
+    stepperNodes.forEach((n) => {
+      if (stepControl.isDisabled(n.id, stepControl.active(n.id))) stepControl.go(n.id, stepControl.active(n.id) + 1, 'next')
+    })
+  }, [stepperNodes, stepControl])
 
   // ── a file field's upload ─────────────────────────────────────────────
   const uploadRef = useRef(uploadFile); uploadRef.current = uploadFile
@@ -257,6 +322,9 @@ export function useFactoryScreen({
         const saved = await hook('save')(l.values, {
           ...meta,
           isNew: l.recordId === null || l.recordId === undefined,
+          // Save is where an app usually learns which branch it is on, so it
+          // can switch steps off from here as well as from step().
+          steps: live.current.steps,
           defaults: { save: (vals) => (l.onSave ? l.onSave(vals, meta) : undefined) }
         })
         // A new record's first save creates it; its id makes the next save an update.
@@ -376,6 +444,7 @@ export function useFactoryScreen({
       setLists((l) => ({ ...l, [node.id]: { rows: l[node.id]?.rows || [], loading: true, error: null } }))
       const run = Promise.resolve().then(() => hook('get')({
         many: true, id: null, screen: doc.id, source: src, node, document: doc,
+        steps: live.current.steps,
         defaults: {
           get: () => {
             if (!fetchRecordsRef.current) throw new Error(`No fetchRecords was provided to list "${src}"`)

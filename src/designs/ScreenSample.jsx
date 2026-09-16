@@ -29,17 +29,26 @@ const STATUS = {
  */
 function StepNav({ ctrl, node, children }) {
   const at = ctrl.steps.active(node.id)
-  const last = ctrl.steps.count(node.id) - 1
+  const total = ctrl.steps.count(node.id)
+  const off = ctrl.steps.disabled(node.id)
   const unfinished = ctrl.steps.fieldsOn(node.id, at).filter((n) => ctrl.allErrors[n.props.name])
+  // Back and Next go to the nearest step that is switched on, passing over any
+  // the app has ruled out; null means there is none that way.
+  const back = ctrl.steps.nextOpen(node.id, 'back')
+  const forward = ctrl.steps.nextOpen(node.id, 'next')
   const go = (to, direction) => {
-    if (to > at && unfinished.length) { unfinished.forEach((n) => ctrl.touch(n)); return }
-    ctrl.steps.go(node.id, Math.min(Math.max(to, 0), last), direction)
+    if (to === null) return
+    if (direction === 'next' && unfinished.length) { unfinished.forEach((n) => ctrl.touch(n)); return }
+    ctrl.steps.go(node.id, to, direction)
   }
+  // "Step 2 of 4" counts the steps that apply, not the ones ruled out.
+  const live = total - off.length
+  const place = at - off.filter((i) => i < at).length + 1
   return (
     <div className="xeplr-factory-stepnav">
-      <button type="button" className="xeplr-factory-secondary" onClick={() => go(at - 1, 'back')} disabled={at === 0}>Back</button>
-      <span className="xeplr-factory-stepnav-where">Step {at + 1} of {last + 1}</span>
-      <button type="button" className="xeplr-factory-primary" onClick={() => go(at + 1, 'next')} disabled={at === last}>Next</button>
+      <button type="button" className="xeplr-factory-secondary" onClick={() => go(back, 'back')} disabled={back === null}>Back</button>
+      <span className="xeplr-factory-stepnav-where">Step {place} of {live}</span>
+      <button type="button" className="xeplr-factory-primary" onClick={() => go(forward, 'next')} disabled={forward === null}>Next</button>
       {children}
     </div>
   )
@@ -116,7 +125,11 @@ export default function ScreenSample({ ctrl, className, style, renderPopup }) {
               error={node.props?.name ? ctrl.errors[node.props.name] : undefined}
               options={CHOICE_TYPES.includes(node.type) ? ctrl.optionsFor(node) : undefined}
               upload={node.type === 'file' ? ctrl.upload : undefined}
-              stepper={node.type === 'stepper' ? { active: ctrl.steps.active(node.id), onStep: (i) => ctrl.steps.go(node.id, i, 'jump') } : undefined}
+              stepper={node.type === 'stepper' ? {
+                active: ctrl.steps.active(node.id),
+                isDisabled: (i) => ctrl.steps.isDisabled(node.id, i),
+                onStep: (i) => ctrl.steps.go(node.id, i, 'jump')
+              } : undefined}
               onChange={(raw) => ctrl.setValue(node, raw)}
               onBlur={() => ctrl.touch(node)}
               list={node.type === 'list' ? {
