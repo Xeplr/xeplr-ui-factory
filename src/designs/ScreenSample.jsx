@@ -44,12 +44,20 @@ function StepNav({ ctrl, node, children }) {
   // "Step 2 of 4" counts the steps that apply, not the ones ruled out.
   const live = total - off.length
   const place = at - off.filter((i) => i < at).length + 1
+  // A screen that moves on to something else when it is finished — the next
+  // screen of a flow — has ONE way forward: this form's own steps first, then
+  // that. Two buttons both called Next, one of which skips the steps still to
+  // do, is how a journey gets left half filled in.
+  const handsOn = Boolean(children) && Boolean(ctrl.doneLabel)
+  const lastStep = forward === null
   return (
     <div className="xeplr-factory-stepnav">
       <button type="button" className="xeplr-factory-secondary" onClick={() => go(back, 'back')} disabled={back === null}>Back</button>
       <span className="xeplr-factory-stepnav-where">Step {place} of {live}</span>
-      <button type="button" className="xeplr-factory-primary" onClick={() => go(forward, 'next')} disabled={forward === null}>Next</button>
-      {children}
+      {!(handsOn && lastStep) && (
+        <button type="button" className="xeplr-factory-primary" onClick={() => go(forward, 'next')} disabled={lastStep}>Next</button>
+      )}
+      {(!handsOn || lastStep) && children}
     </div>
   )
 }
