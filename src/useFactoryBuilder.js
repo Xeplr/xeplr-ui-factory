@@ -6,6 +6,7 @@ import {
   removeNodes
 } from './document.js'
 import { validateDocument } from './validateDocument.js'
+import { presetFor, presetProps, presetGroup, presetHints, convertField } from './presets.js'
 
 // The builder's controller: the document being edited, what is selected, and
 // every change the builder can make. No JSX — designs/BuilderSample.jsx draws
@@ -124,11 +125,18 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
 
   const visibleNodes = useMemo(() => nodesForSteps(doc, openSteps, controls), [doc, openSteps, controls])
 
-  /** Adds a control and selects it, so its properties are open straight away. */
+  /**
+   * Adds a control and selects it, so its properties are open straight away.
+   * `type` may be a ready-made field — "preset:email" — which adds its control
+   * with the preset's settings already in it.
+   */
   const addControl = useCallback((type, at) => {
     let added = null
+    const preset = presetFor(type)
     update((d) => {
-      const r = addControlTo(d, type, { at, step: dropStep() }, controls)
+      const r = preset
+        ? addControlTo(d, preset.control, { at, step: dropStep(), props: presetProps(preset), size: preset.size }, controls)
+        : addControlTo(d, type, { at, step: dropStep() }, controls)
       added = r.node
       return r.document
     })
@@ -140,6 +148,21 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
 
   const lockedRef = useRef(lockedNames); lockedRef.current = lockedNames
   const setProperty = useCallback((id, path, value) => update((d) => setNodeProperty(d, id, path, value, controls, { lockedNames: lockedRef.current })), [update, controls])
+
+  /**
+   * A field becomes another kind — a control type ('number') or a ready-made
+   * field ('email'). Returns what did not carry over, in words, for the panel
+   * to say ("the pattern", "the options").
+   */
+  const convertControl = useCallback((id, target) => {
+    let dropped = []
+    update((d) => {
+      const r = convertField(d, id, target, controls, { lockedNames: lockedRef.current })
+      dropped = r.dropped
+      return r.document
+    })
+    return dropped
+  }, [update, controls])
 
   const selectedRef = useRef(selected); selectedRef.current = selected
   const removeSelected = useCallback(() => {
@@ -172,6 +195,8 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
 
   // ── validation + save ─────────────────────────────────────────────────
   const validation = useMemo(() => validateDocument(doc, controls), [doc, controls])
+  /** Fields that read like a ready-made one they are not. Never block anything. */
+  const hints = useMemo(() => presetHints(doc, controls), [doc, controls])
 
   /** Errors grouped by node id, for the canvas and the property panel. */
   const errorsByNode = useMemo(() => {
@@ -224,7 +249,11 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
   const onPublishRef = useRef(onPublish); onPublishRef.current = onPublish
   const [publishing, setPublishing] = useState(false)
   const [publishResult, setPublishResult] = useState(null)   // { ok, message, version?, detail? }
-  const publish = useCallback(async (confirmDrop) => {
+  /**
+   * @param confirmDrop     column names the person agreed to remove
+   * @param confirmConvert  column names the person agreed to convert to their field's new kind
+   */
+  const publish = useCallback(async (confirmDrop, confirmConvert) => {
     if (!onPublishRef.current) return { ok: false }
     const check = validateDocument(docRef.current, controls)
     if (!check.ok) {
@@ -237,7 +266,10 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
     try {
       const saved = await save()
       if (!saved.ok && !saved.busy) throw new Error((saved.errors && saved.errors[0] && saved.errors[0].message) || 'Could not save the draft')
-      const res = await onPublishRef.current(docRef.current, { confirmDrop: Array.isArray(confirmDrop) ? confirmDrop : [] })
+      const res = await onPublishRef.current(docRef.current, {
+        confirmDrop: Array.isArray(confirmDrop) ? confirmDrop : [],
+        confirmConvert: Array.isArray(confirmConvert) ? confirmConvert : []
+      })
       const kept = (res && res.keep) || []
       const r = {
         ok: true,
@@ -248,10 +280,12 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
       setPublishResult(r)
       return r
     } catch (err) {
-      // A removed field would drop a column: not an error, a question.
-      const r = Array.isArray(err.confirm) && err.confirm.length
-        ? { ok: false, confirm: err.confirm, message: err.message }
-        : { ok: false, message: err.message || 'Could not publish', detail: err.detail }
+      // A removed field would drop a column, or a field that changed kind would
+      // convert one: not an error, a question.
+      const asks = (Array.isArray(err.confirm) && err.confirm.length) || (Array.isArray(err.convert) && err.convert.length)
+      const r = asks
+        ? { ok: false, confirm: err.confirm || [], convert: err.convert || [], message: err.message }
+        : { ok: false, message: err.message || 'Could not publish', detail: err.detail, wontFit: err.wontFit }
       setPublishResult(r)
       return r
     } finally {
@@ -288,7 +322,12 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
   return {
     document: doc,
     controls,
-    palette: useMemo(() => controlGroups(controls), [controls]),
+    // The controls, then the ready-made fields made of the ones this registry has.
+    palette: useMemo(() => {
+      const ready = presetGroup()
+      ready.controls = ready.controls.filter((c) => controls[c.icon] && controls[c.icon].input)
+      return ready.controls.length ? [...controlGroups(controls), ready] : controlGroups(controls)
+    }, [controls]),
     selected,
     setSelected,
     selectedNode,
@@ -309,6 +348,8 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
     },
     visibleNodes,
     setProperty,
+    convertControl,
+    hints,
     removeSelected,
     duplicateSelected,
     tables,

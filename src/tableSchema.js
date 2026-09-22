@@ -18,8 +18,12 @@
 // ── CHANGES THAT ARE SAFE, AND CHANGES THAT ARE REFUSED ──────────────────
 //   new field                 ADD COLUMN
 //   wider (varchar 80 → 120, varchar → text, integer → numeric)   ALTER TYPE
-//   narrower, or a different type (text → number)   REFUSED — data would be
-//                             lost or rejected; write that migration by hand
+//   narrower, or a different type (text → number)   REFUSED in a migration file —
+//                             data would be lost or rejected; write that by hand.
+//                             On PUBLISH, a CONVERSION instead (below): the saved
+//                             values are checked first, and the column changes
+//                             only if every one of them fits, and only once the
+//                             person has confirmed
 //   field removed             column KEPT, reported as unused — dropping data
 //                             is a deliberate migration, never a side effect
 //   field renamed             seen as a NEW column beside an unused old one, with
@@ -130,6 +134,11 @@ export function widening(from, to) {
   if (from.type === 'integer' && to.type === 'numeric') return { ok: true }
   // A date becomes that day at midnight; the other way round would lose the time.
   if (from.type === 'date' && to.type === 'timestamp') return { ok: true }
+  // Not safe for ANY data, but safe for data that fits: the value checks in
+  // conversionFor() say whether this table's does.
+  if (convertible(from, to)) {
+    return { ok: false, convert: true, reason: `${describe(from)} → ${describe(to)} changes the kind of value — every saved value has to fit` }
+  }
   return { ok: false, reason: `${describe(from)} → ${describe(to)} is a different kind of value` }
 }
 
@@ -153,7 +162,7 @@ export function diffTables(before, after) {
     const old = was[c.name]
     if (!old) { add.push(c); return }
     const w = widening(old, c)
-    if (!w.ok) refused.push({ column: c.name, reason: w.reason })
+    if (!w.ok) refused.push(w.convert ? { column: c.name, reason: w.reason, convert: { from: old, to: c } } : { column: c.name, reason: w.reason })
     else if (!w.same) alter.push({ from: old, to: c })
   })
   const unused = before.columns.filter((c) => !now[c.name])
@@ -237,6 +246,85 @@ export function dropStatement(t, name) {
   return `ALTER TABLE ${q(t)} DROP COLUMN IF EXISTS ${q(name)};`
 }
 
+// ── conversions: a field that became another kind ────────────────────────
+//
+// "LinkedIn URL" typed as text and later made a number, a date, a yes/no…
+// The column can follow ONLY IF every value already saved in it fits the new
+// kind. For each conversion there are three pieces of SQL, all read-only but
+// the last:
+//
+//   check     how many saved values would NOT fit — publish refuses unless 0
+//   sample    up to five of them, to show the person what is in the way
+//   statement the ALTER, with a USING that turns each value into the new kind
+//
+// Empty text becomes NULL rather than failing: a blank box saved as '' is "no
+// value", in the new kind as in the old.
+//
+// NO "?" ANYWHERE IN THIS SQL. Hosts run it through knex.raw, which reads every
+// ? as a binding placeholder — an optional regex group spelled [+-]? silently
+// became a different pattern. Optional is spelled {0,1}.
+
+const TEXTUAL = ['varchar', 'text']
+const CONVERT_TO_FROM_TEXT = ['integer', 'numeric', 'date', 'timestamp', 'boolean']
+const TRUE_WORDS = "'true','t','yes','y','1'"
+const FALSE_WORDS = "'false','f','no','n','0'"
+
+function convertible(from, to) {
+  if (from.references || to.references) return false
+  if (TEXTUAL.includes(from.type) && CONVERT_TO_FROM_TEXT.includes(to.type)) return true
+  if (TEXTUAL.includes(to.type) && ['integer', 'numeric', 'date', 'timestamp', 'boolean', 'varchar'].includes(from.type)) return true
+  if (from.type === 'numeric' && to.type === 'integer') return true
+  return false
+}
+
+/**
+ * @returns {{ check, sample, statement }} — see above; null when the change is
+ *          not a conversion this knows how to make
+ */
+export function conversionFor(table, from, to) {
+  if (!convertible(from, to)) return null
+  const t = q(table)
+  const c = q(to.name)
+  const txt = `btrim(${c}::text)`
+  let bad
+  let using
+  if (TEXTUAL.includes(to.type)) {
+    // Anything becomes text; a varchar only if it is long enough.
+    bad = to.type === 'varchar' ? `length(${c}::text) > ${to.length}` : 'false'
+    using = `${c}::text`
+  } else if (from.type === 'numeric' && to.type === 'integer') {
+    bad = `${c} <> trunc(${c})`
+    using = `${c}::integer`
+  } else if (to.type === 'integer') {
+    bad = `${txt} <> '' AND NOT (${txt} ~ '^[+-]{0,1}[0-9]{1,9}$')`
+    using = `NULLIF(${txt}, '')::integer`
+  } else if (to.type === 'numeric') {
+    bad = `${txt} <> '' AND NOT (${txt} ~ '^[+-]{0,1}([0-9]+[.]{0,1}[0-9]*|[.][0-9]+)([eE][+-]{0,1}[0-9]+){0,1}$')`
+    using = `NULLIF(${txt}, '')::numeric`
+  } else if (to.type === 'date') {
+    bad = `${txt} <> '' AND NOT (${txt} ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$')`
+    using = `NULLIF(${txt}, '')::date`
+  } else if (to.type === 'timestamp') {
+    bad = `${txt} <> '' AND NOT (${txt} ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}([ T][0-9]{2}:[0-9]{2}(:[0-9]{2}([.][0-9]+){0,1}){0,1}){0,1}$')`
+    using = `NULLIF(${txt}, '')::timestamp`
+  } else if (to.type === 'boolean') {
+    bad = `lower(${txt}) NOT IN (${TRUE_WORDS}, ${FALSE_WORDS}, '')`
+    using = `CASE WHEN lower(${txt}) IN (${TRUE_WORDS}) THEN true WHEN lower(${txt}) IN (${FALSE_WORDS}) THEN false ELSE NULL END`
+  }
+  const where = `${c} IS NOT NULL AND (${bad})`
+  const type = to.type === 'varchar' ? `varchar(${to.length})` : to.type
+  // A boolean field is NOT NULL DEFAULT false (columnForField): blanks become false.
+  const fill = to.notNull && to.default !== undefined
+    ? [`UPDATE ${t} SET ${c} = ${to.default} WHERE ${c} IS NULL;`, `ALTER TABLE ${t} ALTER COLUMN ${c} SET DEFAULT ${to.default};`, `ALTER TABLE ${t} ALTER COLUMN ${c} SET NOT NULL;`]
+    : []
+  return {
+    check: `SELECT count(*)::int AS n FROM ${t} WHERE ${where}`,
+    sample: `SELECT ${c}::text AS v FROM ${t} WHERE ${where} LIMIT 5`,
+    count: `SELECT count(*)::int AS n FROM ${t} WHERE ${c} IS NOT NULL`,
+    statements: [`ALTER TABLE ${t} ALTER COLUMN ${c} TYPE ${type} USING ${using};`, ...fill]
+  }
+}
+
 // ── publish: apply directly ──────────────────────────────────────────────
 //
 // Publishing a screen changes its table straight away — no migration files.
@@ -279,11 +367,19 @@ export function columnFromDatabase(c) {
  * @param options.managed      names ever published as fields on this table
  * @param options.inUse        names other published screens on this table still use
  * @param options.confirmDrop  names the person has confirmed dropping
+ * @param options.convert         true: plan conversions (the caller runs their checks).
+ *                                 OFF by default — a host that does not know about them
+ *                                 must see a refusal, not a plan it would publish
+ *                                 without running (that would skip the ALTER)
+ * @param options.confirmConvert  names the person has confirmed converting
  * @returns {{
  *   table, create,
  *   add, alter,             what will change
  *   drop,                   columns to drop: [{ name }]
  *   unconfirmed,            of those, the ones not yet confirmed — nothing runs until this is empty
+ *   convert,                columns changing kind: [{ column, from, to, check, sample, count }] —
+ *                           the host runs `check` and refuses unless it is 0 for each
+ *   unconfirmedConvert,     of those, the ones not yet confirmed — nothing runs until this is empty
  *   keep,                   columns left in place, with why: [{ name, reason }]
  *   refused,                changes that cannot be made safely: [{ column, reason }] — nothing runs
  *   statements              the SQL, in order — empty while anything is refused or unconfirmed
@@ -294,7 +390,8 @@ export function planTableChange(current, next, options = {}, controls = CONTROLS
   const managed = new Set(options.managed || [])
   const inUse = new Set(options.inUse || [])
   const confirmed = new Set(options.confirmDrop || [])
-  const plan = { table: after.table, create: false, add: [], alter: [], drop: [], unconfirmed: [], keep: [], refused: [], statements: [] }
+  const converting = new Set(options.confirmConvert || [])
+  const plan = { table: after.table, create: false, add: [], alter: [], drop: [], unconfirmed: [], convert: [], unconfirmedConvert: [], keep: [], refused: [], statements: [] }
 
   if (!current) {
     plan.create = true
@@ -309,7 +406,12 @@ export function planTableChange(current, next, options = {}, controls = CONTROLS
   const diff = diffTables({ table: after.table, columns: existing }, after)
   plan.add = diff.add
   plan.alter = diff.alter
-  plan.refused = diff.refused
+  diff.refused.forEach((r) => {
+    const how = options.convert && r.convert && conversionFor(after.table, r.convert.from, r.convert.to)
+    if (!how) { plan.refused.push({ column: r.column, reason: r.reason }); return }
+    plan.convert.push({ column: r.column, from: describe(r.convert.from), to: describe(r.convert.to), check: how.check, sample: how.sample, count: how.count, statements: how.statements })
+  })
+  plan.unconfirmedConvert = plan.convert.filter((c) => !converting.has(c.column)).map((c) => c.column)
 
   diff.unused.forEach((c) => {
     if (!managed.has(c.name)) plan.keep.push({ name: c.name, reason: 'not created by a screen — left as it is' })
@@ -318,9 +420,10 @@ export function planTableChange(current, next, options = {}, controls = CONTROLS
   })
   plan.unconfirmed = plan.drop.filter((d) => !confirmed.has(d.name)).map((d) => d.name)
 
-  if (plan.refused.length || plan.unconfirmed.length) return plan
+  if (plan.refused.length || plan.unconfirmed.length || plan.unconfirmedConvert.length) return plan
   plan.add.forEach((c) => plan.statements.push(...addStatements(after.table, c)))
   plan.alter.forEach(({ from, to }) => plan.statements.push(alterStatement(after.table, from, to)))
+  plan.convert.forEach((c) => plan.statements.push(...c.statements))
   plan.drop.forEach((d) => plan.statements.push(dropStatement(after.table, d.name)))
   return plan
 }

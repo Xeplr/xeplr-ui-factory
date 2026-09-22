@@ -1,6 +1,6 @@
 # @xeplr/ui-factory
 
-**Design data-entry screens, save them as JSON, run them as working forms.** Drag controls onto a canvas, set their labels, validation, options, fonts and colours. The same document renders as a live form in your app that **saves itself** as it is filled in, with a list of the saved records to open, edit or delete.
+**Design data-entry screens, save them as JSON, run them as working forms.** Drag controls onto a canvas, set their labels, validation, options, fonts and colours. The same document renders as a live form in your app, saved by its **Save** button over AJAX, with a list of the saved records to open, edit or delete.
 
 It is built to work with Claude: ask for *"a form for employees with name, email, department and start date"*, and Claude creates **two screens** — an employee **list** and an **add / edit** form that the list's Edit and New open in a popup — plus the two pages that show them. A person then refines either one in the designer.
 
@@ -92,7 +92,11 @@ import { FactoryScreen } from '@xeplr/ui-factory'
 />
 ```
 
-**There is no submit.** The screen saves itself in the background (one AJAX call to your `onSave`) a moment after a change, once the entered values are acceptable. Until then it says what is missing — "Fill in the required fields to save" — and a field's message appears once the person has been in it. The first save of a new record creates it: return the saved record and its `id` makes every later save an update.
+**Save is a button and an AJAX call — never a form submit.** Nothing is written while the person types: the footer says "Unsaved changes" until they press **Save**, which makes one call to your `onSave`. There is no `<form>` post and Enter saves nothing. If something is missing, Save marks every field that needs attention instead of sending. The first save of a new record creates it: return the saved record and its `id` makes every later save an update.
+
+- With `onDone` (a page, or the list's popup), the footer has **Cancel** and **Save**. Save saves and then calls `onDone`. Cancel calls `onDone` without saving, asking first if anything is unsaved. Without `onDone` (a form embedded in a page) there is Save alone, and it shows "Saved".
+- Leaving with unsaved changes asks first: Cancel, the popup's ×/Escape, a list-on-the-form opening another record, and closing or reloading the tab. **In-app navigation (a side-rail click) is the host router's to guard** — `ctrl.dirty` / `onDirtyChange(dirty)` say when there is something to lose.
+- `useFactoryScreen` returns `save()` (the button), `dirty`, `confirmDiscard()` and `flush()` (save only if unsaved — what a flow's Next does). `AUTOSAVE_DELAY` and `autosaveDelay` are gone.
 
 If `onSave` throws an error with `fields: [{ field, message }]` (what `createFactoryApi` does with the server's 422 — a rule, or a hook's `reject`), each message shows on its field until that field is changed.
 
@@ -143,7 +147,7 @@ const taskHooks = new TaskHooks()
 | method | default | ctx |
 |---|---|---|
 | `get(ctx)` | `fetchRecords` for a list, `fetchRecord` for the record Edit opens | `many`, `id`, `screen`, `source` |
-| `save(values, ctx)` | `onSave` — on every autosave; return the saved record | `id`, `isNew`, `screen`, `source` |
+| `save(values, ctx)` | `onSave` — when Save is pressed; return the saved record | `id`, `isNew`, `screen`, `source` |
 | `delete(record, ctx)` | `onDelete`, after the person confirmed | `id`, `screen`, `source` |
 | `actions(ctx)` | `[]` — extra row buttons `{ label, onClick(record, ctx) }` beside Edit / Delete | `screen`, `refresh()` |
 
@@ -153,7 +157,7 @@ Rules that must hold belong in the server's hooks; the browser only shapes what 
 
 ### Lists of saved records
 
-A **List** control shows the records of the table the screen saves to (or another), in `@xeplr/ui-table`, with the columns you tick. Its **Edit in** names the edit screen: **Edit** and **New** open that screen in a popup, where it saves itself and the list refreshes behind it.
+A **List** control shows the records of the table the screen saves to (or another), in `@xeplr/ui-table`, with the columns you tick. Its **Edit in** names the edit screen: **Edit** and **New** open that screen in a popup: its Save saves, closes the popup and refreshes the list; Cancel closes it unsaved.
 
 **Opens in: a page of its own** sends them to a page in your app instead. The factory has no router, so it asks — `onOpenRecord` on the list's screen, and `onDone` on the page, which draws a **Done** button that saves what is pending and calls it:
 
@@ -207,7 +211,7 @@ that does — Xeplr Workflow — so a run remembers where it got to: a journey c
 be left and picked up later, by someone else, on another day. Without such a
 service there are no flows; the factory has no engine of its own, on purpose.
 
-**Each screen still saves itself, into its own table.** What travels with the
+**Each screen still saves into its own table** — the flow's **Next** saves what is unsaved (one AJAX call) and then moves on. What travels with the
 run is only what the arrows need and the id of the row that was written
 (`recordId`), so the data is exactly where it would be without a flow.
 
@@ -231,10 +235,10 @@ Both walk someone through something, and they answer different questions:
 
 | type | value | validation |
 |---|---|---|
-| `text` | string | `minLength`, `maxLength`, `pattern`, `patternMessage` |
+| `text` | string | `minLength`, `maxLength`, `pattern`, `patternMessage` — and `inputType` (`text`, `email`, `tel`, `url`): the phone keyboard and autofill |
 | `textarea` | string | `minLength`, `maxLength` |
 | `number` | number | `min`, `max`, `integer` |
-| `date` | `"YYYY-MM-DD"` | `min`, `max` |
+| `date` | `"YYYY-MM-DD"` | `min`, `max`, `notFuture` (on or before today, whenever it is filled in) |
 | `datetime` | `"YYYY-MM-DDTHH:MM"` | `min`, `max` |
 | `checkbox` | boolean | `required` = must be ticked |
 | `dropdown` | option id | — |
@@ -245,10 +249,68 @@ Both walk someone through something, and they answer different questions:
 | `label` | — | text with a heading, subheading or text preset |
 | `list` | — | saved records, with New / Edit / Delete |
 
-A screen is a **sheet**: it paints its own surface, so a screen designed in
-dark ink stays readable inside a dark app. Give the screen a `background` in
-its own style to change it, or set `--xeplr-factory-paper` on the host for all
-of them.
+A screen is a **sheet**, centred in the space it is given and shown at its
+design width: an elevated card in the app's theme (`--xeplr-bg-tertiary`, with
+`--xeplr-border-primary` round it) — white in a light app, the lighter grey in
+a dark one, with inputs in the theme's input colours. A screen whose style sets
+its own `color` / `background` keeps them everywhere, input boxes included, so
+dark ink on paper is never shown on a dark theme's input. Set
+`--xeplr-factory-paper` on the host to change every sheet. A screen with no
+fields (only lists) draws **no** sheet — the list is its own card.
+
+Under the fields sits **one footer**, inset to line up with them: Back and
+Next, then "Step 2 of 3" with the save status under it ("Unsaved changes",
+"Saved"), then Cancel and Save. A screen without steps has the status, Cancel
+and Save alone.
+
+A **list** is a single card, as tall as its rows: the title and + New sit in
+the table's own toolbar, paging appears only when there is more than one page,
+and "Nothing saved yet." shows under the title when there are no rows.
+
+### Ready-made fields
+
+Twelve fields nobody should have to design twice, in the builder's palette under
+**Common fields**: Email, Phone, LinkedIn profile, Website, Age, Date of birth,
+Gender (Male, Female, Others), Country, Amount, Percentage, Yes / No, Postal code.
+
+| field | made of | what it sets |
+|---|---|---|
+| Email / Phone / Website / LinkedIn profile | `text` | `inputType` (email, tel, url keyboards), a `pattern` with a plain-English message, a placeholder, a `maxLength` |
+| Postal code | `text` | letters, digits, spaces and `-`, up to 10 |
+| Age | `number` | a whole number, 0–130 |
+| Amount / Percentage | `number` | 0 or more / 0–100 |
+| Date of birth | `date` | `notFuture` |
+| Gender / Yes / No | `radio`, side by side | its options |
+| Country | `dropdown` | every country — stored as its ISO code (`IN`), shown by name |
+
+A ready-made field is **not a new control**: its settings are copied into an
+ordinary one, where they stay editable, and `props.preset` remembers where it
+came from. Changing the catalogue never changes a form already made with it.
+The rules are the field's own, so the server enforces them like any others.
+
+**Any field can change kind at any time** — the panel's **Field type**, at the
+top, lists the controls and the ready-made fields. The label, name, position,
+step and required are kept; whatever does not carry over is said ("Not carried
+over: the pattern"). A name that is already a column is never changed.
+
+**Forgot?** A plain field whose label reads like a ready-made one ("LinkedIn
+URL" as a text box) gets an offer in its panel — **Make it LinkedIn profile** /
+**Keep as is** — and the builder's bar counts them ("1 suggestion"). They never
+stop a save or a publish; **Keep as is** sets `preset: false` and stops asking.
+
+**When the column has to follow.** A change of kind that stays text (text →
+LinkedIn) publishes as usual. One that changes the column's kind (text → Age,
+a number) is a **conversion**: publishing first checks every saved value, across
+every company. If any will not fit, nothing changes and the publish says which
+("`age` has 1 saved value that cannot become integer ("forty")"). If all fit,
+it asks — **Convert and publish** — and then converts, blanks becoming empty.
+A timestamp → date, or a dropdown moved to another table, is still refused.
+
+In code: `FIELD_PRESETS`, `presetFor`, `presetProps`, `suggestPreset(label)`,
+`presetHints(doc)`, `convertField(doc, id, target, controls, { lockedNames })`,
+and `conversionFor(table, from, to)` / `planTableChange(…, { confirmConvert })`.
+The builder hook adds `convertControl(id, target)` and `hints`; `publish(confirmDrop,
+confirmConvert)`.
 
 Every control also takes `style` — see [AUTHORING.md](./AUTHORING.md#styles) for the keys. Sizes are pixels at the screen's design `width` (default 800): a screen is shown at that size, never stretched, and scaled down only on a narrower display.
 
@@ -304,8 +366,7 @@ same for a screen with more than one (`ctx.steps.disable('approval', stepperId)`
 learns which branch it is on. "Step 2 of 4" counts only the steps that apply.
 
 **A step is not a separate form.** Every field is a column, is checked, and is
-saved, whichever step is showing — a screen still saves itself as it is filled
-in. **Next** holds at a step whose own fields are not filled in, and says which,
+saved, whichever step is showing — Save can be pressed on any step. **Next** holds at a step whose own fields are not filled in, and says which,
 rather than moving on and leaving a problem behind where nobody is looking.
 
 ### Options: dropdown, radio group, multi-select
@@ -377,7 +438,9 @@ Layout is **proportional**, like `@xeplr/ui-canvas` dashboards: `x` and `w` are 
 
 ## Theming
 
-Styles are namespaced `.xeplr-factory-*` and read the xeplr theme variables with light fallbacks: `--xeplr-accent`, `--xeplr-text`, `--xeplr-muted`, `--xeplr-border`, `--xeplr-surface`, `--xeplr-danger`, `--xeplr-input-bg`, `--xeplr-input-border`.
+Styles are namespaced `.xeplr-factory-*` and read `@xeplr/ui-account`'s theme variables (theme.css), each with a light fallback: `--xeplr-accent`, `--xeplr-accent-text`, `--xeplr-text-primary`, `--xeplr-text-secondary`, `--xeplr-border-primary`, `--xeplr-bg-primary` (the builder's plane), `--xeplr-bg-tertiary` (sheets, panels, popups), `--xeplr-bg-hover`, `--xeplr-bg-overlay`, `--xeplr-input-bg`, `--xeplr-input-border`, `--xeplr-success`, `--xeplr-warning`, `--xeplr-danger`. The screen, builder and popup follow the app's light or dark theme with the @xeplr/ui-table inside them — never a white sheet in a dark app.
+
+Buttons, steps and list actions all show hover, a visible press, and a keyboard-only focus ring.
 
 ## Try it
 
@@ -393,11 +456,12 @@ src/
   controls.js            ─ the control registry: palette, property panel contract, rules
   document.js            ─ create and edit screen documents
   validateDocument.js    ─ the document checker
-  values.js              ─ values, validation, autosave readiness, records and list columns, formSchema
+  values.js              ─ values, validation, whether Save can go out, records and list columns, formSchema
   generate.js            ─ screenFromSpec, screensFromSpec (list + edit), entity names
   scaffold.js            ─ an entity → its screen JSON, .jsx pages (with front-end hooks), server hooks + model stubs
   hooks.js               ─ FactoryHooks: get / save / delete / actions — extend and call super
-  tableSchema.js         ─ a form → its table; the publish plan (create / add / widen / confirmed drops)
+  presets.js             ─ ready-made fields (Email, Age, Gender…), changing a field's kind, label suggestions
+  tableSchema.js         ─ a form → its table; the publish plan (create / add / widen / confirmed drops and conversions)
   remote.js              ─ createFactoryApi({ fetch }): the calls to @xeplr/factory's routes — fetch may be window.fetch or @xeplr/ui-account's authFetch (which returns parsed bodies); includes createEntity({ key, label })
   model.js               ─ everything above, React-free
   useFactoryBuilder.js   ─ builder controller

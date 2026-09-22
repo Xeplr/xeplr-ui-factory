@@ -26,6 +26,7 @@
 import { CONTROLS, CHOICE_TYPES } from './controls.js'
 import { createScreen, addControl, MARGIN, GAP, slugify, camelName, stepsOf } from './document.js'
 import { assertValidDocument } from './validateDocument.js'
+import { presetFor, presetProps, suggestPreset } from './presets.js'
 
 /** Heights by control, as page fractions (a page is as tall as it is wide). */
 export const SPEC_HEIGHTS = {
@@ -45,7 +46,7 @@ export const SPEC_HEIGHTS = {
  */
 export const ROW_GAP = 0.04
 
-const FIELD_KEYS = ['type', 'label', 'name', 'required', 'placeholder', 'default', 'validation', 'data', 'options', 'table', 'layout', 'accept', 'maxSize', 'step', 'steps', 'showNumbers', 'width', 'text', 'variant', 'style']
+const FIELD_KEYS = ['type', 'preset', 'label', 'name', 'required', 'placeholder', 'default', 'validation', 'data', 'options', 'table', 'layout', 'accept', 'maxSize', 'step', 'steps', 'showNumbers', 'width', 'text', 'variant', 'style']
 const SPEC_KEYS = ['name', 'id', 'source', 'columns', 'heading', 'fields', 'list', 'aspect', 'width', 'style']
 const LIST_KEYS = ['title', 'source', 'columns', 'pageSize', 'actions', 'style']
 
@@ -58,6 +59,12 @@ const LIST_KEYS = ['title', 'source', 'columns', 'pageSize', 'actions', 'style']
  *   fields    in reading order. Each: { label, type?='text', name?, required?, placeholder?,
  *             default?, validation?, width?: 'half'|'full' }
  *             dropdown: options: ['Full time', …] or [{ id, name }]  —or—  table: 'departments'
+ *             READY-MADE: `type` may be a preset key — 'email', 'phone', 'url', 'linkedin',
+ *             'age', 'dateOfBirth', 'gender', 'country', 'amount', 'percentage', 'yesNo',
+ *             'postalCode' (presets.js) — or `preset: '<key>'`. A field with NO type and
+ *             no options is matched by its label: { label: 'Age' } is a whole number 0–130,
+ *             { label: 'LinkedIn URL' } a LinkedIn address. `type: 'text'` opts out.
+ *             Anything the field also gives (label, required, validation…) wins.
  *             section heading: { type: 'label', text, variant?: 'subheading' }
  *   source?   the table records are saved to, e.g. 'employees'
  *   width?    design width in px (default 800) — style sizes are px at this width
@@ -65,7 +72,8 @@ const LIST_KEYS = ['title', 'source', 'columns', 'pageSize', 'actions', 'style']
  *   list?     true, or { title, source, columns: [{ field, label }], pageSize, actions } —
  *             a list of the saved records below the fields, with New / Edit / Delete
  *
- * There is no submit button: a screen saves itself as it is filled in.
+ * Do not add a button control for saving: every screen already has Save (and
+ * Cancel where it can go back) in its footer — an AJAX call, never a form submit.
  */
 export function screenFromSpec(spec, controls = CONTROLS) {
   if (!spec || typeof spec !== 'object') throw new Error('screenFromSpec: spec must be an object')
@@ -134,14 +142,19 @@ export function screenFromSpec(spec, controls = CONTROLS) {
     const at = `spec.fields[${i}]`
     if (!field || typeof field !== 'object') throw new Error(`screenFromSpec: ${at} must be an object`)
     unknownKeys(field, FIELD_KEYS, at)
-    const type = field.type || 'text'
-    if (!controls[type]) throw new Error(`screenFromSpec: ${at}.type "${type}" is not a control — one of: ${Object.keys(controls).join(', ')}`)
+    // A ready-made field: named (type or preset), or recognised from a label
+    // that says nothing else about itself.
+    const bare = !field.type && !field.preset && !field.options && !field.table && !field.data
+    const preset = presetFor(field.preset) || presetFor(field.type) || (bare ? suggestPreset(field.label) : null)
+    if (field.preset && !presetFor(field.preset)) throw new Error(`screenFromSpec: ${at}.preset "${field.preset}" is not a ready-made field`)
+    const type = preset ? preset.control : (field.type || 'text')
+    if (!controls[type]) throw new Error(`screenFromSpec: ${at}.type "${type}" is not a control or a ready-made field — controls: ${Object.keys(controls).join(', ')}`)
     if (field.width !== undefined && field.width !== 'half' && field.width !== 'full') throw new Error(`screenFromSpec: ${at}.width must be "half" or "full"`)
     if (field.step !== undefined) {
       if (!stepper) throw new Error(`screenFromSpec: ${at}.step needs a stepper before it — { "type": "stepper", "steps": [...] }`)
       openStep(field.step)
     }
-    place(type, propsFromField(type, field, at), field.width)
+    place(type, preset ? withPreset(preset, propsFromField(type, { ...field, type }, at, true), field) : propsFromField(type, field, at), field.width)
   })
 
   if (col > 0) { y += rowH + ROW_GAP; col = 0; rowH = 0 }
@@ -157,7 +170,17 @@ export function screenFromSpec(spec, controls = CONTROLS) {
   return assertValidDocument(doc, controls)
 }
 
-function propsFromField(type, field, at) {
+/** A preset's props under what the field itself gave. */
+function withPreset(preset, own, field) {
+  const base = presetProps(preset)
+  const out = { ...base, ...own }
+  // Rules merge key by key: { label: 'Age', validation: { max: 120 } } keeps min and integer.
+  if (base.validation || own.validation) out.validation = { ...(base.validation || {}), ...(own.validation || {}) }
+  if (!field.label) out.label = base.label
+  return out
+}
+
+function propsFromField(type, field, at, fromPreset) {
   if (type === 'stepper') {
     const steps = field.steps
     if (!Array.isArray(steps) || steps.length < 2) throw new Error(`screenFromSpec: ${at} is a stepper — give it steps: ["Connect", "Transform", …]`)
@@ -175,13 +198,15 @@ function propsFromField(type, field, at) {
     if (field.style) props.style = field.style
     return props
   }
-  if (!field.label) throw new Error(`screenFromSpec: ${at}.label is required`)
-  const props = { label: field.label }
+  if (!field.label && !fromPreset) throw new Error(`screenFromSpec: ${at}.label is required`)
+  const props = field.label ? { label: field.label } : {}
   ;['name', 'required', 'placeholder', 'default', 'validation', 'style'].forEach((k) => {
     if (field[k] !== undefined) props[k] = field[k]
   })
-  if (type === 'dropdown' && props.placeholder === undefined) props.placeholder = 'Select…'
-  if (CHOICE_TYPES.includes(type)) {
+  if (type === 'dropdown' && props.placeholder === undefined && !fromPreset) props.placeholder = 'Select…'
+  if (CHOICE_TYPES.includes(type) && fromPreset && !field.options && !field.table && !field.data) {
+    if (field.layout !== undefined && type !== 'dropdown') props.layout = field.layout
+  } else if (CHOICE_TYPES.includes(type)) {
     props.data = dataFromField(field, at, type)
     if (field.layout !== undefined && type !== 'dropdown') props.layout = field.layout
     // A field reading another table stores that row's id: name the column

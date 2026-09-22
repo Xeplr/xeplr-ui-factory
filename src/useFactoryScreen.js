@@ -7,11 +7,14 @@ import { hookMethod } from './hooks.js'
 
 // A saved screen, running. No JSX — designs/ScreenSample.jsx draws it.
 //
-// ── NO SUBMIT ────────────────────────────────────────────────────────────
-// The screen saves ITSELF, in the background, a moment after the person stops
-// changing something — once what is entered is acceptable. There is no button
-// to press and no page to post. The first save of a new record creates it
-// (the host hands back its id); every save after that updates the same record.
+// ── SAVED BY A BUTTON, OVER AJAX — NEVER A FORM SUBMIT ───────────────────
+// Nothing is written while the person types. Changes are held in the form
+// ("Unsaved changes") until they press Save, which makes ONE AJAX call to the
+// host's onSave. There is no <form> post and no page reload — and no
+// background save either: a half-typed record never lands in the table. The
+// first save of a new record creates it (the host hands back its id); every
+// save after that updates the same record. Leaving with unsaved changes asks
+// first (Cancel, the popup's ×, closing the tab).
 //
 // ── THE DATABASE IS THE HOST'S ───────────────────────────────────────────
 // Everything that reads or writes data is a call the host supplies:
@@ -25,9 +28,6 @@ import { hookMethod } from './hooks.js'
 // A list whose `editScreen` names another screen opens that screen in a popup
 // for Edit and New. The screen comes from `screens` ({ id → document }) or the
 // host's `loadScreen(id)`. The list refreshes as the popup saves.
-
-/** Quiet time after the last change before a save goes out. */
-export const AUTOSAVE_DELAY = 700
 
 /**
  * @param document      a valid screen document
@@ -45,14 +45,14 @@ export const AUTOSAVE_DELAY = 700
  * @param fetchRecord   async ({ screen, id }) → record — Edit loads the record fresh (through the server's get hooks)
  * @param screens       { id → document } — screens a list's Edit / New can open
  * @param loadScreen    async (id) → document — for screens not in `screens`
- * @param autosaveDelay ms (default 700)
+ * @param onDirtyChange (dirty) → void — whether there are unsaved changes, as that changes
  * @param controls      the control registry (default: the built-ins)
  * @param hooks         a FactoryHooks (or an object with some of its methods) — get / save / delete / actions
  */
 export function useFactoryScreen({
   document: doc, record, recordKey = 'id', onSave, fetchOptions, fetchRecords, fetchRecord, onDelete, onChange, screens, loadScreen, hooks, uploadFile, fileUrl,
-  onOpenRecord, onDone,
-  autosaveDelay = AUTOSAVE_DELAY, controls = CONTROLS
+  onOpenRecord, onDone, onDirtyChange,
+  controls = CONTROLS
 } = {}) {
   const check = useMemo(() => validateDocument(doc, controls), [doc, controls])
   // Read at call time, so a new hooks object never re-runs loads by itself.
@@ -105,7 +105,7 @@ export function useFactoryScreen({
   const [values, setValues] = useState(() => (check.ok ? startValues(record) : {}))
   const [recordId, setRecordId] = useState(() => (record ? record[recordKey] ?? null : null))
   const [touched, setTouched] = useState(() => new Set())
-  const [status, setStatus] = useState('idle')    // idle | pending | saving | saved | incomplete | invalid | error
+  const [status, setStatus] = useState('idle')    // idle | pending (unsaved changes) | saving | saved | incomplete | invalid | error
   const [saveError, setSaveError] = useState(null)
   const [savedAt, setSavedAt] = useState(null)
   const [listVersion, setListVersion] = useState(0)
@@ -113,7 +113,17 @@ export function useFactoryScreen({
   // Shown like the form's own, and cleared as soon as that field is changed.
   const [serverErrors, setServerErrors] = useState({})
 
-  // Latest of everything a delayed save needs, read at the moment it runs.
+  // UNSAVED CHANGES: every change bumps `changes`; a save records which count
+  // it wrote. A change made while a save was on the wire stays unsaved.
+  const changes = useRef(0)
+  const savedChanges = useRef(0)
+  const [dirty, setDirtyState] = useState(false)
+  const onDirtyRef = useRef(onDirtyChange); onDirtyRef.current = onDirtyChange
+  const setDirty = useCallback((d) => {
+    setDirtyState((was) => { if (was !== d) onDirtyRef.current?.(d); return d })
+  }, [])
+
+  // Latest of everything a save needs, read at the moment it runs.
   const live = useRef({})
   live.current = { doc, values, recordId, touched, source, onSave, controls, recordKey }
 
@@ -300,19 +310,25 @@ export function useFactoryScreen({
     [check.ok, doc, values, touched, loadedItems, controls])
 
   // ── saving ────────────────────────────────────────────────────────────
-  const timer = useRef(null)
   const inFlight = useRef(null)     // the promise of the save running now
-  const again = useRef(false)       // a change arrived while it ran
 
+  /** Save — what the Save button does. One AJAX call; never on its own. */
   const runSave = useCallback(async () => {
-    clearTimeout(timer.current)
-    timer.current = null
-    if (inFlight.current) { again.current = true; return inFlight.current }
+    if (inFlight.current) return inFlight.current
     const l = live.current
     const st = saveState(l.doc, l.values, l.touched, l.loadedItems, l.controls)
-    if (!st.canSave) { setStatus(st.status); return { ok: false, errors: st.errors } }
+    if (!st.canSave) {
+      // Pressing Save is the moment to say what is missing — on every field,
+      // including the ones nobody has been in yet.
+      const t = new Set([...l.touched, ...Object.keys(st.errors)])
+      live.current.touched = t
+      setTouched(t)
+      setStatus('invalid')
+      return { ok: false, errors: st.errors }
+    }
     const customSave = hooksRef.current && typeof hooksRef.current.save === 'function'
-    if (!l.onSave && !customSave) { setStatus('saved'); return { ok: true } }
+    const writing = changes.current
+    if (!l.onSave && !customSave) { savedChanges.current = writing; setDirty(false); setStatus('saved'); return { ok: true } }
 
     setStatus('saving')
     setSaveError(null)
@@ -332,9 +348,12 @@ export function useFactoryScreen({
           setRecordId(saved[l.recordKey])
           live.current.recordId = saved[l.recordKey]
         }
+        savedChanges.current = writing
+        const still = changes.current !== writing
+        setDirty(still)
         setSavedAt(new Date())
         setListVersion((v) => v + 1)
-        setStatus('saved')
+        setStatus(still ? 'pending' : 'saved')
         return { ok: true, record: saved }
       } catch (err) {
         const onFields = Array.isArray(err.fields) ? err.fields.filter((f) => f && f.field && f.message) : []
@@ -349,27 +368,36 @@ export function useFactoryScreen({
         return { ok: false, error: err }
       } finally {
         inFlight.current = null
-        if (again.current) { again.current = false; schedule() }  // eslint-disable-line no-use-before-define
       }
     })()
     inFlight.current = task
     return task
-  }, [])
+  }, [setDirty])
 
-  const schedule = useCallback(() => {
-    clearTimeout(timer.current)
-    setStatus('pending')
-    timer.current = setTimeout(runSave, autosaveDelay)
-  }, [runSave, autosaveDelay])
-
-  /** Save any pending change right away — before opening another record, say. */
+  /** Save if there is anything unsaved — what a flow's Next does before moving on. */
   const flush = useCallback(async () => {
-    if (timer.current || again.current) return runSave()
-    if (inFlight.current) return inFlight.current
+    if (inFlight.current) await inFlight.current
+    if (changes.current !== savedChanges.current) return runSave()
     return { ok: true }
   }, [runSave])
 
-  useEffect(() => () => clearTimeout(timer.current), [])
+  /**
+   * May the person leave? True when nothing is unsaved, or when they agree to
+   * lose it. Cancel, the popup's × and opening another record all ask this.
+   */
+  const confirmDiscard = useCallback(() => {
+    if (changes.current === savedChanges.current) return true
+    // eslint-disable-next-line no-alert
+    return typeof window === 'undefined' || window.confirm('Discard your unsaved changes?')
+  }, [])
+
+  // Closing the tab or reloading with unsaved changes: the browser's own prompt.
+  useEffect(() => {
+    if (!dirty || typeof window === 'undefined') return undefined
+    const warn = (e) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [dirty])
 
   // ── editing ───────────────────────────────────────────────────────────
   const onChangeRef = useRef(onChange); onChangeRef.current = onChange
@@ -395,8 +423,10 @@ export function useFactoryScreen({
       setTouched(t)
     }
     onChangeRef.current?.(next)
-    schedule()
-  }, [optionsFor, schedule])
+    changes.current += 1
+    setDirty(true)
+    setStatus('pending')
+  }, [optionsFor, setDirty])
 
   /** Leaving a field shows its message, even if nothing was typed. */
   const touch = useCallback((node) => {
@@ -407,9 +437,12 @@ export function useFactoryScreen({
     setTouched(t)
   }, [])
 
-  /** Open a record: whatever was pending is saved first. */
+  /** Open a record (null: a new one). Unsaved changes are dropped — ask confirmDiscard first. */
   const openRecord = useCallback(async (rec) => {
-    await flush()
+    if (inFlight.current) await inFlight.current
+    changes.current = 0
+    savedChanges.current = 0
+    setDirty(false)
     const next = startValues(rec)
     live.current.values = next
     live.current.recordId = rec ? rec[recordKey] ?? null : null
@@ -420,7 +453,7 @@ export function useFactoryScreen({
     setSaveError(null)
     setServerErrors({})
     setStatus('idle')
-  }, [flush, startValues, recordKey])
+  }, [startValues, recordKey, setDirty])
 
   const newRecord = useCallback(() => openRecord(null), [openRecord])
 
@@ -490,7 +523,6 @@ export function useFactoryScreen({
     })
     // Deleting the record that is open leaves nothing to save into.
     if (id !== undefined && id === live.current.recordId) {
-      clearTimeout(timer.current); timer.current = null
       await openRecord(null)
     }
     setListVersion((v) => v + 1)
@@ -576,7 +608,10 @@ export function useFactoryScreen({
     upload,
     fileUrl,
     flush,
+    save: runSave,
     saveNow: runSave,
+    dirty,
+    confirmDiscard,
     openRecord,
     newRecord,
     listFor,

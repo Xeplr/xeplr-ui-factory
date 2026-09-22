@@ -11,15 +11,31 @@ import { CHOICE_TYPES } from '../controls.js'
 // The screen is never wider than the width it was designed at, so what was
 // designed at 800px is shown at 800px, and only a narrower screen scales it.
 //
-// NO SUBMIT. The status line says what the background save is doing.
+// SAVE IS A BUTTON, AND AN AJAX CALL — never a form submit. The <form> below
+// exists for semantics only: its submit is swallowed, so Enter in a field
+// posts nothing and saves nothing. Only the Save button saves.
+//
+// ONE FOOTER. Back, "Step 2 of 3" with the save status under it, then Next,
+// Cancel and Save — a single bar under the fields, inset by the screen's
+// margin so its edges line up with theirs.
 
 const STATUS = {
   idle: '',
-  pending: 'Unsaved changes…',
+  pending: 'Unsaved changes',
   saving: 'Saving…',
-  saved: 'All changes saved',
-  incomplete: 'Fill in the required fields to save',
+  saved: 'Saved',
+  incomplete: 'Fill in the required fields',
   invalid: 'Fix the highlighted fields to save'
+}
+
+/** What the background save is doing, in words. */
+function SaveStatus({ ctrl }) {
+  const text = ctrl.status === 'error' ? `Not saved — ${ctrl.saveError}` : STATUS[ctrl.status]
+  return (
+    <span className={`xeplr-factory-footer-status xeplr-factory-footer-status--${ctrl.status}`} role="status" aria-live="polite">
+      {text}
+    </span>
+  )
 }
 
 /**
@@ -27,7 +43,7 @@ const STATUS = {
  * filled in — and shows why, rather than moving on and leaving a problem
  * behind on a step nobody is looking at.
  */
-function StepNav({ ctrl, node, children }) {
+function StepNav({ ctrl, node, status, children }) {
   const at = ctrl.steps.active(node.id)
   const total = ctrl.steps.count(node.id)
   const off = ctrl.steps.disabled(node.id)
@@ -51,29 +67,60 @@ function StepNav({ ctrl, node, children }) {
   const handsOn = Boolean(children) && Boolean(ctrl.doneLabel)
   const lastStep = forward === null
   return (
-    <div className="xeplr-factory-stepnav">
+    // Moving between steps (Back, Next) sits on the left as quiet buttons;
+    // Save — the one thing that writes — is the only filled button, on the
+    // right. In a flow, Next IS the way forward, so there it stays filled.
+    <div className="xeplr-factory-footer xeplr-factory-stepnav">
       <button type="button" className="xeplr-factory-secondary" onClick={() => go(back, 'back')} disabled={back === null}>Back</button>
-      <span className="xeplr-factory-stepnav-where">Step {place} of {live}</span>
-      {!(handsOn && lastStep) && (
-        <button type="button" className="xeplr-factory-primary" onClick={() => go(forward, 'next')} disabled={lastStep}>Next</button>
+      {!handsOn && (
+        <button type="button" className="xeplr-factory-secondary" onClick={() => go(forward, 'next')} disabled={lastStep}>Next</button>
+      )}
+      <div className="xeplr-factory-footer-mid">
+        <span className="xeplr-factory-stepnav-where">Step {place} of {live}</span>
+        {status}
+      </div>
+      {handsOn && !lastStep && (
+        <button type="button" className="xeplr-factory-primary" onClick={() => go(forward, 'next')}>Next</button>
       )}
       {(!handsOn || lastStep) && children}
     </div>
   )
 }
 
-/** Leaves the page — after whatever is still being saved has gone out. */
-function DoneButton({ ctrl }) {
-  const saving = ctrl.status === 'pending' || ctrl.status === 'saving'
+/**
+ * The ways out, at the end of the footer.
+ *
+ *   Save    one AJAX call. On a page or in a popup (the host gave onDone) it
+ *           then goes back; a form embedded in a page stays, showing "Saved".
+ *   Cancel  goes back without saving — asking first if anything is unsaved.
+ *           Only where there is somewhere to go back to.
+ *
+ * Inside a flow the flow names the button (doneLabel, "Next"): it saves what
+ * is unsaved, then moves the journey on — one button, not two.
+ */
+function SaveButtons({ ctrl }) {
+  const saving = ctrl.status === 'saving'
+  if (ctrl.doneLabel) {
+    return (
+      <button type="button" className="xeplr-factory-primary" disabled={saving}
+        onClick={() => ctrl.flush().then((r) => { if (r && r.ok) ctrl.done(r) })}>
+        {ctrl.doneLabel}
+      </button>
+    )
+  }
+  const save = () => ctrl.save().then((r) => { if (r && r.ok && ctrl.done) ctrl.done() })
   return (
-    <button
-      type="button"
-      className={ctrl.doneLabel ? 'xeplr-factory-primary' : 'xeplr-factory-secondary'}
-      disabled={!ctrl.canSave && ctrl.status === 'invalid'}
-      onClick={() => ctrl.flush().then(ctrl.done, ctrl.done)}
-    >
-      {saving ? 'Saving…' : (ctrl.doneLabel || 'Done')}
-    </button>
+    <>
+      {ctrl.done && (
+        <button type="button" className="xeplr-factory-secondary" disabled={saving}
+          onClick={() => { if (ctrl.confirmDiscard()) ctrl.done() }}>
+          Cancel
+        </button>
+      )}
+      <button type="button" className="xeplr-factory-primary" disabled={saving} onClick={save}>
+        {saving ? 'Saving…' : 'Save'}
+      </button>
+    </>
   )
 }
 
@@ -97,26 +144,22 @@ export default function ScreenSample({ ctrl, className, style, renderPopup }) {
   const shown = ctrl.visibleNodes && ctrl.visibleNodes.length ? ctrl.visibleNodes : doc.nodes
   const pageHeight = (contentBottom(doc, shown) + MARGIN) * aspect * 100
   const fieldNodes = inputNodes(doc)
-  const statusText = ctrl.status === 'error' ? `Not saved — ${ctrl.saveError}` : STATUS[ctrl.status]
-  // A screen with no fields of its own (a list screen) has nothing to save.
+  // A screen with no fields of its own (a list screen) has nothing to save —
+  // and no sheet: its list is the card (factory.css, --bare).
   const hasFields = fieldNodes.length > 0
+  const status = hasFields ? <SaveStatus ctrl={ctrl} /> : null
+  const steppers = ctrl.steps.nodes
 
   return (
     <div
-      className={'xeplr-factory-screen' + (className ? ' ' + className : '')}
-      style={{ maxWidth: doc.width, ...screenStyle(doc), ...style }}
+      className={'xeplr-factory-screen' + (hasFields ? '' : ' xeplr-factory-screen--bare') + (className ? ' ' + className : '')}
+      style={{ maxWidth: doc.width, '--xf-margin': `${MARGIN * 100}%`, ...screenStyle(doc), ...style }}
     >
-      {hasFields && (
-        <div className={`xeplr-factory-status xeplr-factory-status--${ctrl.status}`} role="status" aria-live="polite">
-          <span>{ctrl.recordId !== null && ctrl.recordId !== undefined ? 'Editing record' : 'New record'}</span>
-          <span>{statusText}</span>
-        </div>
-      )}
       <form
         className="xeplr-factory-page"
         style={{ height: `${pageHeight}cqw` }}
-        // Enter in a field saves now rather than posting a page.
-        onSubmit={(e) => { e.preventDefault(); ctrl.saveNow() }}
+        // Never a submit: Enter posts nothing and saves nothing. Save is a button.
+        onSubmit={(e) => e.preventDefault()}
         noValidate
         aria-label={doc.name}
       >
@@ -156,22 +199,30 @@ export default function ScreenSample({ ctrl, className, style, renderPopup }) {
                 extraActions: ctrl.actionsFor ? ctrl.actionsFor(node) : [],
                 // A list with an edit screen opens it in a popup; one on a form
                 // opens the row in the form's own fields.
-                onEdit: (rec) => (node.props.editScreen ? ctrl.openEditor(node, rec) : ctrl.openRecord(rec)),
+                // A list on the form itself swaps the record in the fields — so
+                // unsaved changes to the one showing are asked about first.
+                onEdit: (rec) => (node.props.editScreen ? ctrl.openEditor(node, rec) : (ctrl.confirmDiscard() && ctrl.openRecord(rec))),
                 // eslint-disable-next-line no-alert
                 onDelete: (rec) => ctrl.deleteRecord(node, rec).catch((err) => window.alert(err.message || 'Could not delete')),
-                onNew: () => (node.props.editScreen ? ctrl.openEditor(node, null) : ctrl.newRecord())
+                onNew: () => (node.props.editScreen ? ctrl.openEditor(node, null) : (ctrl.confirmDiscard() && ctrl.newRecord()))
               } : undefined}
             />
           </div>
         ))}
       </form>
-      {ctrl.steps.nodes.map((node, i) => (
-        <StepNav key={node.id} ctrl={ctrl} node={node}>
-          {ctrl.done && i === ctrl.steps.nodes.length - 1 && <DoneButton ctrl={ctrl} />}
-        </StepNav>
-      ))}
-      {ctrl.done && !ctrl.steps.nodes.length && (
-        <div className="xeplr-factory-done"><DoneButton ctrl={ctrl} /></div>
+      {steppers.map((node, i) => {
+        const last = i === steppers.length - 1
+        return (
+          <StepNav key={node.id} ctrl={ctrl} node={node} status={last ? status : null}>
+            {last && (hasFields || ctrl.doneLabel) && <SaveButtons ctrl={ctrl} />}
+          </StepNav>
+        )
+      })}
+      {!steppers.length && (hasFields || ctrl.doneLabel) && (
+        <div className="xeplr-factory-footer">
+          <div className="xeplr-factory-footer-mid">{status}</div>
+          <SaveButtons ctrl={ctrl} />
+        </div>
       )}
       {ctrl.popup && renderPopup && renderPopup(ctrl.popup, ctrl)}
     </div>

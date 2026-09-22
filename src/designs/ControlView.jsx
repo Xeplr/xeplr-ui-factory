@@ -65,12 +65,21 @@ function inputProps(node, p, error, disabled, onBlur) {
   }
 }
 
+// What each keyboard setting makes the box: its type (the phone keyboard) and
+// what the browser's autofill offers.
+const TEXT_INPUT = {
+  email: { type: 'email', autoComplete: 'email', inputMode: 'email' },
+  tel: { type: 'tel', autoComplete: 'tel', inputMode: 'tel' },
+  url: { type: 'url', autoComplete: 'url', inputMode: 'url' }
+}
+
 function TextView({ node, p, value, error, onChange, onBlur, disabled }) {
+  const kind = TEXT_INPUT[p.inputType] || { type: 'text' }
   return (
     <Field node={node} p={p} error={error}>
       <input
         className="xeplr-factory-input"
-        type="text"
+        {...kind}
         placeholder={p.placeholder || ''}
         value={value ?? ''}
         onChange={(e) => onChange(e.target.value)}

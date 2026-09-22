@@ -40,12 +40,22 @@ export function boxStyle(style) {
   })
 }
 
-/** The screen's defaults, on its container: what every control inherits. */
+/**
+ * The screen's defaults, on its container: what every control inherits.
+ *
+ * A screen with no colours of its own follows the app's theme (factory.css).
+ * One that sets them keeps them EVERYWHERE — its ink and paper become the
+ * tokens the controls read, input boxes included — so a screen designed dark
+ * ink on white is never shown as that ink on a dark theme's input box.
+ */
 export function screenStyle(doc) {
   const s = doc.style || {}
   return clean({
     '--xf-width': doc.width,
     '--xf-font': s.fontSize,
+    '--xf-ink': s.color,
+    '--xf-surface': s.background,
+    '--xf-field-bg': s.background,
     fontFamily: s.fontFamily,
     color: s.color,
     background: s.background

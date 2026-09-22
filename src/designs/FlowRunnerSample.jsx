@@ -4,9 +4,9 @@ import ScreenSample from './ScreenSample.jsx'
 // A flow, running: the screen the run is parked on, and one button forward.
 //
 // Presentation only — everything comes from useFlowRun and useFactoryScreen.
-// The screen saves itself into its own table exactly as it does anywhere else;
-// "Next" hands the run what was filled in, and the run says which screen comes
-// after it. Nothing here knows the journey.
+// "Next" saves the screen into its own table (one AJAX call, only if anything
+// is unsaved), then hands the run what was filled in, and the run says which
+// screen comes after it. Nothing here knows the journey.
 
 export default function FlowRunnerSample({ run, screen, className, style, title, renderDone }) {
   const values = useRef({})
@@ -47,7 +47,9 @@ export default function FlowRunnerSample({ run, screen, className, style, title,
           ...screen,
           // The flow's forward button IS the screen's own, renamed: one button,
           // not two that both look like the way on.
-          done: () => run.submit(values.current, record.current),
+          // The id comes from the save that Next just made when there was one:
+          // a new record's id has not reached the ref yet (that is a render away).
+          done: (r) => run.submit(values.current, r && r.record && r.record[screen.recordKey] != null ? r.record[screen.recordKey] : record.current),
           doneLabel: run.sending ? 'Saving…' : 'Next'
         }}
       />

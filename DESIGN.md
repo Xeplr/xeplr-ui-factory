@@ -12,7 +12,7 @@ Design a screen on the shared canvas, save it as metadata, render it as a workin
 | First use | **Data-entry forms** (e.g. "New employee"). |
 | Linking objects together | **Phase 2**, with workflow. Phase 1 has no cross-object links. |
 | Property panel | Built in the factory, using BI's contract shape `{ key, title, fields: [{ path, label, type }] }`. |
-| Saving | **Automatic, no submit.** A screen saves itself (host `onSave`, AJAX) a moment after a valid change; the builder saves the design the same way. |
+| Saving | **A Save button, over AJAX — never a form submit.** A screen writes nothing until Save is pressed (one host `onSave` call); Cancel leaves unsaved, asking first. (Corrected 2026-09-18: "no submit" meant no HTML form submit, not no Save button. Screens used to autosave.) The builder still saves its *draft* design automatically — nobody sees a draft until Publish. |
 | Styles | **Every look is a property** — font, size, weight, italic, alignment, colours, border, radius, label style; screen-wide defaults. Sizes are px at the design `width`; never enlarged. |
 | Records | **List control** — saved records in `@xeplr/ui-table`, with New / Edit / Delete; host `fetchRecords` / `onDelete`. |
 | Entities | **Two screens per entity**: `<entity>_list` (a list whose Edit / New open…) and `<entity>_edit` (…the add / edit form, in a popup). Claude generates both plus `EntityList.jsx` / `EditEntity.jsx`; an app shows Screen · List, Screen · Edit, Designer · List, Designer · Edit. |

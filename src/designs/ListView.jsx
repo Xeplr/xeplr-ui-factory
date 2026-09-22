@@ -73,28 +73,47 @@ export default function ListView({ node, doc, design, list, onEdit, onDelete, on
     rowActions.push({ key: 'extra-' + i + '-' + a.label, label: a.label, variant: a.variant, onClick: (row) => a.onClick(row.__record) })
   })
 
-  return (
-    <div className="xeplr-factory-list" style={style}>
-      <div className="xeplr-factory-list-head">
-        <span className="xeplr-factory-list-title">{p.title}</span>
-        {list.loading && <span className="xeplr-factory-hint">Loading…</span>}
-        {list.error && <span className="xeplr-factory-error-inline" role="alert">{list.error}</span>}
-        {actions.includes('new') && (
-          <button type="button" className="xeplr-factory-list-new" onClick={onNew}>+ New</button>
-        )}
+  const pageSize = p.pageSize || 10
+  const title = <span className="xeplr-factory-list-title">{p.title}</span>
+  const notes = (
+    <>
+      {list.loading && <span className="xeplr-factory-hint">Loading…</span>}
+      {list.error && <span className="xeplr-factory-error-inline" role="alert">{list.error}</span>}
+    </>
+  )
+  const newButton = actions.includes('new') && (
+    <button type="button" className="xeplr-factory-list-new" onClick={onNew}>+ New</button>
+  )
+
+  // ONE CARD. With rows, the title and + New ride in the table's own toolbar
+  // rather than in a header bar stacked on top of it — two bars, two frames,
+  // and a "Clear Sort" nobody asked for. Paging shows only when there is more
+  // than one page of it.
+  // Nothing to show yet: the header alone, over the empty state. (Loading and
+  // errors over rows already shown stay in the toolbar — the table does not
+  // blink away on every refresh.)
+  if (rows.length === 0) {
+    return (
+      <div className="xeplr-factory-list" style={style}>
+        <div className="xeplr-factory-list-head">{title}{notes}{newButton}</div>
+        {!list.loading && !list.error && <div className="xeplr-factory-list-empty">Nothing saved yet.</div>}
       </div>
-      {!list.loading && !list.error && rows.length === 0 ? (
-        <div className="xeplr-factory-list-empty">Nothing saved yet.</div>
-      ) : (
-        <XeplrTable
-          data={rows}
-          schema={{ 0: { key: listSource(doc, node) || 'records', columns: columns.map((c) => ({ accessor: c.field, header: c.label })) } }}
-          pageSize={p.pageSize || 10}
-          rowActions={rowActions.length ? rowActions : undefined}
-          rowClassName={(row) => (currentId !== null && currentId !== undefined && row.__record && row.__record[recordKey] === currentId ? 'xeplr-factory-row-open' : null)}
-          enableFiltering={rows.length > 5}
-        />
-      )}
+    )
+  }
+
+  return (
+    <div className="xeplr-factory-list xeplr-factory-list--table" style={style}>
+      <XeplrTable
+        data={rows}
+        schema={{ 0: { key: listSource(doc, node) || 'records', columns: columns.map((c) => ({ accessor: c.field, header: c.label })) } }}
+        pageSize={pageSize}
+        enablePagination={rows.length > pageSize}
+        rowActions={rowActions.length ? rowActions : undefined}
+        rowClassName={(row) => (currentId !== null && currentId !== undefined && row.__record && row.__record[recordKey] === currentId ? 'xeplr-factory-row-open' : null)}
+        enableFiltering={rows.length > 5}
+        toolbarLeading={() => <>{title}{notes}</>}
+        toolbarActions={() => newButton || null}
+      />
     </div>
   )
 }

@@ -13,6 +13,7 @@
 import { CONTROLS, LABEL_VARIANTS, LIST_ACTIONS, STYLE_KEYS, SCREEN_STYLE_KEYS, LAYOUTS, MULTI_SEPARATOR, MAX_FILE_MB, STEP_LIMIT, acceptList } from './controls.js'
 import { DOCUMENT_KIND, DOCUMENT_VERSION } from './document.js'
 import { RESERVED_COLUMNS, MAX_IDENTIFIER } from './tableSchema.js'
+import { FIELD_PRESETS, INPUT_TYPES, presetFor } from './presets.js'
 
 const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 const TABLE_NAME = /^[A-Za-z_][A-Za-z0-9_.$-]*$/
@@ -88,6 +89,9 @@ export function validateDocument(doc, controls = CONTROLS) {
       if (!nonEmptyString(props.label)) err(`${at}.props.label`, 'is required — the text shown above the field')
       if (props.required !== undefined && typeof props.required !== 'boolean') err(`${at}.props.required`, 'must be true or false')
       if (props.placeholder !== undefined && typeof props.placeholder !== 'string') err(`${at}.props.placeholder`, 'must be a string')
+      // Where the field came from (a ready-made field's key), or false: plain on purpose.
+      if (props.preset !== undefined && props.preset !== false && !presetFor(props.preset)) err(`${at}.props.preset`, `"${props.preset}" is not a ready-made field — one of: ${FIELD_PRESETS.map((p) => p.key).join(', ')}, or false`)
+      if (props.inputType !== undefined && !INPUT_TYPES.includes(props.inputType)) err(`${at}.props.inputType`, `must be one of: ${INPUT_TYPES.join(', ')}`)
       checkDefault(node, def, at, err)
       checkValidation(node, def, at, err)
     }
@@ -234,7 +238,7 @@ function checkValidation(node, def, at, err) {
     const val = v[key]
     if (key === 'minLength' || key === 'maxLength') {
       if (!(Number.isInteger(val) && val >= 0)) err(path, 'must be a whole number, 0 or more')
-    } else if (key === 'integer') {
+    } else if (key === 'integer' || key === 'notFuture') {
       if (typeof val !== 'boolean') err(path, 'must be true or false')
     } else if (key === 'pattern') {
       try { new RegExp(val) } catch (_) { err(path, `"${val}" is not a valid regular expression`) }

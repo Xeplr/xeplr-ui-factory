@@ -1,6 +1,16 @@
 /* @xeplr/ui-factory — builder and screen.
-   Colours come from the xeplr theme variables, each with a light fallback, so
-   a host that defines none still gets a finished look.
+   Colours come from the app's theme — @xeplr/ui-account's --xeplr-* variables
+   (theme.css) — each with a light fallback, so a host that defines none still
+   gets a finished look.
+
+   THE REAL NAMES, NOT LOOK-ALIKES. This file used to read --xeplr-text,
+   --xeplr-surface, --xeplr-border and --xeplr-muted, which no theme defines —
+   so every fallback won, and in a dark app a screen came out as a white sheet
+   while the @xeplr/ui-table inside it (which reads the real names) came out
+   dark. Everything below resolves through the --xf-* tokens, and those read
+   the variables theme.css actually sets. "Elevated" is --xeplr-bg-tertiary in
+   every built-in theme (white in light, the lighter grey in dark), which is
+   what a sheet, a panel and a popup are.
 
    ONE SIZE UNIT, --xf-u: one pixel at the screen's design width (--xf-width,
    set from the document). At that width or wider it IS a pixel — text is
@@ -12,11 +22,24 @@
 .xeplr-factory-flow-builder {
   container-type: inline-size;
   --xf-u: min(1px, calc(100cqw / var(--xf-width, 800)));
+}
+.xeplr-factory-screen,
+.xeplr-factory-canvas,
+.xeplr-factory-flow-builder,
+.xeplr-factory-builder,
+.xeplr-factory-modal-backdrop {
   --xf-accent: var(--xeplr-accent, #2563eb);
-  --xf-ink: var(--xeplr-text, #1a1a19);
-  --xf-muted: var(--xeplr-muted, #6b6a63);
-  --xf-border: var(--xeplr-border, #d9d8d0);
-  --xf-surface: var(--xeplr-surface, #ffffff);
+  --xf-accent-ink: var(--xeplr-accent-text, #ffffff);
+  --xf-ink: var(--xeplr-text-primary, #1a1a19);
+  --xf-muted: var(--xeplr-text-secondary, #6b6a63);
+  --xf-border: var(--xeplr-border-primary, #d9d8d0);
+  --xf-surface: var(--xeplr-bg-tertiary, #ffffff);
+  --xf-plane: var(--xeplr-bg-primary, #f7f7f5);
+  --xf-hover: var(--xeplr-bg-hover, #f0f0ee);
+  --xf-field-bg: var(--xeplr-input-bg, var(--xf-surface));
+  --xf-field-border: var(--xeplr-input-border, var(--xf-border));
+  --xf-good: var(--xeplr-success, #1d7a4c);
+  --xf-warn: var(--xeplr-warning, #a86a00);
   --xf-danger: var(--xeplr-danger, #c2372e);
 }
 
@@ -28,21 +51,19 @@
    host with --xeplr-factory-paper. */
 .xeplr-factory-screen {
   position: relative; width: 100%;
+  /* Centred in whatever it is given: shown at its design width, a screen that
+     hugs the left edge of a wide page looks abandoned there. */
+  margin-inline: auto;
+  box-sizing: border-box;
   color: var(--xf-ink);
   background: var(--xeplr-factory-paper, var(--xf-surface));
-  border-radius: calc(8 * var(--xf-u));
+  border: 1px solid var(--xf-border);
+  border-radius: 10px;
 }
-/* The status line and the step buttons live on the sheet, so they keep a
-   margin of their own rather than touching its edge. */
-.xeplr-factory-screen > .xeplr-factory-status,
-.xeplr-factory-screen > .xeplr-factory-stepnav,
-.xeplr-factory-screen > .xeplr-factory-done { padding-inline: calc(12 * var(--xf-u)); }
-.xeplr-factory-status {
-  display: flex; justify-content: space-between; gap: 12px; min-height: 18px;
-  padding: 4px 2px 8px; font-size: 12px; color: var(--xf-muted);
-}
-.xeplr-factory-status--saved { color: var(--xeplr-status-good, #1d7a4c); }
-.xeplr-factory-status--invalid, .xeplr-factory-status--error { color: var(--xf-danger); }
+/* A screen of lists only (nothing to fill in) paints no sheet: the list is
+   its own card, and a sheet around it is a second frame with a block of empty
+   paper under the rows. */
+.xeplr-factory-screen--bare { background: none; border: none; }
 .xeplr-factory-page { position: relative; width: 100%; margin: 0; }
 .xeplr-factory-node { position: absolute; box-sizing: border-box; }
 
@@ -66,15 +87,17 @@
 .xeplr-factory-required { color: var(--xf-danger); }
 .xeplr-factory-input {
   flex: 1; min-height: 0; width: 100%; box-sizing: border-box;
-  /* The screen's own colours, never the host theme's input tokens: a dark theme
-     would give the box a dark background while the text stays the screen's
-     dark ink — unreadable. A screen's look is its style properties. */
-  font: inherit; color: var(--xf-ink); background: var(--xf-surface);
-  border: 1px solid var(--xf-border); border-radius: calc(6 * var(--xf-u));
+  /* The app's input colours — unless the SCREEN sets its own colours, when
+     screenStyle points --xf-ink / --xf-field-bg at those, so a screen designed
+     in dark ink on paper never gets a dark theme's box under that ink. */
+  font: inherit; color: var(--xf-ink); background: var(--xf-field-bg);
+  border: 1px solid var(--xf-field-border); border-radius: calc(6 * var(--xf-u));
   padding: 0 calc(10 * var(--xf-u));
+  transition: border-color .12s, box-shadow .12s;
 }
+.xeplr-factory-input:hover { border-color: color-mix(in srgb, var(--xf-accent) 45%, var(--xf-field-border)); }
 .xeplr-factory-textarea { padding-block: calc(8 * var(--xf-u)); resize: none; }
-.xeplr-factory-input:focus { outline: 2px solid color-mix(in srgb, var(--xf-accent) 40%, transparent); border-color: var(--xf-accent); }
+.xeplr-factory-input:focus { outline: none; border-color: var(--xf-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--xf-accent) 25%, transparent); }
 .xeplr-factory-field.has-error .xeplr-factory-input { border-color: var(--xf-danger); }
 .xeplr-factory-error {
   /* In the gap BELOW the field, out of flow: a message appearing must not
@@ -92,7 +115,10 @@
    list of options cannot cover the next field. */
 .xeplr-factory-choices { display: flex; gap: calc(6 * var(--xf-u)) calc(16 * var(--xf-u)); overflow: auto; min-height: 0; }
 .xeplr-factory-choices--vertical { flex-direction: column; }
-.xeplr-factory-choices--horizontal { flex-direction: row; flex-wrap: wrap; align-items: center; }
+/* Side by side, the options sit in the band an input box would fill — so a
+   row of radios beside a dropdown lines up with the dropdown's box, not with
+   its label. */
+.xeplr-factory-choices--horizontal { flex: 1; flex-direction: row; flex-wrap: wrap; align-items: center; align-content: center; }
 .xeplr-factory-choice { display: flex; align-items: center; gap: calc(8 * var(--xf-u)); cursor: pointer; color: var(--xf-ink); }
 .xeplr-factory-choice input { width: calc(16 * var(--xf-u)); height: calc(16 * var(--xf-u)); min-width: 11px; min-height: 11px; margin: 0; accent-color: var(--xf-accent); }
 
@@ -100,48 +126,81 @@
 .xeplr-factory-file { display: flex; align-items: center; gap: calc(8 * var(--xf-u)); min-width: 0; }
 .xeplr-factory-file-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--xf-ink); }
 .xeplr-factory-file-clear {
-  flex: none; border: 1px solid var(--xf-border); background: var(--xf-surface); color: var(--xf-muted);
+  flex: none; border: 1px solid var(--xf-field-border); background: var(--xf-field-bg); color: var(--xf-muted);
   border-radius: calc(6 * var(--xf-u)); padding: calc(3 * var(--xf-u)) calc(8 * var(--xf-u)); cursor: pointer; font: inherit;
 }
 .xeplr-factory-file-clear:hover { color: var(--xf-ink); border-color: var(--xf-accent); }
 .xeplr-factory-file-input { padding: calc(5 * var(--xf-u)); }
 
 /* ── stepper ──────────────────────────────────────────────────────────────
-   The journey across the top: a circle per step, joined by a line. The line is
-   drawn behind the circles, from the middle of one to the middle of the next. */
-.xeplr-factory-stepper { display: flex; align-items: center; width: 100%; height: 100%; overflow: hidden; }
+   The journey across the top: a circle per step, joined by a line. The line
+   runs from the EDGE of one circle to the edge of the next, with a small gap —
+   never through them. (It used to run centre to centre behind the circles,
+   and each step's line was painted after the previous step's circle, so it
+   struck straight through the numbers.) --xf-mark is the circle's size. */
+.xeplr-factory-stepper {
+  --xf-mark: max(22px, calc(28 * var(--xf-u)));
+  display: flex; align-items: center; width: 100%; height: 100%; overflow: hidden;
+}
 .xeplr-factory-steps { display: flex; align-items: flex-start; width: 100%; margin: 0; padding: 0; list-style: none; }
 .xeplr-factory-step { flex: 1; position: relative; min-width: 0; text-align: center; }
 .xeplr-factory-step + .xeplr-factory-step::before {
-  content: ''; position: absolute; top: calc(13 * var(--xf-u)); right: 50%; left: -50%; height: 2px;
+  content: ''; position: absolute;
+  top: calc(var(--xf-mark) / 2 - 1px); height: 2px; border-radius: 1px;
+  left: calc(-50% + var(--xf-mark) / 2 + 8px);
+  right: calc(50% + var(--xf-mark) / 2 + 8px);
   background: var(--xf-border);
+  transition: background .2s;
 }
 .xeplr-factory-step.is-active::before, .xeplr-factory-step.is-done::before { background: var(--xf-accent); }
 .xeplr-factory-step-button {
-  position: relative; display: flex; flex-direction: column; align-items: center; gap: calc(4 * var(--xf-u));
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: calc(6 * var(--xf-u));
   width: 100%; padding: 0; border: none; background: none; color: var(--xf-muted); font: inherit; cursor: pointer;
 }
 .xeplr-factory-step-mark {
-  display: flex; align-items: center; justify-content: center;
-  width: calc(26 * var(--xf-u)); height: calc(26 * var(--xf-u)); min-width: 18px; min-height: 18px;
-  border-radius: 50%; background: var(--xf-border); color: var(--xf-ink); font-weight: 600;
+  display: flex; align-items: center; justify-content: center; box-sizing: border-box;
+  width: var(--xf-mark); height: var(--xf-mark);
+  border-radius: 50%; border: 2px solid var(--xf-border); background: var(--xf-surface);
+  color: var(--xf-muted); font-weight: 600; font-size: .9em; line-height: 1;
+  transition: background .2s, border-color .2s, box-shadow .2s, transform .08s;
 }
+.xeplr-factory-step-button:hover .xeplr-factory-step-mark { border-color: var(--xf-accent); }
+.xeplr-factory-step-button:active .xeplr-factory-step-mark { transform: scale(.92); }
 .xeplr-factory-step-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
-.xeplr-factory-step.is-active .xeplr-factory-step-mark,
-.xeplr-factory-step.is-done .xeplr-factory-step-mark { background: var(--xf-accent); color: #fff; }
+.xeplr-factory-step.is-done .xeplr-factory-step-mark { background: var(--xf-accent); border-color: var(--xf-accent); color: var(--xf-accent-ink); }
+/* Where you are: filled, with a soft halo. */
+.xeplr-factory-step.is-active .xeplr-factory-step-mark {
+  background: var(--xf-accent); border-color: var(--xf-accent); color: var(--xf-accent-ink);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--xf-accent) 22%, transparent);
+}
+.xeplr-factory-step.is-done .xeplr-factory-step-button { color: var(--xf-ink); }
 .xeplr-factory-step.is-active .xeplr-factory-step-button { color: var(--xf-accent); font-weight: 600; }
+.xeplr-factory-step-button:focus { outline: none; }
+.xeplr-factory-step-button:focus-visible .xeplr-factory-step-mark { outline: 2px solid var(--xf-accent); outline-offset: 3px; }
 /* A step the app has ruled out: still shown, so the journey reads the same,
    but plainly not one of the stops. */
 .xeplr-factory-step.is-off .xeplr-factory-step-button { opacity: 0.4; cursor: default; }
 .xeplr-factory-step.is-off .xeplr-factory-step-label { text-decoration: line-through; }
 
-/* Back / Next, under the page. */
-.xeplr-factory-stepnav { display: flex; align-items: center; gap: 12px; padding: 10px 0; }
-.xeplr-factory-stepnav-where { flex: 1; text-align: center; color: var(--xf-muted); font-size: 12px; }
-.xeplr-factory-stepnav button[disabled], .xeplr-factory-done button[disabled] { opacity: 0.45; cursor: default; }
-
-/* Done — a page's way back, when the list opens records on one. */
-.xeplr-factory-done { display: flex; justify-content: flex-end; padding: 10px 0; }
+/* ── the footer ─────────────────────────────────────────────────────────────
+   ONE bar under the fields: Back on the left, where you are and what the save
+   is doing in the middle, the ways forward on the right. Inset by the screen's
+   own margin (--xf-margin, set by ScreenSample) so the buttons line up with
+   the fields' edges instead of poking out past them. */
+.xeplr-factory-footer {
+  display: flex; align-items: center; gap: 10px;
+  margin-top: calc(8 * var(--xf-u));
+  padding: 14px var(--xf-margin, 16px);
+  border-top: 1px solid var(--xf-border);
+}
+.xeplr-factory-footer-mid {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  color: var(--xf-muted); font-size: 12px; text-align: center;
+}
+.xeplr-factory-footer-mid:first-child { align-items: flex-start; text-align: left; }
+.xeplr-factory-footer-status--saved { color: var(--xf-good); }
+.xeplr-factory-footer-status--invalid, .xeplr-factory-footer-status--error { color: var(--xf-danger); }
+.xeplr-factory-footer button[disabled] { opacity: 0.4; cursor: default; }
 
 /* Which step the builder is on. */
 .xeplr-factory-building { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0 auto 8px; padding: 6px 0; }
@@ -159,37 +218,42 @@
 
 /* ── list ───────────────────────────────────────────────────────────────── */
 .xeplr-factory-list {
-  display: flex; flex-direction: column; width: 100%; height: 100%; box-sizing: border-box; overflow: auto;
+  display: flex; flex-direction: column; width: 100%; box-sizing: border-box; overflow: auto;
+  /* As tall as its rows, up to the box it was given — never a frame around a
+     block of empty space under two records. */
+  height: auto; max-height: 100%;
   font-size: max(10px, calc(var(--xf-font, 14) * var(--xf-u)));
-  border: 1px solid var(--xf-border); border-radius: calc(8 * var(--xf-u)); background: var(--xf-surface);
+  border: 1px solid var(--xf-border); border-radius: 10px; background: var(--xf-surface);
 }
-.xeplr-factory-list-head { display: flex; align-items: center; gap: 10px; padding: calc(8 * var(--xf-u)) calc(10 * var(--xf-u)); border-bottom: 1px solid var(--xf-border); }
-.xeplr-factory-list-title { font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xeplr-factory-list-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--xf-border); }
+.xeplr-factory-list-title { font-weight: 600; font-size: 1.05em; color: var(--xf-ink); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .xeplr-factory-list-new {
-  font: inherit; font-weight: 600; font-size: .9em; padding: 3px 10px; border-radius: 5px; cursor: pointer;
-  color: var(--xf-accent); background: transparent; border: 1px solid var(--xf-accent);
+  font: inherit; font-weight: 600; font-size: .9em; padding: 5px 12px; border-radius: 6px; cursor: pointer;
+  color: var(--xf-accent-ink); background: var(--xf-accent); border: 1px solid var(--xf-accent);
 }
+/* The table IS the card here: the list's frame is enough, so the table's own
+   border and corners go, and its toolbar becomes the list's header. */
+.xeplr-factory-list--table { overflow: hidden; }
+.xeplr-factory-list--table .xeplr-table-container { border: none; border-radius: 0; background: transparent; }
+.xeplr-factory-list--table .xeplr-table-toolbar { padding: 12px 14px; background: transparent; gap: 10px; }
+.xeplr-factory-list--design { height: 100%; }
 .xeplr-factory-list-empty { padding: 16px; color: var(--xf-muted); text-align: center; }
 .xeplr-factory-error-inline { color: var(--xf-danger); font-size: .9em; }
 .xeplr-factory-list-mock { width: 100%; border-collapse: collapse; }
 .xeplr-factory-list-mock th { text-align: left; font-weight: 600; font-size: .9em; padding: calc(6 * var(--xf-u)) calc(10 * var(--xf-u)); border-bottom: 1px solid var(--xf-border); color: var(--xf-muted); }
 .xeplr-factory-list-mock td { padding: calc(8 * var(--xf-u)) calc(10 * var(--xf-u)); border-bottom: 1px solid var(--xf-border); }
-.xeplr-factory-list-bar { display: block; height: calc(8 * var(--xf-u)); width: 70%; border-radius: 4px; background: #ecebe4; }
+.xeplr-factory-list-bar { display: block; height: calc(8 * var(--xf-u)); width: 70%; border-radius: 4px; background: var(--xf-border); }
 .xeplr-factory-list .xeplr-table-row.xeplr-factory-row-open td,
 .xeplr-factory-list tr.xeplr-factory-row-open td { background: color-mix(in srgb, var(--xf-accent) 10%, transparent); }
 
 /* ── the builder ────────────────────────────────────────────────────────── */
 .xeplr-factory-builder {
   display: flex; flex-direction: column; height: 100%; min-height: 560px;
-  color: var(--xeplr-text, #1a1a19); font-size: 13px;
-  --xf-accent: var(--xeplr-accent, #2563eb);
-  --xf-border: var(--xeplr-border, #d9d8d0);
-  --xf-muted: var(--xeplr-muted, #6b6a63);
-  --xf-danger: var(--xeplr-danger, #c2372e);
+  color: var(--xf-ink); font-size: 13px;
 }
 .xeplr-factory-bar {
   display: flex; align-items: center; gap: 10px; padding: 8px 12px;
-  border-bottom: 1px solid var(--xf-border); background: var(--xeplr-surface, #fff);
+  border-bottom: 1px solid var(--xf-border); background: var(--xf-surface);
 }
 .xeplr-factory-name {
   flex: 1; min-width: 0; font: inherit; font-size: 16px; font-weight: 600;
@@ -200,27 +264,41 @@
 .xeplr-factory-problems { font-size: 12px; color: var(--xf-muted); white-space: nowrap; cursor: help; }
 .xeplr-factory-problems.is-loud { color: var(--xf-danger); font-weight: 600; }
 .xeplr-factory-primary, .xeplr-factory-secondary, .xeplr-factory-danger {
-  font: inherit; font-weight: 600; padding: 6px 14px; border-radius: 6px; cursor: pointer; border: 1px solid var(--xf-accent);
+  font: inherit; font-weight: 600; padding: 7px 16px; border-radius: 6px; cursor: pointer; border: 1px solid var(--xf-accent);
 }
-.xeplr-factory-primary { background: var(--xf-accent); color: #fff; }
+.xeplr-factory-primary { background: var(--xf-accent); color: var(--xf-accent-ink); }
+.xeplr-factory-primary, .xeplr-factory-secondary, .xeplr-factory-danger, .xeplr-factory-list-new {
+  transition: background .12s, filter .12s, transform .08s, box-shadow .12s;
+}
+.xeplr-factory-primary:hover:not(:disabled) { filter: brightness(1.08); }
+.xeplr-factory-secondary:hover:not(:disabled) { background: color-mix(in srgb, var(--xf-accent) 12%, transparent); }
+.xeplr-factory-list-new:hover { filter: brightness(1.08); }
+.xeplr-factory-danger:hover:not(:disabled) { background: color-mix(in srgb, var(--xf-danger) 12%, transparent); }
+/* A press you can see — the button gives a little. */
+.xeplr-factory-primary:active:not(:disabled), .xeplr-factory-secondary:active:not(:disabled),
+.xeplr-factory-danger:active:not(:disabled), .xeplr-factory-list-new:active { transform: scale(.96); }
+.xeplr-factory-primary:focus-visible, .xeplr-factory-secondary:focus-visible,
+.xeplr-factory-danger:focus-visible, .xeplr-factory-list-new:focus-visible {
+  outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--xf-accent) 35%, transparent);
+}
 .xeplr-factory-primary:disabled { opacity: .6; }
 .xeplr-factory-secondary { background: transparent; color: var(--xf-accent); }
 .xeplr-factory-danger { background: transparent; color: var(--xf-danger); border-color: var(--xf-danger); }
 .xeplr-factory-save-error { padding: 6px 12px; color: var(--xf-danger); background: color-mix(in srgb, var(--xf-danger) 7%, transparent); font-size: 12px; }
 
 .xeplr-factory-body { flex: 1; min-height: 0; display: flex; }
-.xeplr-factory-bar-status--saved { color: var(--xeplr-status-good, #1d7a4c); }
+.xeplr-factory-bar-status--saved { color: var(--xf-good); }
 .xeplr-factory-bar-status--invalid, .xeplr-factory-bar-status--error { color: var(--xf-danger); }
-.xeplr-factory-preview { flex: 1; min-height: 0; overflow: auto; padding: 16px; background: var(--xeplr-plane, #f7f7f5); }
-.xeplr-factory-preview > .xeplr-factory-screen { max-width: 960px; margin: 0 auto; background: var(--xeplr-surface, #fff); border: 1px solid var(--xf-border); border-radius: 8px; }
+.xeplr-factory-preview { flex: 1; min-height: 0; overflow: auto; padding: 16px; background: var(--xf-plane); }
+.xeplr-factory-preview > .xeplr-factory-screen { max-width: 960px; margin: 0 auto; background: var(--xf-surface); border: 1px solid var(--xf-border); border-radius: 8px; }
 
 /* palette */
-.xeplr-factory-palette { width: 168px; flex: 0 0 auto; overflow-y: auto; padding: 10px; border-right: 1px solid var(--xf-border); background: var(--xeplr-surface, #fff); }
+.xeplr-factory-palette { width: 168px; flex: 0 0 auto; overflow-y: auto; padding: 10px; border-right: 1px solid var(--xf-border); background: var(--xf-surface); }
 .xeplr-factory-palette-group + .xeplr-factory-palette-group { margin-top: 12px; }
 .xeplr-factory-palette-title { margin: 0 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--xf-muted); }
 .xeplr-factory-palette-item {
   display: flex; align-items: center; gap: 8px; width: 100%; margin-bottom: 4px; padding: 7px 8px;
-  font: inherit; text-align: left; color: inherit; background: var(--xeplr-surface, #fff);
+  font: inherit; text-align: left; color: inherit; background: var(--xf-surface);
   border: 1px solid var(--xf-border); border-radius: 6px; cursor: grab;
 }
 .xeplr-factory-palette-item:hover { border-color: var(--xf-accent); }
@@ -236,14 +314,14 @@
 .xeplr-factory-palette-icon--textarea { height: 14px; }
 
 /* canvas */
-.xeplr-factory-stage { flex: 1; min-width: 0; min-height: 0; display: flex; justify-content: center; padding: 12px; box-sizing: border-box; background: var(--xeplr-plane, #f7f7f5); }
+.xeplr-factory-stage { flex: 1; min-width: 0; min-height: 0; display: flex; justify-content: center; padding: 12px; box-sizing: border-box; background: var(--xf-plane); }
 /* Exactly the screen's design width, never wider: what you design is the size it is shown at. */
 .xeplr-factory-frame { flex: 1; min-width: 0; height: 100%; display: flex; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
 .xeplr-factory-canvas {
   flex: 1; height: 100%;
   background:
     radial-gradient(circle, var(--xeplr-border-secondary, #e4e3db) 1px, transparent 1px) 0 0 / 20px 20px,
-    var(--xeplr-surface, #ffffff);
+    var(--xf-surface);
 }
 .xeplr-factory-design-node { width: 100%; height: 100%; box-sizing: border-box; border-radius: 4px; outline: 1px dashed transparent; cursor: move; }
 .xeplr-factory-design-node:hover { outline-color: color-mix(in srgb, var(--xf-accent) 45%, transparent); }
@@ -257,7 +335,21 @@
 }
 
 /* property panel */
-.xeplr-factory-panel { width: 280px; flex: 0 0 auto; overflow-y: auto; padding: 10px 12px; border-left: 1px solid var(--xf-border); background: var(--xeplr-surface, #fff); }
+.xeplr-factory-panel { width: 280px; flex: 0 0 auto; overflow-y: auto; padding: 10px 12px; border-left: 1px solid var(--xf-border); background: var(--xf-surface); }
+.xeplr-factory-fieldtype { padding: 2px 0 12px; margin-bottom: 4px; border-bottom: 1px solid var(--xf-border); }
+.xeplr-factory-suggest {
+  margin-top: 8px; padding: 8px 10px; border-radius: 6px; font-size: 12px; line-height: 1.45;
+  color: var(--xf-ink); background: color-mix(in srgb, var(--xf-accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--xf-accent) 35%, transparent);
+}
+.xeplr-factory-suggest-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.xeplr-factory-suggest-actions button { padding: 4px 10px; font-size: 12px; }
+.xeplr-factory-hints {
+  font: inherit; font-size: 12px; white-space: nowrap; cursor: pointer; padding: 3px 10px; border-radius: 999px;
+  color: var(--xf-accent); background: color-mix(in srgb, var(--xf-accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--xf-accent) 35%, transparent);
+}
+.xeplr-factory-hints:hover { background: color-mix(in srgb, var(--xf-accent) 18%, transparent); }
 .xeplr-factory-panel-empty { color: var(--xf-muted); line-height: 1.5; }
 .xeplr-factory-panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .xeplr-factory-panel-type { font-weight: 700; font-size: 14px; }
@@ -268,7 +360,7 @@
 .xeplr-factory-prop-label { display: block; margin-bottom: 3px; font-weight: 600; font-size: 12px; }
 .xeplr-factory-prop-input {
   width: 100%; box-sizing: border-box; font: inherit; padding: 5px 7px;
-  border: 1px solid var(--xf-border); border-radius: 5px; background: #fff; color: var(--xf-ink, #1a1a19);
+  border: 1px solid var(--xf-field-border); border-radius: 5px; background: var(--xf-field-bg); color: var(--xf-ink);
 }
 .xeplr-factory-prop.has-error .xeplr-factory-prop-input { border-color: var(--xf-danger); }
 /* An editor made of two inputs — a set to pick from, and the list it fills in. */
@@ -281,7 +373,7 @@
 
 .xeplr-factory-segment { display: flex; margin-bottom: 8px; border: 1px solid var(--xf-border); border-radius: 6px; overflow: hidden; }
 .xeplr-factory-segment button { flex: 1; font: inherit; font-size: 12px; padding: 5px; border: none; background: transparent; cursor: pointer; color: inherit; }
-.xeplr-factory-segment button.is-on { background: var(--xf-accent); color: #fff; }
+.xeplr-factory-segment button.is-on { background: var(--xf-accent); color: var(--xf-accent-ink); }
 .xeplr-factory-options-head, .xeplr-factory-option-row { display: grid; grid-template-columns: 1fr 1fr 24px; gap: 4px; align-items: center; }
 .xeplr-factory-options-head { font-size: 11px; color: var(--xf-muted); margin-bottom: 3px; }
 .xeplr-factory-option-row { margin-bottom: 4px; }
@@ -298,24 +390,26 @@
 .xeplr-factory-modal-backdrop {
   position: fixed; inset: 0; z-index: 10000; display: flex; align-items: flex-start; justify-content: center;
   padding: 4vh 2vw; box-sizing: border-box; overflow: auto;
-  background: rgba(20, 20, 18, .45);
+  background: var(--xeplr-bg-overlay, rgba(20, 20, 18, .45));
 }
 .xeplr-factory-modal {
-  max-width: 96vw; background: var(--xeplr-surface, #fff); color: var(--xeplr-text, #1a1a19);
+  max-width: 96vw; background: var(--xf-surface); color: var(--xf-ink);
   border-radius: 10px; box-shadow: 0 12px 40px rgba(0, 0, 0, .25); outline: none;
 }
-.xeplr-factory-modal-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--xeplr-border, #e2e1d9); }
+.xeplr-factory-modal-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--xf-border); }
 .xeplr-factory-modal-title { font-weight: 700; font-size: 15px; }
-.xeplr-factory-modal-close { border: none; background: none; font-size: 22px; line-height: 1; cursor: pointer; color: var(--xeplr-muted, #6b6a63); padding: 2px 6px; }
+.xeplr-factory-modal-close { border: none; background: none; font-size: 22px; line-height: 1; cursor: pointer; color: var(--xf-muted); padding: 2px 6px; }
 .xeplr-factory-modal-body { padding: 8px 24px 16px; }
+/* The popup is the frame; the screen inside it does not draw a second one. */
+.xeplr-factory-modal-body > .xeplr-factory-screen { border: none; border-radius: 0; }
 
 /* ── publish result ─────────────────────────────────────────────────────── */
 .xeplr-factory-publish { display: flex; align-items: flex-start; gap: 10px; padding: 8px 12px; font-size: 12.5px; border-bottom: 1px solid var(--xf-border); }
 .xeplr-factory-publish > span { flex: 1; }
-.xeplr-factory-publish.is-ok { color: var(--xeplr-status-good, #1d7a4c); background: color-mix(in srgb, var(--xeplr-status-good, #1d7a4c) 7%, transparent); }
+.xeplr-factory-publish.is-ok { color: var(--xf-good); background: color-mix(in srgb, var(--xf-good) 7%, transparent); }
 .xeplr-factory-publish.is-error { color: var(--xf-danger); background: color-mix(in srgb, var(--xf-danger) 7%, transparent); flex-wrap: wrap; }
-.xeplr-factory-publish-detail { flex-basis: 100%; order: 3; margin: 4px 0 0; padding: 8px; max-height: 220px; overflow: auto; font-size: 11.5px; color: var(--xeplr-text, #1a1a19); background: var(--xeplr-surface, #fff); border: 1px solid var(--xf-border); border-radius: 6px; white-space: pre; }
-.xeplr-factory-publish.is-confirm { align-items: center; color: var(--xeplr-text, #1a1a19); background: color-mix(in srgb, var(--xeplr-status-warn, #a86a00) 10%, transparent); border-bottom-color: color-mix(in srgb, var(--xeplr-status-warn, #a86a00) 40%, transparent); }
+.xeplr-factory-publish-detail { flex-basis: 100%; order: 3; margin: 4px 0 0; padding: 8px; max-height: 220px; overflow: auto; font-size: 11.5px; color: var(--xf-ink); background: var(--xf-surface); border: 1px solid var(--xf-border); border-radius: 6px; white-space: pre; }
+.xeplr-factory-publish.is-confirm { align-items: center; color: var(--xf-ink); background: color-mix(in srgb, var(--xf-warn) 10%, transparent); border-bottom-color: color-mix(in srgb, var(--xf-warn) 40%, transparent); }
 .xeplr-factory-confirm-text { flex: 1; line-height: 1.5; }
 .xeplr-factory-confirm-text ul { margin: 4px 0; padding-left: 18px; }
 .xeplr-factory-confirm-actions { display: flex; gap: 8px; flex-shrink: 0; }

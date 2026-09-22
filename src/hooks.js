@@ -40,7 +40,7 @@ export class FactoryHooks {
   }
 
   /**
-   * Save — called on every autosave, so keep it quick and safe to repeat.
+   * Save — called when the person presses Save (or a flow's Next with unsaved changes).
    * @param values  what the form holds
    * @param ctx.steps  switch steps off or on as the record decides them —
    *        ctx.steps.disable('approval'), ctx.steps.enable()

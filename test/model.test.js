@@ -161,7 +161,7 @@ console.log('\nspec → screen')
   check('string options become { id, name }', JSON.stringify(byName.employmentType.props.data.options[0]) === '{"id":"full_time","name":"Full time"}')
   check('no control overlaps another', noOverlaps(doc.nodes))
   check('nothing runs off the right edge', doc.nodes.every((n) => n.x + n.w <= 1.0001))
-  check('there are no buttons — the screen saves itself', !doc.nodes.some((n) => n.type === 'button') && !CONTROLS.button)
+  check('there is no button CONTROL — Save lives in every screen\'s footer', !doc.nodes.some((n) => n.type === 'button') && !CONTROLS.button)
   const list = doc.nodes.find((n) => n.type === 'list')
   check('a list of saved records goes below the fields, full width', list && list.y > byName.notes.y && list.w > 0.9)
   check('...reading the table the screen saves to', listSource(doc, list) === 'employees')
@@ -315,7 +315,7 @@ console.log('\na form is a real table')
   check('no change, no migration', migrationFor(edit, edit).empty)
   check('narrowing is refused', throws(() => migrationFor(setNodeProperty(edit, 'firstName', 'props.validation.maxLength', 80), setNodeProperty(edit, 'firstName', 'props.validation.maxLength', 10)), /would cut longer values/))
   check('integer → numeric is allowed (wider)', /TYPE numeric/.test(migrationFor(edit, setNodeProperty(edit, 'salary', 'props.validation.integer', undefined)).sql))
-  check('numeric → integer is refused', throws(() => migrationFor(setNodeProperty(edit, 'salary', 'props.validation.integer', undefined), edit), /different kind of value/))
+  check('numeric → integer is refused in a migration file', throws(() => migrationFor(setNodeProperty(edit, 'salary', 'props.validation.integer', undefined), edit), /changes the kind of value/))
   check('pointing a dropdown at another table is refused', throws(() => migrationFor(edit, setNodeProperty(edit, 'departmentId', 'props.data', { source: 'table', table: 'teams' })), /points at "departments"/))
   check('a screen with no fields has no table', throws(() => tableForScreen(screensFromSpec({ entity: 'x', fields: [{ label: 'A' }] }).list), /no fields/))
   check('migration files continue the app numbering', nextMigrationName(['0066_dashboard_groups.sql', 'readme.txt'], 'employees', true) === '0067_factory_employees_create.sql')
@@ -567,7 +567,7 @@ console.log('\nthe stylesheet')
   check('no class is used by two components that did not agree to share it', clashes.length === 0, clashes.join(', '))
 
   const css = fs.readFileSync(dir + 'factory.css', 'utf8')
-  const newer = ['xeplr-factory-choices', 'xeplr-factory-choice', 'xeplr-factory-file', 'xeplr-factory-stepper', 'xeplr-factory-step', 'xeplr-factory-stepnav']
+  const newer = ['xeplr-factory-choices', 'xeplr-factory-choice', 'xeplr-factory-file', 'xeplr-factory-stepper', 'xeplr-factory-step', 'xeplr-factory-footer']
   check('the classes added for the new controls are styled', newer.every((c) => css.includes('.' + c)))
 }
 

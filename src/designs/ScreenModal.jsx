@@ -3,8 +3,8 @@ import { useEffect, useRef } from 'react'
 // The popup a list's Edit / New opens its edit screen in.
 //
 // A real dialog: focus moves in, Escape and the backdrop close it, and focus
-// returns to whatever opened it. There is nothing to confirm on close — the
-// screen inside has already saved itself.
+// returns to whatever opened it. Closing is the host's onClose, which asks
+// before dropping unsaved changes (FactoryScreen in pages.jsx).
 
 export default function ScreenModal({ title, width, onClose, children }) {
   const dialogRef = useRef(null)

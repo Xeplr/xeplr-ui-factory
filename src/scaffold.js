@@ -144,7 +144,7 @@ function editPage(n, editJson, edit) {
   return `import { FactoryScreen, FactoryHooks } from '@xeplr/ui-factory'
 import editScreen from './${editJson}'
 
-// ${edit.name} — saves itself as it is filled in; there is no submit.
+// ${edit.name} — Save sends it over AJAX (one call; never a form submit).
 // Opened in a popup from ${n.listComponent}, or on its own page:
 //   <${n.editComponent} api={api} />                 a new ${n.singular}
 //   <${n.editComponent} api={api} record={row} />    an existing one
@@ -166,7 +166,7 @@ export class ${n.hooksClass} extends FactoryHooks {
     return super.get(ctx)
   }
 
-  /** Every autosave — keep it quick. Returns the saved record. */
+  /** The Save button. Returns the saved record. */
   save(values, ctx) {
     return super.save(values, ctx)
   }

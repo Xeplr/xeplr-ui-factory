@@ -71,6 +71,9 @@ export function createFactoryApi({ fetch: doFetch, base = '' } = {}) {
     const extra = (json && json.dataArray && json.dataArray[0]) || {}
     // Publish: columns it would drop, waiting for a yes — and what it keeps.
     err.confirm = extra.confirm
+    // …columns changing kind, waiting for a yes; and ones whose values will not fit.
+    err.convert = extra.convert
+    err.wontFit = extra.wontFit
     err.keep = extra.keep
     err.refused = extra.refused
     if (extra.statements) err.detail = extra.statements.join('\n')
@@ -87,7 +90,10 @@ export function createFactoryApi({ fetch: doFetch, base = '' } = {}) {
     saveDraft: (doc) => call('PUT', `/screens/${enc(doc.id)}/draft`, { document: doc }),
     // Changes the screen's table directly. Rejects with err.confirm = [{ column, records }]
     // when a removed field would drop a column; call again with { confirmDrop: [names] }.
-    publish: async (doc, options) => one(await call('POST', `/screens/${enc(doc.id)}/publish`, { confirmDrop: (options && options.confirmDrop) || [] })),
+    publish: async (doc, options) => one(await call('POST', `/screens/${enc(doc.id)}/publish`, {
+      confirmDrop: (options && options.confirmDrop) || [],
+      confirmConvert: (options && options.confirmConvert) || []
+    })),
     listTables: () => call('GET', '/tables'),
     // A new form from its name: { entity, plural? } → { entity, name, source, edit, list } — both screens as drafts.
     createEntity: async (spec) => one(await call('POST', '/entities', spec)),

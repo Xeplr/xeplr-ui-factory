@@ -4,6 +4,7 @@ import ControlView from './ControlView.jsx'
 import Palette, { DRAG_TYPE } from './Palette.jsx'
 import PropertyPanel from './PropertyPanel.jsx'
 import { screenStyle } from './styles.js'
+import { presetFor } from '../presets.js'
 
 // The builder, drawn: name and save status on top, controls on the left, the
 // screen on the canvas in the middle, properties on the right — the selected
@@ -30,8 +31,10 @@ export default function BuilderSample({ ctrl, renderPreview, className, style })
 
   function onDrop(e) {
     const type = e.dataTransfer.getData(DRAG_TYPE) || e.dataTransfer.getData('text/plain')
-    const def = ctrl.controls[type]
-    if (!def) return
+    const preset = presetFor(type)
+    const base = ctrl.controls[preset ? preset.control : type]
+    if (!base) return
+    const def = { defaultSize: { ...base.defaultSize, ...(preset && preset.size) } }
     e.preventDefault()
     const inner = e.currentTarget.querySelector('.xeplr-canvas-inner')
     if (!inner) return ctrl.addControl(type)
@@ -63,6 +66,18 @@ export default function BuilderSample({ ctrl, renderPreview, className, style })
             {problemCount} problem{problemCount === 1 ? '' : 's'}
           </span>
         )}
+        {/* Suggestions, not problems: they never stop a save or a publish.
+            Clicking one opens the field, where the panel offers the change. */}
+        {ctrl.hints.length > 0 && (
+          <button
+            type="button"
+            className="xeplr-factory-hints"
+            title={ctrl.hints.map((h) => h.message).join('\n')}
+            onClick={() => ctrl.setSelected(new Set([ctrl.hints[0].nodeId]))}
+          >
+            {ctrl.hints.length} suggestion{ctrl.hints.length === 1 ? '' : 's'}
+          </button>
+        )}
         {ctrl.status === 'error' && (
           <button type="button" className="xeplr-factory-secondary" onClick={ctrl.save}>Retry</button>
         )}
@@ -79,20 +94,35 @@ export default function BuilderSample({ ctrl, renderPreview, className, style })
       </header>
 
       {ctrl.publishResult && ctrl.publishResult.confirm && (
-        <div className="xeplr-factory-publish is-confirm" role="alertdialog" aria-label="Confirm removing columns">
+        <div className="xeplr-factory-publish is-confirm" role="alertdialog" aria-label="Confirm changes to saved data">
           <div className="xeplr-factory-confirm-text">
-            <strong>Publishing removes {ctrl.publishResult.confirm.length === 1 ? 'a column' : `${ctrl.publishResult.confirm.length} columns`} and all the data in {ctrl.publishResult.confirm.length === 1 ? 'it' : 'them'}.</strong>
-            <ul>
-              {ctrl.publishResult.confirm.map((c) => (
-                <li key={c.column}><code>{c.column}</code> — {c.records} saved value{c.records === 1 ? '' : 's'}, for every company using this table</li>
-              ))}
-            </ul>
-            This cannot be undone. To keep the data, put the field back before publishing.
+            {ctrl.publishResult.confirm.length > 0 && (
+              <>
+                <strong>Publishing removes {ctrl.publishResult.confirm.length === 1 ? 'a column' : `${ctrl.publishResult.confirm.length} columns`} and all the data in {ctrl.publishResult.confirm.length === 1 ? 'it' : 'them'}.</strong>
+                <ul>
+                  {ctrl.publishResult.confirm.map((c) => (
+                    <li key={c.column}><code>{c.column}</code> — {c.records} saved value{c.records === 1 ? '' : 's'}, for every company using this table</li>
+                  ))}
+                </ul>
+                This cannot be undone. To keep the data, put the field back before publishing.
+              </>
+            )}
+            {/* A field that changed kind: every saved value was checked and fits. */}
+            {(ctrl.publishResult.convert || []).length > 0 && (
+              <>
+                <strong>Publishing converts saved values to their field's new kind.</strong>
+                <ul>
+                  {ctrl.publishResult.convert.map((c) => (
+                    <li key={c.column}><code>{c.column}</code> — {c.from} → {c.to}: all {c.records} saved value{c.records === 1 ? '' : 's'} fit; blank ones become empty</li>
+                  ))}
+                </ul>
+              </>
+            )}
           </div>
           <div className="xeplr-factory-confirm-actions">
-            <button type="button" className="xeplr-factory-danger" disabled={ctrl.publishing}
-              onClick={() => ctrl.publish(ctrl.publishResult.confirm.map((c) => c.column))}>
-              {ctrl.publishing ? 'Publishing…' : 'Remove and publish'}
+            <button type="button" className={ctrl.publishResult.confirm.length ? 'xeplr-factory-danger' : 'xeplr-factory-primary'} disabled={ctrl.publishing}
+              onClick={() => ctrl.publish(ctrl.publishResult.confirm.map((c) => c.column), (ctrl.publishResult.convert || []).map((c) => c.column))}>
+              {ctrl.publishing ? 'Publishing…' : ctrl.publishResult.confirm.length ? 'Remove and publish' : 'Convert and publish'}
             </button>
             <button type="button" className="xeplr-factory-secondary" onClick={ctrl.clearPublishResult}>Cancel</button>
           </div>
@@ -179,12 +209,15 @@ export default function BuilderSample({ ctrl, renderPreview, className, style })
             doc={doc}
             node={ctrl.selectedNode}
             control={ctrl.selectedControl}
+            controls={ctrl.controls}
             selectionCount={ctrl.selected.size}
             errors={ctrl.selectedNode ? ctrl.errorsByNode[ctrl.selectedNode.id] : ctrl.errorsByNode._document}
             tables={ctrl.tables}
             screens={ctrl.screens}
             lockedNames={ctrl.lockedNames}
             onChange={(path, value) => ctrl.setProperty(ctrl.selectedNode.id, path, value)}
+            onConvert={(target) => ctrl.convertControl(ctrl.selectedNode.id, target)}
+            hint={ctrl.selectedNode ? ctrl.hints.find((h) => h.nodeId === ctrl.selectedNode.id) : null}
             onScreenChange={ctrl.setScreen}
             onRemove={ctrl.removeSelected}
           />

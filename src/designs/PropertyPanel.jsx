@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react'
 import { getAtPath } from '../propertyPath.js'
+import { FIELD_PRESETS, presetFor } from '../presets.js'
 import { slugify, inputNodes } from '../document.js'
 import { FONT_FAMILIES, STYLE_KEYS, SCREEN_STYLE_KEYS, LIST_ACTIONS, FILE_KINDS } from '../controls.js'
 
@@ -6,7 +8,57 @@ import { FONT_FAMILIES, STYLE_KEYS, SCREEN_STYLE_KEYS, LIST_ACTIONS, FILE_KINDS 
 // each field there names a path and an editor type, and this file owns only
 // what each editor type looks like. A new property is a line in controls.js.
 
-export default function PropertyPanel({ doc, node, control, errors, tables, screens, lockedNames, onChange, onScreenChange, onRemove, selectionCount }) {
+/**
+ * WHAT KIND OF FIELD THIS IS — at the top of every field's panel, and
+ * changeable at any time: a plain control (Text, Number…) or a ready-made one
+ * (Email, LinkedIn profile, Age…). Changing it keeps the label, name, position
+ * and required, and says what did not carry over.
+ *
+ * Under it, when the label reads like a ready-made field this is not ("LinkedIn
+ * URL" on a plain text box), the offer to make it one — or to stop asking.
+ */
+function FieldType({ node, controls, hint, onConvert, onKeepPlain }) {
+  const [note, setNote] = useState(null)
+  useEffect(() => { setNote(null) }, [node.id])
+  const registry = controls || {}
+  const plain = Object.values(registry).filter((c) => c.input)
+  const ready = FIELD_PRESETS.filter((p) => registry[p.control] && registry[p.control].input)
+  const current = presetFor(node.props && node.props.preset) ? 'preset:' + node.props.preset : node.type
+  const change = (target) => {
+    if (target === current) return
+    const dropped = onConvert(target) || []
+    const name = presetFor(target) ? presetFor(target).label : (registry[target] && registry[target].label)
+    setNote(dropped.length ? `Now ${name}. Not carried over: ${dropped.join(', ')}.` : `Now ${name}.`)
+  }
+  const suggested = hint && presetFor(hint.preset)
+  return (
+    <div className="xeplr-factory-fieldtype">
+      <label className="xeplr-factory-prop-label" htmlFor={`xf-type-${node.id}`}>Field type</label>
+      <select id={`xf-type-${node.id}`} className="xeplr-factory-prop-input" value={current} onChange={(e) => change(e.target.value)}>
+        <optgroup label="Controls">
+          {plain.map((c) => <option key={c.type} value={c.type}>{c.label}</option>)}
+        </optgroup>
+        {ready.length > 0 && (
+          <optgroup label="Ready-made fields">
+            {ready.map((p) => <option key={p.key} value={'preset:' + p.key}>{p.label}</option>)}
+          </optgroup>
+        )}
+      </select>
+      {note && <div className="xeplr-factory-prop-help" role="status">{note}</div>}
+      {suggested && (
+        <div className="xeplr-factory-suggest" role="note">
+          <span>{hint.message}.</span>
+          <div className="xeplr-factory-suggest-actions">
+            <button type="button" className="xeplr-factory-primary" onClick={() => change('preset:' + suggested.key)}>Make it {suggested.label}</button>
+            <button type="button" className="xeplr-factory-secondary" onClick={onKeepPlain}>Keep as is</button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function PropertyPanel({ doc, node, control, controls, errors, tables, screens, lockedNames, onChange, onConvert, hint, onScreenChange, onRemove, selectionCount }) {
   if (selectionCount > 1) {
     return (
       <aside className="xeplr-factory-panel">
@@ -29,6 +81,10 @@ export default function PropertyPanel({ doc, node, control, errors, tables, scre
         <span className="xeplr-factory-panel-type">{control.label}</span>
         <button type="button" className="xeplr-factory-link-danger" onClick={onRemove} title="Delete (Del)">Delete</button>
       </header>
+
+      {control.input && onConvert && (
+        <FieldType node={node} controls={controls} hint={hint} onConvert={onConvert} onKeepPlain={() => onChange('props.preset', false)} />
+      )}
 
       {control.properties.map((group) => (
         <fieldset key={group.key} className="xeplr-factory-group">

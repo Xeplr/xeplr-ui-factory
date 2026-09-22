@@ -23,7 +23,8 @@ export default function Palette({ groups, onAdd }) {
               onClick={() => onAdd(c.type)}
               title={`Drag onto the screen, or click to add ${c.label.toLowerCase()} at the bottom`}
             >
-              <span className={`xeplr-factory-palette-icon xeplr-factory-palette-icon--${c.type}`} aria-hidden="true" />
+              {/* A ready-made field wears the icon of the control it is made of. */}
+              <span className={`xeplr-factory-palette-icon xeplr-factory-palette-icon--${c.icon || c.type}`} aria-hidden="true" />
               {c.label}
             </button>
           ))}

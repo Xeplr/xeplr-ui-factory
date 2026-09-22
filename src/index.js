@@ -10,7 +10,7 @@ export * from './model.js'
 
 // Controllers
 export { useFactoryBuilder } from './useFactoryBuilder.js'
-export { useFactoryScreen, normaliseOptions, AUTOSAVE_DELAY } from './useFactoryScreen.js'
+export { useFactoryScreen, normaliseOptions } from './useFactoryScreen.js'
 export { useFlowRun } from './useFlowRun.js'
 export { useFlowBuilder, FLOW_AUTOSAVE_DELAY } from './useFlowBuilder.js'
 

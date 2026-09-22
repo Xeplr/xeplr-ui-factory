@@ -60,7 +60,7 @@ A request for "a form for employees" is an **entity**. Every entity is the same 
    ```jsx
    export class EmployeeHooks extends FactoryHooks {
      get(ctx) { return super.get(ctx) }                          // a list's rows (ctx.many), or the record Edit opens (ctx.id)
-     save(values, ctx) { return super.save(values, ctx) }        // every autosave; returns the saved record
+     save(values, ctx) { return super.save(values, ctx) }        // the Save button; returns the saved record
      delete(record, ctx) { return super.delete(record, ctx) }    // a list row, after the person confirmed
      actions(ctx) { return super.actions(ctx) }                  // extra row buttons: [{ label, onClick: (record, ctx) => … }]
    }
@@ -92,7 +92,7 @@ A request for "a form for employees" is an **entity**. Every entity is the same 
 8. **Server hooks, if the request needs them.** Anything beyond storing what the form shows — a value worked out on save, a check against other records, an email afterwards, a list narrowed to the user — goes in `employee.hooks.js`, never in the screen: `save`, `get` (list and one record) and `delete`, each with `before`, `after`, `error` and `override`. Register it with `factory.init({ hooks: { employee_edit: require('./employee.hooks') } })`. `override` replaces the whole operation — rules and the other hooks included — so use it only when the generic save / get / delete does not apply at all. The `screens` command never overwrites an existing hooks file, even with `--force`. Details: the [`@xeplr/factory` README](https://www.npmjs.com/package/@xeplr/factory#hooks).
 9. **Hand over.** The person opens the screens in the designer to move, resize and restyle controls.
 
-There is **no submit button** to add: a screen saves itself as it is filled in. If the request mentions seeing or editing what was entered ("…and show the employees below"), add a `list`.
+Do **not** add a button control for saving: every screen's footer already has **Save** (an AJAX call — never a form submit) and **Cancel** where it can go back. If the request mentions seeing or editing what was entered ("…and show the employees below"), add a `list`.
 
 Changing an existing screen: edit the document's `props` directly (labels, validation, options), validate, and hand it back. Regenerate from a spec only when the layout should start over.
 
@@ -192,7 +192,7 @@ Each field:
 | `text` | `minLength`, `maxLength`, `pattern` (a regex string), `patternMessage` (shown when it fails) |
 | `textarea` | `minLength`, `maxLength` |
 | `number` | `min`, `max`, `integer` |
-| `date` | `min`, `max` — as `"YYYY-MM-DD"` |
+| `date` | `min`, `max` — as `"YYYY-MM-DD"`; `notFuture: true` (a date of birth) |
 | `datetime` | `min`, `max` — as `"YYYY-MM-DDTHH:MM"` |
 | `multiselect` | `minItems`, `maxItems` — how many may be chosen |
 | `checkbox`, `dropdown`, `radio`, `file` | none (use `required`) |
@@ -237,11 +237,35 @@ A dropdown **always saves an `id` and shows a `name`.**
 
 ## Choosing controls
 
+**Ready-made fields first.** For these, give the `type` as the ready-made
+field's key and add nothing else unless the request asks for it — the keyboard,
+pattern, message, limits and options come with it:
+
+| the request says | `type` |
+|---|---|
+| email | `email` |
+| phone, mobile | `phone` |
+| website, URL, link | `url` |
+| LinkedIn profile | `linkedin` |
+| age | `age` (whole number, 0–130) |
+| date of birth | `dateOfBirth` (never in the future) |
+| gender | `gender` (Male, Female, Others) |
+| country, nationality | `country` (ISO codes, shown by name) |
+| amount, price, salary, fee | `amount` (0 or more) |
+| percentage | `percentage` (0–100) |
+| a yes/no question to answer explicitly | `yesNo` |
+| postal code, ZIP, PIN | `postalCode` |
+
+`{ "label": "Work email", "type": "email", "required": true }` keeps the label
+and adds the rest. A field with **no type** whose label reads like one of these
+gets it anyway (`{ "label": "Age" }` is the Age field); `"type": "text"` opts out.
+Rules you give merge over the ready-made ones (`"validation": { "max": 120 }`).
+
 | the request says | use |
 |---|---|
-| a name, title, email, phone, code | `text` (add a `pattern` for email/phone/code formats) |
+| a name, title, code | `text` (add a `pattern` for a code format) |
 | notes, description, address, comments | `textarea` |
-| amount, salary, quantity, age | `number` (`integer: true` for counts) |
+| quantity, score, count | `number` (`integer: true` for counts) |
 | a date — birth, start, due | `date` |
 | an appointment, a deadline with a time, when something happened | `datetime` |
 | yes/no, agree, active, remote | `checkbox` |

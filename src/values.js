@@ -32,6 +32,13 @@ export function formSchema(doc, controls = CONTROLS) {
     const v = p.validation && { ...p.validation }
     if (v) {
       delete v.patternMessage
+      // "Not in the future" is today's date AT THE MOMENT OF CHECKING — the
+      // server builds this schema per save, so it never goes stale.
+      if (v.notFuture) {
+        const today = localDay()
+        if (!v.max || v.max > today) v.max = today
+      }
+      delete v.notFuture
       if (Object.keys(v).length) field.validation = v
     }
     return field
@@ -130,6 +137,7 @@ export function fieldError(node, value, loadedOptions) {
       const day = value.slice(0, 10)
       if (v.min && day < v.min) return `${label} must be on or after ${v.min}`
       if (v.max && day > v.max) return `${label} must be on or before ${v.max}`
+      if (v.notFuture && day > localDay()) return `${label} cannot be in the future`
       return null
     }
     case 'datetime': {
@@ -173,15 +181,20 @@ export function optionValue(options, raw) {
   return hit ? hit.id : raw
 }
 
+/** Today as YYYY-MM-DD, in the local timezone — the day a person means by "today". */
+function localDay() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function safeRegExp(pattern) {
   try { return new RegExp(pattern) } catch (_) { return { test: () => true } }
 }
 
-// ── autosave ─────────────────────────────────────────────────────────────
-// There is no submit. A screen saves itself a moment after a change, as long
-// as what is entered is acceptable. This decides whether it can, and which
-// messages to SHOW: a field nobody has touched is not shouted at for being
-// empty — it only holds the save back.
+// ── can it save? ─────────────────────────────────────────────────────────
+// Save (a button, one AJAX call) goes out only when what is entered is
+// acceptable. This decides whether it can, and which messages to SHOW: a field
+// nobody has touched is not shouted at for being empty until Save is pressed.
 
 /**
  * @param touched   Set of field names the person has changed or left

@@ -164,11 +164,14 @@ export const CONTROLS = {
     valueType: 'string',
     defaultSize: { w: 0.44, h: 0.08 },
     defaults: { label: 'Text' },
-    props: ['name', 'label', 'placeholder', 'required', 'default', 'validation', 'style'],
+    // inputType: the box's keyboard and autofill — text, email, tel, url.
+    props: ['name', 'label', 'preset', 'placeholder', 'required', 'default', 'validation', 'inputType', 'style'],
     validation: ['minLength', 'maxLength', 'pattern', 'patternMessage'],
     styles: INPUT_STYLES,
     properties: [
-      FIELD_BASICS([PLACEHOLDER, { path: 'props.default', label: 'Default value', type: 'text' }]),
+      FIELD_BASICS([PLACEHOLDER, { path: 'props.default', label: 'Default value', type: 'text' }, { path: 'props.inputType', label: 'Keyboard', type: 'select', options: [
+        { value: 'text', label: 'Text' }, { value: 'email', label: 'Email' }, { value: 'tel', label: 'Phone' }, { value: 'url', label: 'Web address' }
+      ], help: 'What a phone shows to type with, and what autofill offers' }]),
       {
         key: 'validation',
         title: 'Validation',
@@ -191,7 +194,7 @@ export const CONTROLS = {
     valueType: 'string',
     defaultSize: { w: 0.92, h: 0.18 },
     defaults: { label: 'Notes' },
-    props: ['name', 'label', 'placeholder', 'required', 'default', 'validation', 'style'],
+    props: ['name', 'label', 'preset', 'placeholder', 'required', 'default', 'validation', 'style'],
     validation: ['minLength', 'maxLength'],
     styles: INPUT_STYLES,
     properties: [
@@ -216,7 +219,7 @@ export const CONTROLS = {
     valueType: 'number',
     defaultSize: { w: 0.44, h: 0.08 },
     defaults: { label: 'Number' },
-    props: ['name', 'label', 'placeholder', 'required', 'default', 'validation', 'style'],
+    props: ['name', 'label', 'preset', 'placeholder', 'required', 'default', 'validation', 'style'],
     validation: ['min', 'max', 'integer'],
     styles: INPUT_STYLES,
     properties: [
@@ -242,8 +245,10 @@ export const CONTROLS = {
     valueType: 'date',
     defaultSize: { w: 0.44, h: 0.08 },
     defaults: { label: 'Date' },
-    props: ['name', 'label', 'required', 'default', 'validation', 'style'],
-    validation: ['min', 'max'],
+    props: ['name', 'label', 'preset', 'required', 'default', 'validation', 'style'],
+    // notFuture: on or before TODAY, whenever the form is filled in (a date of
+    // birth) — a fixed `max` would go stale.
+    validation: ['min', 'max', 'notFuture'],
     styles: INPUT_STYLES,
     properties: [
       FIELD_BASICS([{ path: 'props.default', label: 'Default value', type: 'date' }]),
@@ -252,7 +257,8 @@ export const CONTROLS = {
         title: 'Validation',
         fields: [
           { path: 'props.validation.min', label: 'Earliest', type: 'date' },
-          { path: 'props.validation.max', label: 'Latest', type: 'date' }
+          { path: 'props.validation.max', label: 'Latest', type: 'date' },
+          { path: 'props.validation.notFuture', label: 'Not in the future', type: 'toggle' }
         ]
       },
       ...styleGroups(INPUT_STYLES)
@@ -268,7 +274,7 @@ export const CONTROLS = {
     defaultSize: { w: 0.44, h: 0.05 },
     defaults: { label: 'Checkbox', default: false },
     // `required` on a checkbox means it must be ticked — "I accept".
-    props: ['name', 'label', 'required', 'default', 'style'],
+    props: ['name', 'label', 'preset', 'required', 'default', 'style'],
     validation: [],
     styles: ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'color'],
     properties: [
@@ -286,7 +292,7 @@ export const CONTROLS = {
     valueType: null,
     defaultSize: { w: 0.44, h: 0.08 },
     defaults: { label: 'Dropdown', placeholder: 'Select…', data: { source: 'static', options: [] } },
-    props: ['name', 'label', 'placeholder', 'required', 'default', 'data', 'style'],
+    props: ['name', 'label', 'preset', 'placeholder', 'required', 'default', 'data', 'style'],
     validation: [],
     styles: INPUT_STYLES.filter((k) => k !== 'textAlign'),
     properties: [
@@ -311,7 +317,7 @@ export const CONTROLS = {
     valueType: null,
     defaultSize: { w: 0.44, h: 0.14 },
     defaults: { label: 'Choose one', data: { source: 'static', options: [] }, layout: 'vertical' },
-    props: ['name', 'label', 'required', 'default', 'data', 'layout', 'style'],
+    props: ['name', 'label', 'preset', 'required', 'default', 'data', 'layout', 'style'],
     validation: [],
     styles: INPUT_STYLES.filter((k) => k !== 'textAlign'),
     properties: [
@@ -338,7 +344,7 @@ export const CONTROLS = {
     valueType: 'array',
     defaultSize: { w: 0.44, h: 0.18 },
     defaults: { label: 'Choose any', data: { source: 'static', options: [] }, layout: 'vertical' },
-    props: ['name', 'label', 'required', 'data', 'layout', 'validation', 'style'],
+    props: ['name', 'label', 'preset', 'required', 'data', 'layout', 'validation', 'style'],
     validation: ['minItems', 'maxItems'],
     styles: INPUT_STYLES.filter((k) => k !== 'textAlign'),
     properties: [
@@ -371,7 +377,7 @@ export const CONTROLS = {
     valueType: 'date',
     defaultSize: { w: 0.44, h: 0.08 },
     defaults: { label: 'Date and time' },
-    props: ['name', 'label', 'required', 'default', 'validation', 'style'],
+    props: ['name', 'label', 'preset', 'required', 'default', 'validation', 'style'],
     validation: ['min', 'max'],
     styles: INPUT_STYLES,
     properties: [
@@ -397,7 +403,7 @@ export const CONTROLS = {
     valueType: 'string',
     defaultSize: { w: 0.44, h: 0.1 },
     defaults: { label: 'File', accept: FILE_KINDS.document.accept, maxSize: 10 },
-    props: ['name', 'label', 'required', 'accept', 'maxSize', 'style'],
+    props: ['name', 'label', 'preset', 'required', 'accept', 'maxSize', 'style'],
     validation: [],
     styles: INPUT_STYLES.filter((k) => k !== 'textAlign'),
     properties: [

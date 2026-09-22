@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { useFactoryBuilder } from './useFactoryBuilder.js'
 import { useFactoryScreen } from './useFactoryScreen.js'
 import { useFlowRun } from './useFlowRun.js'
@@ -59,6 +60,15 @@ export function FactoryBuilder(props) {
  */
 export function FactoryScreen(props) {
   const ctrl = useFactoryScreen(props)
+  // Whether the popup's form holds unsaved changes — its × asks before
+  // dropping them, as its Cancel does.
+  const popupDirty = useRef(false)
+  const closePopup = () => {
+    // eslint-disable-next-line no-alert
+    if (popupDirty.current && typeof window !== 'undefined' && !window.confirm('Discard your unsaved changes?')) return
+    popupDirty.current = false
+    ctrl.closeEditor()
+  }
   return (
     <ScreenSample
       ctrl={ctrl}
@@ -68,13 +78,13 @@ export function FactoryScreen(props) {
         <ScreenModal
           title={popup.document ? popup.document.name : 'Loading…'}
           width={popup.document ? popup.document.width : undefined}
-          onClose={ctrl.closeEditor}
+          onClose={closePopup}
         >
           {popup.error && <div className="xeplr-factory-invalid" role="alert">{popup.error}</div>}
           {popup.loading && <div className="xeplr-factory-hint">Loading…</div>}
           {popup.document && (
-            // The same component, one level down: the edit screen saves itself,
-            // and every save refreshes the list behind the popup.
+            // The same component, one level down. Its Save refreshes the list
+            // behind the popup and closes it; Cancel closes it unsaved.
             <FactoryScreen
               key={`${popup.screenId}:${popup.record ? popup.record[ctrl.recordKey] : 'new'}`}
               document={popup.document}
@@ -89,6 +99,8 @@ export function FactoryScreen(props) {
               loadScreen={props.loadScreen}
               controls={props.controls}
               hooks={props.hooks}
+              onDone={() => { popupDirty.current = false; ctrl.closeEditor() }}
+              onDirtyChange={(d) => { popupDirty.current = d }}
             />
           )}
         </ScreenModal>

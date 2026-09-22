@@ -19,8 +19,9 @@ export { createFactoryApi } from './remote.js'
 export {
   STANDARD_COLUMNS, RESERVED_COLUMNS, MAX_IDENTIFIER,
   columnForField, tableForScreen, columnSql, widening, diffTables, migrationFor, nextMigrationName,
-  createStatements, addStatements, alterStatement, dropStatement, columnFromDatabase, planTableChange
+  createStatements, addStatements, alterStatement, dropStatement, columnFromDatabase, planTableChange, conversionFor
 } from './tableSchema.js'
+export { FIELD_PRESETS, PATTERNS, INPUT_TYPES, presetFor, presetProps, suggestPreset, presetGroup, presetHints, convertField } from './presets.js'
 export { createFlowsApi } from './flows.js'
 export {
   FLOW_KIND, FLOW_VERSION, FLOW_END, FLOW_OPERATORS, VALUELESS_OPERATORS,
