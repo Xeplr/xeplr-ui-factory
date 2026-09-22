@@ -236,12 +236,18 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
     }
   }, [controls])
 
-  // AUTOSAVE: a quiet moment after the last edit, if the screen is valid.
-  useEffect(() => {
-    if (!dirty || !validation.ok || !onSaveRef.current) return undefined
-    const t = setTimeout(save, autosaveDelay)
-    return () => clearTimeout(t)
-  }, [doc, dirty, validation.ok, save, autosaveDelay, saving])
+  // NOTHING SAVES ITSELF. Saving is an act, and the person designing decides
+  // when they have finished — a screen that writes itself to the server a
+  // moment after every drag means there is no such thing as trying something
+  // out, and no moment at which somebody said "this is right".
+  //
+  // It also made every half-made field an error: a field is invalid while it
+  // is being built, and an autosave meets it mid-build and reports it.
+  //
+  // `save` is called by the Design's Save control (see BuilderSample), and by
+  // publish, which saves first because publishing what is on screen is the
+  // one thing it must never get wrong. `autosaveDelay` is kept as a prop and
+  // ignored, so a host passing it is not broken by this; it does nothing.
 
   // PUBLISH: the draft becomes the next version — what screens actually show.
   // Deliberate, unlike saving: a half-finished design must not reach everyone
@@ -293,10 +299,12 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
     }
   }, [controls, save])
 
+  // `pending` now means "there are changes you have not saved", which is a
+  // thing to act on rather than a thing about to happen by itself.
   const status = saveError ? 'error'
     : saving ? 'saving'
     : !validation.ok ? 'invalid'
-    : dirty ? 'pending'
+    : dirty ? 'unsaved'
     : savedAt ? 'saved' : 'idle'
 
   // ── keyboard: Delete / Backspace removes, Cmd/Ctrl+D duplicates ────────

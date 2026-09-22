@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { XeplrCanvas } from '@xeplr/ui-canvas'
 import ControlView from './ControlView.jsx'
 import Palette, { DRAG_TYPE } from './Palette.jsx'
@@ -15,12 +15,15 @@ import { presetFor } from '../presets.js'
 // units with pageAspect = the screen's aspect: the same geometry ScreenSample
 // renders with, so the builder shows the screen at its real size.
 
+// NOTHING SAVES ITSELF — see the note in useFactoryBuilder. These say what
+// IS, not what is about to happen on its own: "unsaved" is a fact about the
+// screen, and the Save button beside it is what changes it.
 const STATUS = {
   idle: '',
-  pending: 'Unsaved changes…',
+  unsaved: 'Unsaved changes',
   saving: 'Saving…',
-  saved: 'All changes saved',
-  invalid: 'Not saved — fix the problems',
+  saved: 'Saved',
+  invalid: 'Fix the problems to save',
   error: 'Not saved'
 }
 
@@ -47,6 +50,16 @@ export default function BuilderSample({ ctrl, renderPreview, className, style })
       y: (e.clientY - rect.top) / pageH - def.defaultSize.h / 2
     })
   }
+
+  // WITH NOTHING SAVING ITSELF, closing the tab is how work is lost. The
+  // browser's own question is the only one that can be asked this late, and
+  // it is asked ONLY when there is something to lose.
+  useEffect(() => {
+    if (!ctrl.dirty) return undefined
+    function ask(e) { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', ask)
+    return () => window.removeEventListener('beforeunload', ask)
+  }, [ctrl.dirty])
 
   return (
     <div className={'xeplr-factory-builder' + (className ? ' ' + className : '')} style={style}>
@@ -78,8 +91,20 @@ export default function BuilderSample({ ctrl, renderPreview, className, style })
             {ctrl.hints.length} suggestion{ctrl.hints.length === 1 ? '' : 's'}
           </button>
         )}
-        {ctrl.status === 'error' && (
-          <button type="button" className="xeplr-factory-secondary" onClick={ctrl.save}>Retry</button>
+        {/* SAVE IS AN ACT. It is offered whenever there is something to save
+            (and after a failure, which is the same thing), and it is the only
+            thing that writes the draft — trying a layout out and walking away
+            leaves the saved screen as it was. */}
+        {(ctrl.dirty || ctrl.status === 'error') && (
+          <button
+            type="button"
+            className="xeplr-factory-secondary"
+            onClick={ctrl.save}
+            disabled={ctrl.saving || !ctrl.validation.ok}
+            title={ctrl.validation.ok ? 'Save this design' : 'Fix the problems first'}
+          >
+            {ctrl.status === 'error' ? 'Try saving again' : ctrl.saving ? 'Saving…' : 'Save'}
+          </button>
         )}
         {renderPreview && (
           <button type="button" className="xeplr-factory-secondary" aria-pressed={preview} onClick={() => setPreview((p) => !p)}>

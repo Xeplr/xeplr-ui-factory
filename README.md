@@ -57,7 +57,7 @@ import { FactoryBuilder } from '@xeplr/ui-factory'
 <div style={{ height: '100vh' }}>
   <FactoryBuilder
     document={screen}                                  // omit to start a new one
-    onSave={async (doc) => api.saveScreen(doc)}        // your storage — called automatically
+    onSave={async (doc) => api.saveScreen(doc)}        // your storage — called when Save is pressed
     listTables={async () => api.listTables()}          // for "Saves to", lists and table dropdowns
     fetchOptions={async ({ table }) => api.options(table)}  // Preview with real options
     fetchRecords={async ({ source }) => api.records(source)} // Preview with real records
@@ -70,6 +70,21 @@ import { FactoryBuilder } from '@xeplr/ui-factory'
 - Select a control to set its label, field name, placeholder, required, default, validation, and — for a dropdown — where its options come from.
 - **Every look is a property:** font, size, weight, italic, alignment, text colour, background, border colour/width, corner radius — and for an input, its label's size, weight and colour.
 - With nothing selected, the panel shows the **screen**: the table it saves to, its width, and the font and colours every control inherits.
+
+**Nothing saves itself — here, or anywhere else in this package.** The bar says
+*Unsaved changes* and offers **Save**; that is the only thing that writes the
+draft, so trying a layout out and walking away leaves the saved screen as it
+was. Closing the tab with unsaved work asks first.
+
+It used to save 800ms after every edit, and that was wrong twice over: there
+was no such thing as trying something out, and no moment at which anybody said
+"this is right" — and a field is invalid *while it is being built*, so the
+autosave met half-made work and reported it as an error nobody asked for.
+`autosaveDelay` is still accepted and ignored, so a host passing it is not
+broken.
+
+**Publish still saves first**, because publishing what is on screen is the one
+thing it must never get wrong.
 - **No Save button.** Edits are saved (as a draft) a moment after you stop, whenever the screen is valid; problems are marked on the controls that have them until they are fixed.
 - **Publish** (when `onPublish` is given) makes the draft the version everyone sees and changes its table to match. If removed fields would drop columns, it asks first — "Publishing removes `phone` — 1,240 saved values" — with **Remove and publish** / **Cancel**. Unsafe changes (narrowing a field) are refused with the reason.
 - **`lockedNames`**: fields that are already columns of the table. Their names are read-only, because renaming one would leave its data behind.
