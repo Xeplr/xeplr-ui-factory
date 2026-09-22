@@ -9,3 +9,7 @@ export { default as FlowBuilderSample } from './FlowBuilderSample.jsx'
 export { default as ControlView, VIEWS } from './ControlView.jsx'
 export { default as Palette, DRAG_TYPE } from './Palette.jsx'
 export { default as PropertyPanel, EDITORS } from './PropertyPanel.jsx'
+
+// The body of another package's "design this screen" window — see
+// ../useScreenSource.js, which is how it is normally reached.
+export { ScreenEditorSample } from './ScreenEditorSample.jsx'

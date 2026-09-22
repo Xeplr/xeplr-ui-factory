@@ -182,6 +182,47 @@ import schemaHandler from '@xeplr/schema-handler'          // CommonJS: default 
 const clean = schemaHandler.applySchema(formSchema(screen), req.body)   // throws ValidationError listing each field
 ```
 
+## Your screens, inside someone else's designer
+
+`@xeplr/ui-workflow`'s flow designer has a **Screen** step, and it asks its
+host two things: which screens exist and what each one hands back, and how to
+design one without leaving the flow. It cannot answer either itself — it
+carries a screen key and knows nothing else about forms, on purpose, so an app
+with a different screen system is not locked out.
+
+This package answers both, in one hook:
+
+```jsx
+import { useScreenSource, FactoryBuilder } from '@xeplr/ui-factory'
+
+const { screens, screenEditor } = useScreenSource(factory, { Builder: FactoryBuilder })
+<WorkflowDesigner screens={screens} screenEditor={screenEditor} … />
+```
+
+- **`screens`** is `[{ key, name, fields }]`. `fields` comes from
+  `inputNodes(doc)` — this package's own answer to "which nodes hold a value"
+  — so a label or a stepper is never offered as a field, and a control type
+  added here reaches every app without one of them being edited. Names arrive
+  first and fields follow, so the menu is usable while documents load; a
+  document that will not load leaves its screen choosable without fields.
+- **`screenEditor`** is the body of the designer's modal: the builder, on the
+  form that step shows, or on a new one it makes (`screenKey: null` → name it
+  → `createEntity`). **Publishing** is what fires `onDone({ key, name, fields })`,
+  because a draft changes nothing anybody can run — and that is what tells the
+  flow the form's new shape, so a field added there appears in every step that
+  shows that form.
+
+**Why this is a package and not four lines in your app.** It used to be the
+latter, and that is a bug: an app is generated once and then lives its own
+life, so glue copied into it can never be fixed centrally. An app scaffolded
+last month would keep the old version forever, and a control added here would
+never reach it. Anything every app would write identically belongs on this
+side of the line — `@xeplr/cli`'s generated `FlowDesigner.jsx` is two props,
+and its test suite fails if the glue reappears in the app.
+
+The pure half is `screenSource.js` — `describeScreen`, `loadScreens`,
+`keyFromName`, `editScreenOf` — testable with no React and no server.
+
 ## Flows — screens, one after another
 
 A screen is a form; a **flow** is the journey across several of them. Design it
@@ -463,10 +504,12 @@ src/
   presets.js             ─ ready-made fields (Email, Age, Gender…), changing a field's kind, label suggestions
   tableSchema.js         ─ a form → its table; the publish plan (create / add / widen / confirmed drops and conversions)
   remote.js              ─ createFactoryApi({ fetch }): the calls to @xeplr/factory's routes — fetch may be window.fetch or @xeplr/ui-account's authFetch (which returns parsed bodies); includes createEntity({ key, label })
+  screenSource.js        ─ this app's screens as another designer wants them: describeScreen, loadScreens, keyFromName, editScreenOf (React-free)
   model.js               ─ everything above, React-free
   useFactoryBuilder.js   ─ builder controller
   useFactoryScreen.js    ─ screen controller
-  designs/               ─ BuilderSample, ScreenSample, ControlView, ListView, Palette, PropertyPanel, styles.js, factory.css
+  useScreenSource.js     ─ { screens, screenEditor } for @xeplr/ui-workflow's Screen step
+  designs/               ─ BuilderSample, ScreenSample, ScreenEditorSample, ControlView, ListView, Palette, PropertyPanel, styles.js, factory.css
   pages.jsx              ─ FactoryBuilder, FactoryScreen
 bin/xeplr-factory.js     ─ screens / generate / validate / controls / schema
 examples/                ─ employee.entity.json and what `screens` makes of it
