@@ -95,6 +95,11 @@ export function createFactoryApi({ fetch: doFetch, base = '' } = {}) {
       confirmConvert: (options && options.confirmConvert) || []
     })),
     listTables: () => call('GET', '/tables'),
+    // DELETE A FORM'S SCREEN. The design always goes; the table only when it
+    // is empty and nothing else describes it — the answer says which
+    // happened, and how many records kept it. Refused while another
+    // published screen chooses from this form's table.
+    deleteScreen: async (key) => one(await call('DELETE', `/screens/${enc(key)}`)),
     // A new form from its name: { entity, plural? } → { entity, name, source, edit, list } — both screens as drafts.
     createEntity: async (spec) => one(await call('POST', '/entities', spec)),
 

@@ -121,6 +121,22 @@ export async function loadScreens(api, onList) {
   }))
 }
 
+/**
+ * DELETE A FORM — both of its screens.
+ *
+ * The list first, then the edit screen: while the list still exists the table
+ * is still described, so the edit screen's delete is the one that can find
+ * the table unused and empty. The other order leaves the table behind.
+ *
+ * @returns what became of the table: { table, tableDropped, records }
+ */
+export async function deleteForm(api, form) {
+  if (!form || !form.key) throw new Error('Which form?')
+  if (form.list) await api.deleteScreen(form.list)
+  var last = await api.deleteScreen(form.edit || form.key)
+  return last || { table: null, tableDropped: false, records: null }
+}
+
 /** "Leave request" → "leave_request": what a new form is keyed by. */
 export function keyFromName(label) {
   return String(label == null ? '' : label)
