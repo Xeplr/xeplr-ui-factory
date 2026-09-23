@@ -132,8 +132,22 @@ export async function loadScreens(api, onList) {
  */
 export async function deleteForm(api, form) {
   if (!form || !form.key) throw new Error('Which form?')
-  if (form.list) await api.deleteScreen(form.list)
-  var last = await api.deleteScreen(form.edit || form.key)
+
+  // A HALF OF A FORM IS A KEY OR THE ROW THAT CARRIES ONE. Callers group
+  // screens for their own listing and hold whatever was convenient — a key
+  // here, a listing row there — and a row put into a URL reads as
+  // "[object Object]", which is a 404 naming a screen nobody could have
+  // asked for.
+  var half = function (x) {
+    if (!x) return null
+    return typeof x === 'string' ? x : (x.screenKey || x.id || x.key || null)
+  }
+
+  var list = half(form.list)
+  var edit = half(form.edit) || form.key
+
+  if (list) await api.deleteScreen(list)
+  var last = await api.deleteScreen(edit)
   return last || { table: null, tableDropped: false, records: null }
 }
 

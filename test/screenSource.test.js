@@ -134,6 +134,17 @@ console.log('\ndeleting one')
   await deleteForm({ deleteScreen: async (k) => { half.push(k); return {} } }, { key: 'solo', edit: 'solo_edit' })
   check('a form with no list screen deletes what it has', half.join() === 'solo_edit')
 
+  // A caller groups screens for its own listing and holds whatever was
+  // convenient — a key here, the listing row there. A row reaching a URL
+  // reads as "[object Object]": a 404 naming a screen nobody asked for.
+  const rows = []
+  await deleteForm({ deleteScreen: async (k) => { rows.push(k); return {} } }, {
+    key: 'task',
+    edit: { screenKey: 'task_edit', version: 2 },
+    list: { screenKey: 'task_list', version: 1 }
+  })
+  check('a listing row works as well as a key', rows.join() === 'task_list,task_edit')
+
   let refused = null
   try { await deleteForm({ deleteScreen: async () => ({}) }, null) } catch (e) { refused = e.message }
   check('deleting nothing in particular is refused', /Which form/.test(refused || ''))
