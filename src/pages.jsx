@@ -89,6 +89,10 @@ export function FactoryScreen(props) {
               key={`${popup.screenId}:${popup.record ? popup.record[ctrl.recordKey] : 'new'}`}
               document={popup.document}
               record={popup.record}
+              // What the sub-table calls it with: the column pointing back at
+              // the record this list is on. Hidden on the form when the
+              // screen says a field is filled in by whoever opens it.
+              params={popup.params || undefined}
               recordKey={props.recordKey}
               onSave={ctrl.popupSave}
               fetchOptions={props.fetchOptions}

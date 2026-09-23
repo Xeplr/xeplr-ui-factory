@@ -13,6 +13,8 @@
  * @param options.fetch  a fetch that adds auth and tenant headers (e.g. @xeplr/ui-account's authFetch)
  * @param options.base   prefix before /factory, if the router is mounted elsewhere (default '')
  */
+import { createChildTable } from './masters.js'
+
 export function createFactoryApi({ fetch: doFetch, base = '' } = {}) {
   if (typeof doFetch !== 'function') throw new Error('createFactoryApi: pass { fetch } — usually authFetch from @xeplr/ui-account')
 
@@ -104,7 +106,14 @@ export function createFactoryApi({ fetch: doFetch, base = '' } = {}) {
     createEntity: async (spec) => one(await call('POST', '/entities', spec)),
 
     // records
-    fetchRecords: ({ screen }) => call('GET', `/records/${enc(screen)}`),
+    // `belongsTo` + `belongsToId`: a sub-table on a form asks for the rows of
+    // another table that belong to THIS record. Without an owner the server
+    // answers with none — a record that has not been saved yet owns nothing,
+    // and showing the whole table there is how somebody edits another
+    // record's lines.
+    fetchRecords: ({ screen, belongsTo, belongsToId }) => call('GET', belongsTo
+      ? `/records/${enc(screen)}?belongsTo=${enc(belongsTo)}&belongsToId=${enc(belongsToId == null ? '' : belongsToId)}`
+      : `/records/${enc(screen)}`),
     // One record, through the screen's get hooks — what Edit opens.
     fetchRecord: async ({ screen, id }) => one(await call('GET', `/records/${enc(screen)}/${enc(id)}`)),
     onSave: async (values, { id, screen }) => one(await call('POST', `/records/${enc(screen)}/save`, { id, values })),
@@ -121,6 +130,9 @@ export function createFactoryApi({ fetch: doFetch, base = '' } = {}) {
     fileUrl: (path) => `${base}/factory/files/${String(path).split('/').map(enc).join('/')}`
   }
   api.screenProps = { loadScreen: api.loadScreen, onSave: api.onSave, fetchRecords: api.fetchRecords, fetchRecord: api.fetchRecord, onDelete: api.onDelete, fetchOptions: api.fetchOptions, uploadFile: api.uploadFile, fileUrl: api.fileUrl }
-  api.builderProps = { onSave: api.saveDraft, onPublish: api.publish, listTables: api.listTables, fetchOptions: api.fetchOptions, fetchRecords: api.fetchRecords }
+  // makeChildTable: a list on a form can make the table it is about to point
+  // at — rows belonging to this record — without leaving the designer. A
+  // server act, which is why the builder is given it rather than doing it.
+  api.builderProps = { onSave: api.saveDraft, onPublish: api.publish, listTables: api.listTables, fetchOptions: api.fetchOptions, fetchRecords: api.fetchRecords, makeChildTable: function (spec) { return createChildTable(api, spec) } }
   return api
 }

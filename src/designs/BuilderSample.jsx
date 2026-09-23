@@ -241,6 +241,11 @@ export default function BuilderSample({ ctrl, renderPreview, className, style })
             screens={ctrl.screens}
             lockedNames={ctrl.lockedNames}
             onChange={(path, value) => ctrl.setProperty(ctrl.selectedNode.id, path, value)}
+            // A list pointed at a table that does not exist yet can make one
+            // — with the link back to this screen's record already on it —
+            // so nobody has to leave the designer, go and build a form, and
+            // come back to remember what they were doing.
+            onMakeChildTable={ctrl.makeChildTable}
             onConvert={(target) => ctrl.convertControl(ctrl.selectedNode.id, target)}
             hint={ctrl.selectedNode ? ctrl.hints.find((h) => h.nodeId === ctrl.selectedNode.id) : null}
             onScreenChange={ctrl.setScreen}

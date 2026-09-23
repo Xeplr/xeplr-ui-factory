@@ -58,7 +58,7 @@ function FieldType({ node, controls, hint, onConvert, onKeepPlain }) {
   )
 }
 
-export default function PropertyPanel({ doc, node, control, controls, errors, tables, screens, lockedNames, onChange, onConvert, hint, onScreenChange, onRemove, selectionCount }) {
+export default function PropertyPanel({ doc, node, control, controls, errors, tables, screens, lockedNames, onChange, onConvert, hint, onScreenChange, onRemove, onMakeChildTable, selectionCount }) {
   if (selectionCount > 1) {
     return (
       <aside className="xeplr-factory-panel">
@@ -109,6 +109,7 @@ export default function PropertyPanel({ doc, node, control, controls, errors, ta
                   node={node}
                   doc={doc}
                   errors={errs}
+                  onMakeChildTable={onMakeChildTable}
                 />
                 {locked
                   ? <div className="xeplr-factory-prop-help">Saved as a column of <code>{doc?.source}</code> — renaming it would leave its data behind. A rename is a migration.</div>
@@ -385,6 +386,74 @@ function ToggleValueEditor({ id, field, value, onChange }) {
  * in every browser, which is the searching somebody actually wants here, and
  * a widget of our own would have to reimplement the keyboard to match.
  */
+/**
+ * The same picker, plus a way out of the dead end.
+ *
+ * A sub-table points at a table that usually does not exist yet, and the
+ * honest answer to "which table?" at that moment is "the one I am about to
+ * make". Without this the designer has to be left, a form built, and the
+ * thought recovered on the way back.
+ *
+ * Only on a LIST, and only when the host can make one: it is a server act.
+ */
+function ListTableEditor({ id, value, onChange, tables, node, doc, onMakeChildTable }) {
+  const [making, setMaking] = useState(false)
+  const [name, setName] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+  const canMake = Boolean(onMakeChildTable && doc && doc.source && node)
+
+  const make = async () => {
+    if (!name.trim() || busy) return
+    setBusy(true)
+    try {
+      await onMakeChildTable(node.id, name.trim())
+      setMaking(false)
+      setName('')
+      setError(null)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (making) {
+    return (
+      <div>
+        <input
+          id={id}
+          className="xeplr-factory-prop-input"
+          autoFocus
+          value={name}
+          placeholder="Characteristics"
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); make() } }}
+        />
+        <div className="xeplr-factory-prop-help">
+          Makes a table of rows belonging to this one, and points this list at it.
+        </div>
+        {error && <div className="xeplr-factory-prop-error">{error}</div>}
+        <button type="button" className="xeplr-factory-primary" disabled={!name.trim() || busy} onClick={make}>
+          {busy ? 'Making it…' : 'Make the table'}
+        </button>
+        <button type="button" className="xeplr-factory-secondary" onClick={() => { setMaking(false); setError(null) }}>Cancel</button>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <TableEditor id={id} value={value} onChange={onChange} tables={tables} />
+      {canMake && (
+        <button type="button" className="xeplr-factory-secondary" onClick={() => setMaking(true)}>
+          New table…
+        </button>
+      )}
+    </div>
+  )
+}
+
 function TableEditor({ id, value, onChange, tables }) {
   const items = (tables && tables.items) || []
   if (items.length > 0) {
@@ -636,6 +705,7 @@ export const EDITORS = {
   table: TableEditor,
   screen: ScreenEditor,
   columns: ColumnsEditor,
+  listTable: ListTableEditor,
   actions: ActionsEditor,
   dataSource: DataSourceEditor
 }

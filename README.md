@@ -235,6 +235,41 @@ sends a screen document and never SQL. `tableSchema.js` is part of
 `@xeplr/ui-factory/model`, which `@xeplr/factory` imports in Node — sharing
 the rules is not shipping SQL to a browser.
 
+## A sub-table: rows that belong to one record
+
+This material's characteristics, this order's lines. Put a **List** on the
+form and give it two things:
+
+```
+Records from   material_characteristics   [ New table… ]
+Belonging to   materialId
+```
+
+**The link is what makes it a sub-table.** Without it, a list of another
+table shows every row in the app and **New** saves a row belonging to
+nothing. With it:
+
+- the grid shows only rows whose `materialId` is this material — and **none**
+  while the record is unsaved, because a record that does not exist yet owns
+  nothing, and showing the whole table there is how somebody edits another
+  record's lines;
+- **New** hands the child screen this material's id, as `params` — the same
+  mechanism a flow's Screen step uses — so the field is filled in and hidden,
+  and nobody is asked which material they are adding a line to.
+
+**New table…** makes the child there and then: two screens, published, with
+the link column already on them and declared as an input. It sets *Records
+from* and *Belonging to* together, because a table without its link is a list
+of everybody's rows and a link without a table is nothing — neither half is a
+state worth being able to reach.
+
+**A list is not a dropdown.** Its rows are records people create, so there is
+no "typed list" alternative the way there is for a dropdown's options. If
+what you want is *tags* — several values picked from a fixed set — that is a
+**Multi-select** pointing at a master, and the chosen ids live in one column
+of the record. Making it a sub-table means a two-table design for what is
+really one column.
+
 ## Masters — the lists the rest of the app points at
 
 Departments, statuses, countries, categories. Mark a form as a master in its

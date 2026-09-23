@@ -541,7 +541,7 @@ CONTROLS.list = {
   // PAGE of the app's own (openIn: 'page', which calls onOpenRecord and lets
   // the app navigate). Without one, Edit opens the row in this screen's own
   // fields (a list on a form).
-  props: ['title', 'source', 'editScreen', 'openIn', 'columns', 'pageSize', 'actions', 'style'],
+  props: ['title', 'source', 'belongsTo', 'editScreen', 'openIn', 'columns', 'pageSize', 'actions', 'style'],
   validation: [],
   styles: ['fontFamily', 'fontSize', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'],
   properties: [
@@ -550,7 +550,14 @@ CONTROLS.list = {
       title: 'List',
       fields: [
         { path: 'props.title', label: 'Title', type: 'text' },
-        { path: 'props.source', label: 'Records from', type: 'table', help: 'Blank → the table this screen saves to' },
+        { path: 'props.source', label: 'Records from', type: 'listTable', help: 'Blank → the table this screen saves to' },
+        // THE LINK BACK. A sub-table on a form — this material's
+        // characteristics, this order's lines — is rows of another table that
+        // belong to THIS record. Without it a list of another table shows
+        // every row in the app, and New saves a row belonging to nothing.
+        { path: 'props.belongsTo', label: 'Belonging to', type: 'text',
+          help: 'The column on those records that points back at this one, e.g. materialId. ' +
+                'It is filled in automatically on New and never shown.' },
         { path: 'props.editScreen', label: 'Edit in', type: 'screen', help: 'The screen Edit and New open' },
         { path: 'props.openIn', label: 'Opens in', type: 'select', options: [
           { value: 'popup', label: 'A popup' },

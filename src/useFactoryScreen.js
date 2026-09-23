@@ -492,7 +492,16 @@ export function useFactoryScreen({
         defaults: {
           get: () => {
             if (!fetchRecordsRef.current) throw new Error(`No fetchRecords was provided to list "${src}"`)
-            return fetchRecordsRef.current({ source: src, screen: doc.id, node })
+            // A SUB-TABLE IS THIS RECORD'S. `belongsTo` names the column on
+            // those rows that points back here, and the id is this record's
+            // — which is nothing until it has been saved, and the server
+            // answers with no rows rather than with everybody's.
+            var link = node.props && node.props.belongsTo
+            return fetchRecordsRef.current({
+              source: src, screen: doc.id, node,
+              belongsTo: link || undefined,
+              belongsToId: link ? live.current.recordId : undefined
+            })
           }
         }
       }))
@@ -553,12 +562,20 @@ export function useFactoryScreen({
   const openRecordRef = useRef(onOpenRecord); openRecordRef.current = onOpenRecord
   const openEditor = useCallback(async (node, rec) => {
     const screenId = node.props.editScreen
+
+    // WHAT THE CHILD IS CALLED WITH. A sub-table's row belongs to THIS
+    // record, so the link column is handed to the screen that adds one — the
+    // same `params` a flow's Screen step passes. The person never sees it,
+    // and never has to know which material they are adding a line to.
+    const link = node.props.belongsTo
+    const given = link && live.current.recordId ? { [link]: live.current.recordId } : null
+
     if (node.props.openIn === 'page') {
       if (!openRecordRef.current) throw new Error('This list opens records on a page, but no onOpenRecord was provided to go there')
       const id = rec ? rec[live.current.recordKey] : null
-      return openRecordRef.current({ screen: screenId, id, record: rec || null, source: listSource(doc, node), node })
+      return openRecordRef.current({ screen: screenId, id, record: rec || null, source: listSource(doc, node), node, params: given })
     }
-    const base = { node, screenId, record: rec || null, document: null, loading: true, error: null }
+    const base = { node, screenId, record: rec || null, document: null, loading: true, error: null, params: given }
     setPopup(base)
     try {
       let found = screensRef.current && screensRef.current[screenId]

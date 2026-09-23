@@ -20,7 +20,7 @@
 // server; the spec it builds is a plain object anything can check.
 
 import { screensFromSpec, entityNames } from './generate.js'
-import { describeScreen } from './screenSource.js'
+import { describeScreen, formKeyOf } from './screenSource.js'
 
 /** The field every master is shown by. Said once, here and in labelField. */
 export var MASTER_LABEL = 'name'
@@ -112,6 +112,69 @@ export async function createMaster(api, spec) {
   await api.publish(list)
 
   return describeScreen(edit)
+}
+
+/**
+ * A CHILD TABLE — rows that belong to one record of another form.
+ *
+ * This material's characteristics, this order's lines. Two fields and a link,
+ * which is the whole of what a sub-table is before somebody designs it:
+ *
+ *   name     what the row is
+ *   value    what it says — optional, but it is why most sub-tables exist
+ *   <link>   the record it belongs to, DECLARED AS AN INPUT so the list that
+ *            opens it can supply it (see screenParams). Bound with
+ *            {params.<link>} rather than typed, hidden when given and asked
+ *            when not — the same field, whether it is opened from a material
+ *            or on its own.
+ *
+ * @param name    what the child is called — "Material characteristics"
+ * @param parent  { table, label, link } — the form it belongs to, and the
+ *                column pointing back at it
+ */
+export function childSpec({ name, parent, plural }) {
+  var label = String(name || '').trim()
+  if (!label) throw new Error('A table needs a name, e.g. "Characteristics"')
+  if (!parent || !parent.table || !parent.link) throw new Error('A child table needs the record it belongs to')
+
+  return {
+    entity: entityNames(singularOf(label), plural).singular,
+    plural: plural,
+    fields: [
+      // The link first, because it is what the row IS before it is anything
+      // else — and hidden in practice, since the list supplies it.
+      { label: parent.linkLabel || parent.label || 'Belongs to', name: parent.link,
+        type: 'dropdown', table: parent.table, required: true, default: '{params.' + parent.link + '}' },
+      { label: 'Name', type: 'text', required: true },
+      { label: 'Value', type: 'text' }
+    ]
+  }
+}
+
+/**
+ * Make one, published, with the link declared as an input.
+ *
+ * Published for the same reason a master is: a draft has no table, so the
+ * list that is about to point at it would have nothing to read.
+ *
+ * @returns { key, edit, list, link } — what the List control needs to be
+ *          pointed at it.
+ */
+export async function createChildTable(api, spec) {
+  var pair = screensFromSpec(childSpec(spec))
+  var link = spec.parent.link
+
+  // The link is what this screen is CALLED WITH. Declared here rather than
+  // left as an ordinary field so the form knows not to ask for it when the
+  // list already said.
+  var edit = Object.assign({}, pair.edit, { params: [{ name: link }] })
+
+  await api.saveDraft(edit)
+  await api.saveDraft(pair.list)
+  await api.publish(edit)
+  await api.publish(pair.list)
+
+  return { key: formKeyOf(edit.id), edit: edit.id, list: pair.list.id, source: edit.source, link: link }
 }
 
 /**

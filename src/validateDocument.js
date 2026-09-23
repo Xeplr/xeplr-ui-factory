@@ -385,6 +385,17 @@ function checkList(props, doc, at, err) {
   if (props.source !== undefined && !(nonEmptyString(props.source) && TABLE_NAME.test(props.source))) err(`${at}.props.source`, 'must name the table to list records from')
   if (props.source === undefined && doc.source === undefined) err(`${at}.props.source`, 'is required when the screen has no "source" — which table should the list read?')
   if (props.editScreen !== undefined && !(nonEmptyString(props.editScreen) && SCREEN_ID.test(props.editScreen))) err(`${at}.props.editScreen`, 'must be the id of the screen that edits a record, e.g. "employee_edit"')
+
+  // THE LINK BACK, for a sub-table on a form: this material's
+  // characteristics. A column name, checked as one — a value that could never
+  // be a column is a list that is always empty and nobody knows why.
+  if (props.belongsTo !== undefined && props.belongsTo !== '') {
+    if (!(nonEmptyString(props.belongsTo) && /^[A-Za-z_][\w]*$/.test(props.belongsTo))) {
+      err(`${at}.props.belongsTo`, 'must be a column name, e.g. "materialId"')
+    } else if (!props.source) {
+      err(`${at}.props.belongsTo`, 'only means something with "Records from" set — a list of this screen\'s own table already belongs to this record')
+    }
+  }
   if (props.pageSize !== undefined && !(Number.isInteger(props.pageSize) && props.pageSize >= 1 && props.pageSize <= 200)) err(`${at}.props.pageSize`, 'must be a whole number from 1 to 200')
   if (props.actions !== undefined) {
     if (!Array.isArray(props.actions)) err(`${at}.props.actions`, `must be an array of: ${LIST_ACTIONS.join(', ')}`)

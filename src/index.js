@@ -16,7 +16,7 @@ export { useFactoryScreen, normaliseOptions } from './useFactoryScreen.js'
 export { useScreenSource } from './useScreenSource.js'
 export { describeScreen, screenStub, loadScreens, keyFromName, editScreenOf, masterForms, formKeyOf, deleteForm } from './screenSource.js'
 // Making a master: the one form shape every application repeats.
-export { masterSpec, createMaster, possibleParents, singularOf, MASTER_LABEL, MASTER_ORDER } from './masters.js'
+export { masterSpec, createMaster, possibleParents, singularOf, MASTER_LABEL, MASTER_ORDER, childSpec, createChildTable } from './masters.js'
 export { useFlowRun } from './useFlowRun.js'
 export { useFlowBuilder, FLOW_AUTOSAVE_DELAY } from './useFlowBuilder.js'
 

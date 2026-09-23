@@ -3,7 +3,7 @@
 // Departments, statuses, countries, categories. Designing them one at a time
 // is drawing the same form over and over, so a master is MADE rather than
 // designed: a name, and what it belongs to.
-import { masterSpec, createMaster, possibleParents, singularOf } from '../src/masters.js'
+import { masterSpec, createMaster, possibleParents, singularOf, childSpec, createChildTable } from '../src/masters.js'
 import { entityNames } from '../src/generate.js'
 import { validateDocument } from '../src/validateDocument.js'
 
@@ -82,6 +82,48 @@ console.log('\nwhat is made is an ordinary screen')
     try { masterSpec({ name: '  ' }); return false } catch (e) { return /needs a name/.test(e.message) }
   })())
   check('the entity is one word, lower case', /^[a-z][a-z0-9_]*$/.test(spec.entity))
+}
+
+console.log('\na sub-table: rows that belong to one record')
+{
+  const parent = { table: 'materials', label: 'Material', link: 'materialId' }
+  const spec = childSpec({ name: 'Material characteristics', parent })
+
+  // The link FIRST, because it is what the row is before it is anything else.
+  const link = spec.fields[0]
+  check('it carries the record it belongs to', link.name === 'materialId')
+  check('...chosen from the parent table, so it works standing alone',
+    link.type === 'dropdown' && link.table === 'materials')
+  check('...required — a characteristic of no material is a row nothing can use', link.required === true)
+
+  // BOUND, NOT TYPED. The list that opens this form supplies the value; the
+  // brace is the same one a workflow step uses.
+  check('...and bound to what the form is called with', link.default === '{params.materialId}')
+  check('the row itself is a name and a value', spec.fields.map((f) => f.label).join() === 'Material,Name,Value')
+
+  check('a child with nothing to belong to is refused', (() => {
+    try { childSpec({ name: 'Orphans' }); return false } catch (e) { return /belongs to/.test(e.message) }
+  })())
+}
+
+console.log('\nmaking one from the designer')
+{
+  const published = []
+  const api = {
+    saveDraft: async (doc) => doc,
+    publish: async (doc) => { published.push(doc.id); return { version: 1 } }
+  }
+  const made = await createChildTable(api, {
+    name: 'Material characteristics',
+    parent: { table: 'materials', label: 'Material', link: 'materialId' }
+  })
+
+  check('both screens are published', published.join() === 'material_characteristic_edit,material_characteristic_list')
+  // What the List control needs to be pointed at it — the table AND the
+  // link, because a table without its link is a list of everybody's rows.
+  check('it answers with the table', made.source === 'material_characteristics')
+  check('...and the link', made.link === 'materialId')
+  check('...and the screens', made.edit === 'material_characteristic_edit' && made.list === 'material_characteristic_list')
 }
 
 const failed = results.filter(([, ok]) => !ok)

@@ -37,7 +37,22 @@ import { presetFor, presetProps, presetGroup, presetHints, convertField } from '
  *                    columns — the builder asks, and calls again with confirmDrop naming them.
  * @param controls    the control registry (default: the built-ins)
  */
-export function useFactoryBuilder({ document: given, name, onSave, onChange, onPublish, listTables, screens, lockedNames, controls = CONTROLS, autosaveDelay = 800 } = {}) {
+/**
+ * What the link column on a child is called: materials → materialId.
+ *
+ * From the parent's TABLE rather than its name, because the table is what the
+ * column points at and is the thing that cannot be renamed later.
+ */
+function linkNameFor(doc) {
+  var table = String((doc && doc.source) || 'parent').replace(/[^A-Za-z0-9]+/g, '_').replace(/_+$/, '')
+  var singular = /ies$/.test(table) ? table.slice(0, -3) + 'y'
+    : /(ss|us|is)$/.test(table) ? table
+    : /s$/.test(table) ? table.slice(0, -1)
+    : table
+  return singular.replace(/_([a-z])/g, function (_, c) { return c.toUpperCase() }) + 'Id'
+}
+
+export function useFactoryBuilder({ document: given, name, onSave, onChange, onPublish, listTables, makeChildTable, screens, lockedNames, controls = CONTROLS, autosaveDelay = 800 } = {}) {
   const [doc, setDoc] = useState(() => given || createScreen({ name }))
   const [selected, setSelected] = useState(() => new Set())
   const [dirty, setDirty] = useState(false)
@@ -253,6 +268,7 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
   // Deliberate, unlike saving: a half-finished design must not reach everyone
   // filling the form in.
   const onPublishRef = useRef(onPublish); onPublishRef.current = onPublish
+  const makeChildTableRef = useRef(makeChildTable); makeChildTableRef.current = makeChildTable
   const [publishing, setPublishing] = useState(false)
   const [publishResult, setPublishResult] = useState(null)   // { ok, message, version?, detail? }
   /**
@@ -356,6 +372,29 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
     },
     visibleNodes,
     setProperty,
+    /**
+     * Make the table a list is about to point at, and point it there.
+     *
+     * TWO PROPERTIES AT ONCE, which is why it is here rather than a button in
+     * the panel: a table without its link is a list of everybody's rows, and
+     * a link without a table is nothing at all. Neither half is a state worth
+     * being able to reach.
+     *
+     * The host does the making (it is a server act, and this package does not
+     * know where the server is) and answers with what the list needs.
+     */
+    makeChildTable: makeChildTableRef.current ? async function (nodeId, name) {
+      var made = await makeChildTableRef.current({
+        name: name,
+        parent: { table: docRef.current.source, label: docRef.current.name, link: linkNameFor(docRef.current) }
+      })
+      if (!made || !made.source) throw new Error('Could not make that table')
+      update(function (d) {
+        var withTable = setNodeProperty(d, nodeId, 'props.source', made.source)
+        return setNodeProperty(withTable, nodeId, 'props.belongsTo', made.link)
+      })
+      return made
+    } : null,
     convertControl,
     hints,
     removeSelected,
