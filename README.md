@@ -207,6 +207,35 @@ picker should show for one of its records:
 { master: true, labelField: 'name' }     // on the form's own document
 ```
 
+**Made, not designed.** Every application repeats the same three things —
+a name, an order of its own, and the master it belongs to — so a master is
+created outright rather than drawn:
+
+```js
+import { createMaster } from '@xeplr/ui-factory'
+
+await createMaster(factory, { name: 'States', parent: { table: 'countries', label: 'Country' } })
+// → states_edit + states_list, marked as a master, published
+```
+
+- **Name** is required: a master row with no name is a blank line in every
+  dropdown that points at it.
+- **Sort order** is not: Low / Medium / High is never alphabetical, but most
+  lists are fine, and a number somebody must invent for every row is a tax on
+  adding one.
+- **Belongs to** is a dropdown on the parent master, required when there is
+  one — a state in no country is a row nothing can use. A master is never
+  offered as its own parent.
+
+It is **published** on creation, which is the one place doing that on
+somebody's behalf is right: a master that is a draft has no table, so nothing
+can point at it and nobody can add a row, which is all a master is for.
+
+Named in the plural, stored in the singular: *Departments* makes the entity
+`department` and the table `departments`. Without that step `entityNames`
+would make `departmentses`, which is noticed only once the table exists and
+then cannot be renamed.
+
 **A flag on a form, not a kind of form.** A master has a table, a list, an
 edit screen and permissions like anything else; a separate type would be two
 things that behave the same until they do not, and every feature after it
