@@ -181,7 +181,7 @@ function ScreenPanel({ doc, errors, tables, onChange }) {
           label: 'Inputs',
           type: 'text',
           help: 'Names, comma separated. A field takes one with {params.name} as its default.'
-        }, TextEditor)}
+        }, ListLineEditor)}
       </fieldset>
       <fieldset className="xeplr-factory-group">
         <legend>Size</legend>
@@ -197,6 +197,41 @@ function ScreenPanel({ doc, errors, tables, onChange }) {
 
 function LockedEditor({ id, value }) {
   return <input id={id} className="xeplr-factory-prop-input xeplr-factory-mono" type="text" value={value ?? ''} readOnly aria-readonly="true" />
+}
+
+/**
+ * A LIST TYPED AS A LINE — the screen's inputs.
+ *
+ * It cannot be a plain TextEditor. What is stored is a LIST, and what is
+ * shown is that list joined again, so committing on every keystroke means the
+ * comma you just typed is parsed away ("a," → ["a"] → "a") before the next
+ * character arrives, and the box refuses to let you start a second name.
+ *
+ * So: the text is yours while you are typing, and becomes a list when you
+ * leave the box. The same rule as every other value in this product that is
+ * not what it looks like — see the JSON cells in the flow designer.
+ */
+function ListLineEditor({ id, value, onChange }) {
+  const [text, setText] = useState(value ?? '')
+  const [typing, setTyping] = useState(false)
+
+  // Taken from the document again when it changes underneath — a different
+  // screen, an undo — unless the box is being typed in right now.
+  useEffect(() => { if (!typing) setText(value ?? '') }, [value, typing])
+
+  return (
+    <input
+      id={id}
+      className="xeplr-factory-prop-input"
+      type="text"
+      value={text}
+      onFocus={() => setTyping(true)}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={(e) => { setTyping(false); onChange(e.target.value) }}
+      // Enter commits, so the keyboard way out is the same as the pointer's.
+      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur() } }}
+    />
+  )
 }
 
 function TextEditor({ id, value, onChange }) {
