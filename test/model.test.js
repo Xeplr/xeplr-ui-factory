@@ -12,7 +12,7 @@ import {
   toDbValue, fromDbValue, acceptList, widening, chooseable, fileLabel,
   steppers, stepsOf, stepOf, setNodeStep, nodesForSteps, resolveStep, reachableStep, nextOpenStep,
   screenParams, paramsText, setScreenParams, resolveBinding, isBinding,
-  codeFields, generateCode
+  codeFields, countedFields, generateCode
 } from '../src/model.js'
 import { normaliseOptions } from '../src/useFactoryScreen.js'
 
@@ -645,12 +645,22 @@ console.log('\na code that survives being read aloud')
   const many = new Set(Array.from({ length: 500 }, () => generateCode('X')))
   check('500 in a row are 500 different codes', many.size === 500)
 
+  // A TYPE, not a flag on a text box: everything about an identifier follows
+  // from choosing it — the column, who fills it in, whether it is on the form.
   let r = addControl(createScreen({ name: 'Complaint' }), 'text')
-  let doc = setNodeProperty(r.document, r.node.id, 'props.name', 'code')
-  check('a plain field is not generated', codeFields(doc).length === 0)
-  doc = setNodeProperty(doc, r.node.id, 'props.generated', true)
-  check('one that is marked, is', codeFields(doc).map((n) => n.props.name).join() === 'code')
-  check('the screen is still valid with it', validateDocument(doc).ok)
+  let doc = r.document
+  check('a text field is not an identifier', codeFields(doc).length === 0)
+
+  r = addControl(doc, 'id'); doc = r.document
+  doc = setNodeProperty(doc, r.node.id, 'props.name', 'ref')
+  check('an identifier carries a code by default', codeFields(doc).map((n) => n.props.name).join() === 'ref')
+  check('the screen is valid with one', validateDocument(doc).ok)
+
+  doc = setNodeProperty(doc, r.node.id, 'props.idKind', 'auto')
+  check('a counted one is the database\'s to fill in, not the server\'s', codeFields(doc).length === 0)
+  check('...and is listed as counted', countedFields(doc).map((n) => n.props.name).join() === 'ref')
+  check('a kind nobody has heard of is refused',
+    /must be "code"/.test(validateDocument(setNodeProperty(doc, r.node.id, 'props.idKind', 'magic')).errors.map((e) => e.message).join()))
 }
 
 const failed = results.filter(([, ok]) => !ok)

@@ -132,11 +132,10 @@ export function fieldError(node, value, loadedOptions) {
   const label = p.label || p.name
   const v = p.validation || {}
 
-  // A GENERATED CODE IS NOT SOMEBODY'S TO FILL IN. The server assigns it on
-  // first save, so "required" here would refuse the very save that produces
-  // it — a form that cannot be submitted because a field nobody can type is
-  // empty.
-  if (p.generated) return null
+  // AN IDENTIFIER IS NOT SOMEBODY'S TO FILL IN. The server assigns a code on
+  // first save and the database counts a number, so a rule here would refuse
+  // the very save that produces the value.
+  if (node.type === 'id') return null
 
   if (node.type === 'checkbox') {
     return p.required && value !== true ? `${label} must be ticked` : null
@@ -364,7 +363,16 @@ var CODE_ALPHABET = '23456789ABCDEFGHJKLMNPQRTUVWXYZ'
 
 /** The fields a screen generates a code for. */
 export function codeFields(doc, controls = CONTROLS) {
-  return inputNodes(doc, controls).filter((n) => n.props && n.props.generated)
+  return inputNodes(doc, controls).filter((n) => n.type === 'id' && (n.props || {}).idKind !== 'auto')
+}
+
+/**
+ * The identifiers the DATABASE fills in — a counted number. They are never
+ * sent on an insert: the column is an identity, so mentioning it at all would
+ * be claiming a number nobody chose.
+ */
+export function countedFields(doc, controls = CONTROLS) {
+  return inputNodes(doc, controls).filter((n) => n.type === 'id' && (n.props || {}).idKind === 'auto')
 }
 
 /**

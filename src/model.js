@@ -25,7 +25,7 @@ export {
 // A value with a {params.x} token is a binding; a plain value is a literal.
 export { resolveBinding, isBinding } from './values.js'
 // A code people can read out, unlike the record's own key.
-export { codeFields, generateCode } from './values.js'
+export { codeFields, countedFields, generateCode } from './values.js'
 export { FIELD_PRESETS, PATTERNS, INPUT_TYPES, presetFor, presetProps, suggestPreset, presetGroup, presetHints, convertField } from './presets.js'
 export { createFlowsApi } from './flows.js'
 export {

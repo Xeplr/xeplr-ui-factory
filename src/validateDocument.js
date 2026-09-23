@@ -128,10 +128,11 @@ export function validateDocument(doc, controls = CONTROLS) {
       if (props.preset !== undefined && props.preset !== false && !presetFor(props.preset)) err(`${at}.props.preset`, `"${props.preset}" is not a ready-made field — one of: ${FIELD_PRESETS.map((p) => p.key).join(', ')}, or false`)
       if (props.inputType !== undefined && !INPUT_TYPES.includes(props.inputType)) err(`${at}.props.inputType`, `must be one of: ${INPUT_TYPES.join(', ')}`)
 
-      // A CODE ASSIGNED ON SAVE. Nobody types it, so a required-and-generated
-      // field is not a contradiction — the value simply arrives later.
-      if (props.generated !== undefined && typeof props.generated !== 'boolean') {
-        err(`${at}.props.generated`, 'must be true or false — whether a code is assigned when the record is first saved')
+      // AN IDENTIFIER — the number or code this record is known by. How it is
+      // made decides the column, so it is checked here rather than discovered
+      // at publish time.
+      if (props.idKind !== undefined && props.idKind !== 'code' && props.idKind !== 'auto') {
+        err(`${at}.props.idKind`, 'must be "code" (CMP-7K3QF9, assigned on save) or "auto" (a number the database counts)')
       }
       if (props.codePrefix !== undefined && props.codePrefix !== '') {
         if (typeof props.codePrefix !== 'string' || !/^[A-Za-z0-9]{1,8}$/.test(props.codePrefix)) {

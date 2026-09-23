@@ -74,30 +74,41 @@ const TEXT_INPUT = {
 }
 
 /**
- * A generated code is shown, never typed: the server assigns it on first save
- * and it never changes, so an editable box would be a box whose contents are
- * thrown away — and, once saved, an invitation to alter the one thing people
- * quote to each other.
+ * AN IDENTIFIER — the number or code this record is known by.
+ *
+ * Never typed, either way, so there is nothing to type into. What differs is
+ * whether it is on the form at all:
+ *
+ *   code   shown. This is the one people quote to each other, so they need to
+ *          see it — read-only, because changing it later breaks every quote.
+ *   auto   NOT SHOWN on a live form. The database assigns it as the row is
+ *          inserted, so on a new record there is nothing to show but an empty
+ *          box, and an empty box that never fills in is a question the form
+ *          appears to be asking and is not. Once the row exists it is worth
+ *          seeing, so a saved record shows it.
+ *
+ * On the DESIGN canvas both are drawn, or there would be nothing to select
+ * and nothing to configure.
  */
-function TextView({ node, p, value, error, onChange, onBlur, disabled }) {
-  if (p.generated) {
-    return (
-      <Field node={node} p={p} error={error}>
-        <input
-          className="xeplr-factory-input"
-          type="text"
-          value={value ?? ''}
-          readOnly
-          placeholder={value ? '' : 'Given when saved'}
-          {...inputProps(node, p, error, true, onBlur)}
-        />
-      </Field>
-    )
-  }
-  return TextInputView({ node, p, value, error, onChange, onBlur, disabled })
+function IdView({ node, p, value, design }) {
+  const counted = p.idKind === 'auto'
+  if (counted && !design && (value === undefined || value === null || value === '')) return null
+
+  return (
+    <Field node={node} p={p}>
+      <input
+        className="xeplr-factory-input"
+        type="text"
+        value={value ?? ''}
+        readOnly
+        disabled
+        placeholder={counted ? 'Numbered when saved' : 'Given when saved'}
+      />
+    </Field>
+  )
 }
 
-function TextInputView({ node, p, value, error, onChange, onBlur, disabled }) {
+function TextView({ node, p, value, error, onChange, onBlur, disabled }) {
   const kind = TEXT_INPUT[p.inputType] || { type: 'text' }
   return (
     <Field node={node} p={p} error={error}>
@@ -419,6 +430,7 @@ function ListControl({ node, design, list }) {
 }
 
 export const VIEWS = {
+  id: IdView,
   text: TextView,
   textarea: TextareaView,
   number: NumberView,

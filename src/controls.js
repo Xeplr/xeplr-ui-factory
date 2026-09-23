@@ -99,19 +99,7 @@ const FIELD_BASICS = (extra) => ({
   ]
 })
 
-/**
- * A CODE PEOPLE CAN READ OUT — CMP-7K3QF9, assigned on save.
- *
- * Offered on a text field only, and only these two rows: whether it is
- * generated, and what it starts with. The record already has a key; this is
- * the one anybody says out loud.
- */
-const GENERATED = [
-  { path: 'props.generated', label: 'Assign a code on save', type: 'toggle',
-    help: 'Nobody types this — it is given when the record is first saved.' },
-  { path: 'props.codePrefix', label: 'Starts with', type: 'text', showWhen: 'props.generated',
-    help: 'CMP → CMP-7K3QF9. Optional.' }
-]
+
 
 const PLACEHOLDER = { path: 'props.placeholder', label: 'Placeholder', type: 'text' }
 
@@ -179,13 +167,13 @@ export const CONTROLS = {
     defaultSize: { w: 0.44, h: 0.08 },
     defaults: { label: 'Text' },
     // inputType: the box's keyboard and autofill — text, email, tel, url.
-    props: ['name', 'label', 'preset', 'placeholder', 'required', 'generated', 'codePrefix', 'default', 'validation', 'inputType', 'style'],
+    props: ['name', 'label', 'preset', 'placeholder', 'required', 'default', 'validation', 'inputType', 'style'],
     validation: ['minLength', 'maxLength', 'pattern', 'patternMessage'],
     styles: INPUT_STYLES,
     properties: [
       FIELD_BASICS([PLACEHOLDER, { path: 'props.default', label: 'Default value', type: 'text' }, { path: 'props.inputType', label: 'Keyboard', type: 'select', options: [
         { value: 'text', label: 'Text' }, { value: 'email', label: 'Email' }, { value: 'tel', label: 'Phone' }, { value: 'url', label: 'Web address' }
-      ], help: 'What a phone shows to type with, and what autofill offers' }].concat(GENERATED)),
+      ], help: 'What a phone shows to type with, and what autofill offers' }]),
       {
         key: 'validation',
         title: 'Validation',
@@ -245,6 +233,57 @@ export const CONTROLS = {
           { path: 'props.validation.min', label: 'Minimum', type: 'number' },
           { path: 'props.validation.max', label: 'Maximum', type: 'number' },
           { path: 'props.validation.integer', label: 'Whole numbers only', type: 'toggle' }
+        ]
+      },
+      ...styleGroups(INPUT_STYLES)
+    ]
+  },
+
+  /**
+   * AN IDENTIFIER — the number or code this record is known by.
+   *
+   * A TYPE, not a flag on a text box, because everything about it follows
+   * from choosing it: what the column is, who fills it in, and whether it is
+   * on the form at all. Drop it on, say how it is made, and the rest is
+   * decided.
+   *
+   *   auto    the database counts — 1, 2, 3. Nobody types it and nobody sees
+   *           it while the record is new, because it does not exist yet: the
+   *           database assigns it as the row is inserted. Not drawn on a live
+   *           form at all.
+   *   code    the server assigns CMP-7K3QF9 on the first save. Shown, because
+   *           this is the one people quote to each other — and read-only,
+   *           because changing it later would break every quote of it.
+   *
+   * The record's own 25-character key is untouched and still what everything
+   * points at. This is the identifier PEOPLE use.
+   */
+  id: {
+    type: 'id',
+    label: 'Identifier',
+    group: 'Inputs',
+    input: true,
+    valueType: 'string',
+    defaultSize: { w: 0.28, h: 0.08 },
+    defaults: { label: 'Reference', idKind: 'code' },
+    props: ['name', 'label', 'idKind', 'codePrefix', 'style'],
+    // Nothing to break: nobody types an identifier, so there is no rule it
+    // could fail. Declared anyway, because every control answers the same
+    // questions (see the contract in test/model.test.js).
+    validation: [],
+    styles: INPUT_STYLES,
+    properties: [
+      {
+        key: 'field',
+        title: 'Field',
+        fields: [
+          { path: 'props.label', label: 'Label', type: 'text' },
+          { path: 'props.name', label: 'Field name', type: 'text', help: 'The key this value is saved under' },
+          { path: 'props.idKind', label: 'How it is made', type: 'select', options: [
+            { value: 'code', label: 'A code — CMP-7K3QF9' },
+            { value: 'auto', label: 'A number, counted by the database — 1, 2, 3' }
+          ], help: 'A counted number is never shown on the form: it exists only once the row does.' },
+          { path: 'props.codePrefix', label: 'Starts with', type: 'text', help: 'CMP → CMP-7K3QF9. Codes only, and optional.' }
         ]
       },
       ...styleGroups(INPUT_STYLES)

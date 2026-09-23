@@ -151,7 +151,8 @@ switch (cmd) {
     Object.values(CONTROLS).forEach((c) => {
       process.stdout.write(`${c.type.padEnd(9)} ${c.label}${c.input ? ` — value: ${c.valueType || 'option id'}` : ''}\n`)
       process.stdout.write(`          props: ${c.props.join(', ')}\n`)
-      if (c.validation.length) process.stdout.write(`          validation: ${c.validation.join(', ')}\n`)
+      // Not every control has rules to break — an identifier has none.
+      if (c.validation && c.validation.length) process.stdout.write(`          validation: ${c.validation.join(', ')}\n`)
       if (c.styles && c.styles.length) process.stdout.write(`          style: ${c.styles.join(', ')}\n`)
     })
     break
