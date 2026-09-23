@@ -255,6 +255,20 @@ They are gathered in the admin section rather than scattered through the side
 rail because that is what they are — reference data somebody maintains
 occasionally. The rail stays for the work.
 
+**And they are what a dropdown offers first.** A field's *where its options
+come from* now reads:
+
+```
+Masters        Departments, Statuses, Countries      ← named, first
+Other tables   complaints, employees, pod_items      ← still there, below
+```
+
+`/factory/tables` marks and names them (`@xeplr/factory`'s
+`tablesForPicker`), so the picker groups rather than guesses. Two `<optgroup>`s
+in a plain `<select>`, not a combobox: typing jumps to an option in every
+browser, which is the searching anybody wants here, and a widget of our own
+would have to reimplement the keyboard to match.
+
 ## Your screens, inside someone else's designer
 
 `@xeplr/ui-workflow`'s flow designer has a **Screen** step, and it asks its

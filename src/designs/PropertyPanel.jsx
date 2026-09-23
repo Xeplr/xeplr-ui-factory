@@ -357,12 +357,38 @@ function ToggleValueEditor({ id, field, value, onChange }) {
 }
 
 /** A table name: picked from the app's tables when it lists them, typed otherwise. */
+/**
+ * WHERE A DROPDOWN'S OPTIONS COME FROM.
+ *
+ * MASTERS FIRST, by the name a person knows them as — "Departments", not
+ * "departments" — because those are the lists that exist to be pointed at. A
+ * flat list of thirty raw table names is one nobody can read, and nothing in
+ * it says which tables were meant for this.
+ *
+ * Everything else is still underneath. A dropdown may legitimately read from
+ * any table a published screen reads, and hiding those would replace a
+ * confusing list with a dead end.
+ *
+ * Two groups in a plain <select>, not a combobox: typing jumps to an option
+ * in every browser, which is the searching somebody actually wants here, and
+ * a widget of our own would have to reimplement the keyboard to match.
+ */
 function TableEditor({ id, value, onChange, tables }) {
-  if (tables && tables.items.length > 0) {
+  const items = (tables && tables.items) || []
+  if (items.length > 0) {
+    const masters = items.filter((t) => t.master)
+    const rest = items.filter((t) => !t.master)
+    const option = (t) => <option key={String(t.id)} value={String(t.id)}>{t.name}</option>
+
     return (
       <select id={id} className="xeplr-factory-prop-input" value={value ?? ''} onChange={(e) => onChange(e.target.value || undefined)}>
         <option value="">{tables.loading ? 'Loading tables…' : '—'}</option>
-        {tables.items.map((t) => <option key={String(t.id)} value={String(t.id)}>{t.name}</option>)}
+        {masters.length > 0 && <optgroup label="Masters">{masters.map(option)}</optgroup>}
+        {/* Named as what they are, so it reads as "the rest" rather than as a
+            second list of the same kind of thing. */}
+        {rest.length > 0 && (
+          <optgroup label={masters.length > 0 ? 'Other tables' : 'Tables'}>{rest.map(option)}</optgroup>
+        )}
       </select>
     )
   }
