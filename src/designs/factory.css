@@ -460,3 +460,28 @@
   padding: 16px; border-radius: 8px; border: 1px solid var(--xf-border);
   background: var(--xf-surface); color: var(--xf-ink);
 }
+
+
+/* ── a child table, designed where it was made ─────────────────────────── */
+/* Wide, because what is inside is a whole designer: palette, canvas and
+   property panel. A form builder in a dialog box is a canvas nobody can
+   work on. */
+.xeplr-factory-modal--wide {
+  width: min(1600px, 96vw);
+  height: min(1000px, 92vh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.xeplr-factory-modal-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--xf-border);
+}
+.xeplr-factory-modal-spacer { flex: 1; }
+/* hidden, not auto: the builder inside manages its own panes */
+.xeplr-factory-modal-body { flex: 1; min-height: 0; overflow: hidden; }
+.xeplr-factory-modal-body > * { height: 100%; }
+.xeplr-factory-builder--nested { min-height: 0; }

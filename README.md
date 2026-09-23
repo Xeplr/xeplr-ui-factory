@@ -257,11 +257,19 @@ nothing. With it:
   mechanism a flow's Screen step uses — so the field is filled in and hidden,
   and nobody is asked which material they are adding a line to.
 
-**New table…** makes the child there and then: two screens, published, with
-the link column already on them and declared as an input. It sets *Records
-from* and *Belonging to* together, because a table without its link is a list
-of everybody's rows and a link without a table is nothing — neither half is a
-state worth being able to reach.
+**New table…** makes the child there and then — two screens, published, with
+the link column on them and declared as an input — and **opens its designer
+over the page**, because a sub-table is made for the fields it will hold and
+`Name` / `Value` are only a guess at those. Publishing in there sets this
+list's columns and closes it; closing without publishing leaves a working
+table with the two fields it was made with.
+
+It sets *Records from* and *Belonging to* together, because a table without
+its link is a list of everybody's rows and a link without a table is nothing
+— neither half is a state worth being able to reach. The table list is
+re-fetched at the same time, or the picker would be blank for a table made a
+moment ago, and a picker whose value is not among its options shows nothing
+at all.
 
 **Its columns follow its table.** A list of another table is described by
 that table's rows, not by the screen it sits on — offering the material's

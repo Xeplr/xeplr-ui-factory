@@ -96,6 +96,11 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
   const [tables, setTables] = useState({ loading: Boolean(listTables), items: [], error: null })
   const listTablesRef = useRef(listTables); listTablesRef.current = listTables
   const hasListTables = Boolean(listTables)
+  // Bumped when this designer MAKES a table. The list is otherwise fetched
+  // once, which was right while tables only ever appeared elsewhere — and
+  // wrong the moment "New table…" existed: the table was made, the list was
+  // pointed at it, and the picker had never heard of it, so it showed blank.
+  const [tableRound, setTableRound] = useState(0)
   useEffect(() => {
     if (!hasListTables) return undefined
     let cancelled = false
@@ -108,7 +113,7 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
       })
       .catch((err) => { if (!cancelled) setTables({ loading: false, items: [], error: err.message || 'Could not list tables' }) })
     return () => { cancelled = true }
-  }, [hasListTables])
+  }, [hasListTables, tableRound])
 
   // ── edits ─────────────────────────────────────────────────────────────
   const rename = useCallback((value) => update((d) => renameScreen(d, value)), [update])
@@ -269,6 +274,7 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
   // filling the form in.
   const onPublishRef = useRef(onPublish); onPublishRef.current = onPublish
   const makeChildTableRef = useRef(makeChildTable); makeChildTableRef.current = makeChildTable
+  const [designingChild, setDesigningChild] = useState(null)
   const [publishing, setPublishing] = useState(false)
   const [publishResult, setPublishResult] = useState(null)   // { ok, message, version?, detail? }
   /**
@@ -405,12 +411,34 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
      * The host does the making (it is a server act, and this package does not
      * know where the server is) and answers with what the list needs.
      */
+    // The child just made, waiting to be designed — { nodeId, screenKey }.
+    // Nothing is forced: closing it leaves a table with the two fields it was
+    // made with, which is a working sub-table.
+    designingChild: designingChild,
+    closeChild: function (screen) {
+      // Designed and published: its fields are the list's columns now. A
+      // close with nothing keeps what was set when it was made.
+      if (screen && Array.isArray(screen.fields) && designingChild) {
+        var link = designingChild.link
+        var columns = screen.fields
+          .filter(function (f) { return f.name !== link })
+          .map(function (f) { return { field: f.name, label: f.label || f.name } })
+        if (columns.length) {
+          var nodeId = designingChild.nodeId
+          update(function (d) { return setNodeProperty(d, nodeId, 'props.columns', columns) })
+        }
+      }
+      setDesigningChild(null)
+    },
+
     makeChildTable: makeChildTableRef.current ? async function (nodeId, name) {
       var made = await makeChildTableRef.current({
         name: name,
         parent: { table: docRef.current.source, label: docRef.current.name, link: linkNameFor(docRef.current) }
       })
       if (!made || !made.source) throw new Error('Could not make that table')
+      // So the picker knows the table this list is about to name.
+      setTableRound(function (n) { return n + 1 })
       update(function (d) {
         var withTable = setNodeProperty(d, nodeId, 'props.source', made.source)
         var linked = setNodeProperty(withTable, nodeId, 'props.belongsTo', made.link)
@@ -422,6 +450,11 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
           .map(function (f) { return { field: f.name, label: f.label || f.name } })
         return columns.length ? setNodeProperty(linked, nodeId, 'props.columns', columns) : linked
       })
+      // STRAIGHT INTO ITS DESIGNER. A sub-table is made for the fields it is
+      // going to hold, and "Name" and "Value" are a guess at those — so the
+      // form opens where it was made, rather than being something to go and
+      // find afterwards with the thought already lost.
+      setDesigningChild({ nodeId: nodeId, screenKey: made.edit, link: made.link, name: name })
       return made
     } : null,
     convertControl,

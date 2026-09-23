@@ -133,6 +133,9 @@ export function createFactoryApi({ fetch: doFetch, base = '' } = {}) {
   // makeChildTable: a list on a form can make the table it is about to point
   // at — rows belonging to this record — without leaving the designer. A
   // server act, which is why the builder is given it rather than doing it.
-  api.builderProps = { onSave: api.saveDraft, onPublish: api.publish, listTables: api.listTables, fetchOptions: api.fetchOptions, fetchRecords: api.fetchRecords, makeChildTable: function (spec) { return createChildTable(api, spec) } }
+  api.builderProps = { onSave: api.saveDraft, onPublish: api.publish, listTables: api.listTables, fetchOptions: api.fetchOptions, fetchRecords: api.fetchRecords, makeChildTable: function (spec) { return createChildTable(api, spec) },
+    // The builder designs a child table in place, which needs the same calls
+    // this api already makes — handed over rather than rebuilt.
+    screenApi: api }
   return api
 }

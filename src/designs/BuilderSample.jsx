@@ -3,6 +3,8 @@ import { XeplrCanvas } from '@xeplr/ui-canvas'
 import ControlView from './ControlView.jsx'
 import Palette, { DRAG_TYPE } from './Palette.jsx'
 import PropertyPanel from './PropertyPanel.jsx'
+import { ScreenEditorSample } from './ScreenEditorSample.jsx'
+import { useFactoryBuilder } from '../useFactoryBuilder.js'
 import { screenStyle } from './styles.js'
 import { presetFor } from '../presets.js'
 
@@ -117,6 +119,37 @@ export default function BuilderSample({ ctrl, renderPreview, className, style })
           </button>
         )}
       </header>
+
+      {/* THE CHILD, DESIGNED WHERE IT WAS MADE.
+          A sub-table is made for the fields it will hold, and the two it is
+          created with are a guess at those. Going to find the new form
+          afterwards means going with the thought already lost. Publishing in
+          here sets this list's columns and closes it. */}
+      {ctrl.designingChild && screenApi && (
+        <div className="xeplr-factory-modal-backdrop" onMouseDown={() => ctrl.closeChild(null)}>
+          <div
+            className="xeplr-factory-modal xeplr-factory-modal--wide"
+            role="dialog"
+            aria-modal="true"
+            aria-label={'Design ' + ctrl.designingChild.name}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <header className="xeplr-factory-modal-head">
+              <strong>{ctrl.designingChild.name}</strong>
+              <span className="xeplr-factory-modal-spacer" />
+              <button type="button" className="xeplr-factory-secondary" onClick={() => ctrl.closeChild(null)}>Done</button>
+            </header>
+            <div className="xeplr-factory-modal-body">
+              <ScreenEditorSample
+                api={screenApi}
+                Builder={NestedBuilder}
+                screenKey={ctrl.designingChild.screenKey}
+                onDone={(screen) => ctrl.closeChild(screen)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {ctrl.publishResult && ctrl.publishResult.confirm && (
         <div className="xeplr-factory-publish is-confirm" role="alertdialog" aria-label="Confirm changes to saved data">

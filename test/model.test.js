@@ -563,7 +563,12 @@ console.log('\nthe stylesheet')
     'xeplr-factory-problems', 'xeplr-factory-publish', 'xeplr-factory-body', 'xeplr-factory-stage', 'xeplr-factory-empty',
     'xeplr-factory-palette', 'xeplr-factory-palette-group', 'xeplr-factory-palette-title', 'xeplr-factory-palette-item',
     'xeplr-factory-panel', 'xeplr-factory-panel-empty', 'xeplr-factory-panel-head', 'xeplr-factory-panel-type', 'xeplr-factory-panel-errors',
-    'xeplr-factory-group', 'xeplr-factory-prop', 'xeplr-factory-prop-label', 'xeplr-factory-prop-input', 'xeplr-factory-add'
+    'xeplr-factory-group', 'xeplr-factory-prop', 'xeplr-factory-prop-label', 'xeplr-factory-prop-input', 'xeplr-factory-add',
+    // ONE DIALOG SURFACE, more than one thing inside it: a record's popup
+    // (ScreenModal) and a child table's designer (BuilderSample) are both
+    // "something over the page, with a head and a body". Two sets of classes
+    // for that is two dialogs that drift apart.
+    'xeplr-factory-modal-backdrop', 'xeplr-factory-modal', 'xeplr-factory-modal-head', 'xeplr-factory-modal-body'
   ]
   const clashes = [...used.entries()].filter(([c, fs2]) => fs2.size > 1 && !SHARED.includes(c)).map(([c]) => c)
   check('no class is used by two components that did not agree to share it', clashes.length === 0, clashes.join(', '))

@@ -27,6 +27,9 @@ export function FactoryBuilder(props) {
       ctrl={ctrl}
       className={props.className}
       style={props.style}
+      // So a child table made here can be designed here — see the modal in
+      // BuilderSample. Supplied by createFactoryApi's builderProps.
+      screenApi={props.screenApi}
       renderPreview={(doc) => (
         // Preview never writes: onSave/onDelete are left out on purpose.
         <FactoryScreen

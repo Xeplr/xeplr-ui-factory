@@ -459,11 +459,18 @@ function TableEditor({ id, value, onChange, tables }) {
   if (items.length > 0) {
     const masters = items.filter((t) => t.master)
     const rest = items.filter((t) => !t.master)
+    // A SELECT WHOSE VALUE IS NOT AN OPTION SHOWS NOTHING, which reads as the
+    // setting having been lost. It has not: a table made a moment ago is not
+    // in a list fetched when the page opened, and a table whose screens were
+    // deleted is still what this list names.
+    const known = items.some((t) => String(t.id) === String(value || ''))
+    const stray = value && !known ? { id: value, name: value } : null
     const option = (t) => <option key={String(t.id)} value={String(t.id)}>{t.name}</option>
 
     return (
       <select id={id} className="xeplr-factory-prop-input" value={value ?? ''} onChange={(e) => onChange(e.target.value || undefined)}>
         <option value="">{tables.loading ? 'Loading tables…' : '—'}</option>
+        {stray && <option value={String(stray.id)}>{stray.name}</option>}
         {masters.length > 0 && <optgroup label="Masters">{masters.map(option)}</optgroup>}
         {/* Named as what they are, so it reads as "the rest" rather than as a
             second list of the same kind of thing. */}
