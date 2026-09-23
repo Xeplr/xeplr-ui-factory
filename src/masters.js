@@ -174,7 +174,12 @@ export async function createChildTable(api, spec) {
   await api.publish(edit)
   await api.publish(pair.list)
 
-  return { key: formKeyOf(edit.id), edit: edit.id, list: pair.list.id, source: edit.source, link: link }
+  return {
+    key: formKeyOf(edit.id), edit: edit.id, list: pair.list.id, source: edit.source, link: link,
+    // What it holds, so a list pointed at it can show the right columns
+    // without reading the document back.
+    fields: describeScreen(edit).fields.map(function (f) { return { name: f.name, label: f.name } })
+  }
 }
 
 /**

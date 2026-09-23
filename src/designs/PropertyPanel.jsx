@@ -483,7 +483,17 @@ function TableEditor({ id, value, onChange, tables }) {
  */
 function ColumnsEditor({ value, onChange, doc, node, screens }) {
   const editDoc = node && node.props.editScreen ? (screens || []).find((s) => s.id === node.props.editScreen)?.document : null
-  const from = doc && inputNodes(doc).length ? doc : editDoc
+
+  // A LIST OF ANOTHER TABLE IS NOT DESCRIBED BY THIS SCREEN. Pointing a list
+  // at material_characteristics and being offered the MATERIAL's fields is
+  // worse than being offered nothing: every one of them ticks a column that
+  // will be blank in every row.
+  //
+  // The edit screen for those rows is the only description to hand here — a
+  // host that did not provide it leaves this empty, and the list falls back
+  // to the columns the rows themselves have (see listColumns).
+  const foreign = node && node.props.source && doc && node.props.source !== doc.source
+  const from = foreign ? editDoc : (doc && inputNodes(doc).length ? doc : editDoc)
   const fields = from
     ? inputNodes(from).map((n) => ({ field: n.props.name, label: n.props.label || n.props.name }))
     : (Array.isArray(value) ? value : [])
@@ -495,7 +505,18 @@ function ColumnsEditor({ value, onChange, doc, node, screens }) {
     // All of them again is the same as "not set" — keep the document clean.
     onChange(next.length === fields.length || next.length === 0 ? undefined : next.map((c) => ({ field: c.field, label: (current.find((x) => x.field === c.field) || c).label })))
   }
-  if (!fields.length) return <div className="xeplr-factory-prop-help">Add fields to the screen first — the list shows them as columns.</div>
+  if (!fields.length) {
+    // Two different nothings, and saying "add fields to this screen" to
+    // somebody pointing a list at another table sends them to fix the wrong
+    // thing.
+    return (
+      <div className="xeplr-factory-prop-help">
+        {foreign
+          ? 'Every column of ' + node.props.source + '. Set "Edit in" to that table\'s form to choose.'
+          : 'Add fields to the screen first — the list shows them as columns.'}
+      </div>
+    )
+  }
   return (
     <div className="xeplr-factory-checklist">
       {fields.map((f) => (

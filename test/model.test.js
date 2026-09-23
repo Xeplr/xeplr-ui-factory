@@ -668,6 +668,43 @@ console.log('\na code that survives being read aloud')
     /must be "code"/.test(validateDocument(setNodeProperty(doc, r.node.id, 'props.idKind', 'magic')).errors.map((e) => e.message).join()))
 }
 
+// ── A LIST OF ANOTHER TABLE ─────────────────────────────────────────────
+// A sub-table holds rows of a different shape entirely. Describing it with
+// THIS screen's fields shows columns that are blank in every row — which
+// reads as the designer not having noticed the table changed.
+console.log('\nwhat a sub-table shows')
+{
+  let r = addControl(createScreen({ name: 'Material', source: 'materials' }), 'text')
+  let doc = setNodeProperty(r.document, r.node.id, 'props.name', 'materialNo')
+  const list = addControl(doc, 'list'); doc = list.document
+
+  // Its own table: this screen's fields, as before.
+  check('a list of this screen\'s own table shows its fields',
+    listColumns(doc, list.node).map((c) => c.field).join() === 'materialNo')
+
+  // Another table: the rows are the only description to hand.
+  doc = setNodeProperty(doc, list.node.id, 'props.source', 'material_characteristics')
+  const node = doc.nodes.find((n) => n.id === list.node.id)
+  const rows = [{ id: 'r1', materialId: 'm1', name: 'Grade', value: '304' }]
+  const shown = listColumns(doc, Object.assign({}, node, { props: Object.assign({}, node.props, { belongsTo: 'materialId' }) }), undefined, rows)
+
+  check('a list of another table shows what its rows have',
+    shown.map((c) => c.field).join() === 'name,value')
+  check('...not this screen\'s fields', !shown.some((c) => c.field === 'materialNo'))
+  // Neither is a column anybody asked to see: one is the row's handle, the
+  // other is the record the list is already about.
+  check('...without the row id', !shown.some((c) => c.field === 'id'))
+  check('...or the link back', !shown.some((c) => c.field === 'materialId'))
+
+  check('with no rows yet it shows nothing rather than the wrong thing',
+    listColumns(doc, node, undefined, []).length === 0)
+
+  // Columns chosen by hand still win — that is what choosing them means.
+  const picked = setNodeProperty(doc, list.node.id, 'props.columns', [{ field: 'value', label: 'Value' }])
+  check('chosen columns are kept',
+    listColumns(picked, picked.nodes.find((n) => n.id === list.node.id), undefined, rows).map((c) => c.field).join() === 'value')
+}
+
 const failed = results.filter(([, ok]) => !ok)
 console.log(`\n${results.length - failed.length}/${results.length} passed`)
 process.exit(failed.length ? 1 : 0)

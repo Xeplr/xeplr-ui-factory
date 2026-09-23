@@ -11,7 +11,9 @@ import { boxStyle, fieldStyle } from './styles.js'
 
 export default function ListView({ node, doc, design, list, onEdit, onDelete, onNew, currentId, recordKey = 'id', canDelete, fieldNodes, optionsFor, extraActions = [] }) {
   const p = node.props || {}
-  const columns = listColumns(doc, node)
+  // The rows are passed in because a list of ANOTHER table has no other
+  // description of itself — see listColumns.
+  const columns = listColumns(doc, node, undefined, (list && list.rows) || [])
   const actions = p.actions || ['new', 'edit', 'delete']
   const style = { ...fieldStyle(p.style), ...boxStyle(p.style) }
 

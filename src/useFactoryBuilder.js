@@ -373,6 +373,28 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
     visibleNodes,
     setProperty,
     /**
+     * A list's table, and the columns that only made sense for the old one.
+     *
+     * Chosen columns are field names. Point the list at another table and
+     * every one of them is a name that table has never heard of — so the grid
+     * keeps drawing the old headers over blank cells, which reads as the
+     * panel not having noticed the change. Clearing them falls back to "all
+     * the columns the rows have", which is right for whatever it now points
+     * at.
+     *
+     * The link goes too: it belonged to the old table's shape.
+     */
+    setListSource: function (nodeId, table) {
+      update(function (d) {
+        var node = d.nodes.find(function (n) { return n.id === nodeId })
+        var was = node && node.props ? node.props.source : undefined
+        var next = setNodeProperty(d, nodeId, 'props.source', table || undefined)
+        if ((was || '') === (table || '')) return next
+        next = setNodeProperty(next, nodeId, 'props.columns', undefined)
+        return setNodeProperty(next, nodeId, 'props.belongsTo', undefined)
+      })
+    },
+    /**
      * Make the table a list is about to point at, and point it there.
      *
      * TWO PROPERTIES AT ONCE, which is why it is here rather than a button in
@@ -391,7 +413,14 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
       if (!made || !made.source) throw new Error('Could not make that table')
       update(function (d) {
         var withTable = setNodeProperty(d, nodeId, 'props.source', made.source)
-        return setNodeProperty(withTable, nodeId, 'props.belongsTo', made.link)
+        var linked = setNodeProperty(withTable, nodeId, 'props.belongsTo', made.link)
+        // The child's own columns, which are known because it was just made
+        // — minus the link, which is the list itself and not a column anybody
+        // asked to see.
+        var columns = (made.fields || [])
+          .filter(function (f) { return f.name !== made.link })
+          .map(function (f) { return { field: f.name, label: f.label || f.name } })
+        return columns.length ? setNodeProperty(linked, nodeId, 'props.columns', columns) : linked
       })
       return made
     } : null,

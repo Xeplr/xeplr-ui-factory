@@ -240,7 +240,15 @@ export default function BuilderSample({ ctrl, renderPreview, className, style })
             tables={ctrl.tables}
             screens={ctrl.screens}
             lockedNames={ctrl.lockedNames}
-            onChange={(path, value) => ctrl.setProperty(ctrl.selectedNode.id, path, value)}
+            onChange={(path, value) => (
+              // A list's table is not an ordinary property: changing it makes
+              // the chosen columns and the link meaningless, and leaving them
+              // behind is what reads as the panel not noticing. See
+              // setListSource.
+              ctrl.selectedNode.type === 'list' && path === 'props.source'
+                ? ctrl.setListSource(ctrl.selectedNode.id, value)
+                : ctrl.setProperty(ctrl.selectedNode.id, path, value)
+            )}
             // A list pointed at a table that does not exist yet can make one
             // — with the link back to this screen's record already on it —
             // so nobody has to leave the designer, go and build a form, and

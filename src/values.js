@@ -273,8 +273,28 @@ export function listSource(doc, node) {
 }
 
 /** A list's columns: the ones chosen, else the screen's fields in reading order. */
-export function listColumns(doc, node, controls = CONTROLS) {
+export function listColumns(doc, node, controls = CONTROLS, rows) {
   if (node && Array.isArray(node.props?.columns) && node.props.columns.length) return node.props.columns
+
+  // A LIST OF ANOTHER TABLE HAS NOTHING TO DO WITH THIS SCREEN'S FIELDS.
+  //
+  // A sub-table — this material's characteristics — holds rows of a different
+  // shape entirely, so falling back to this screen's fields shows four empty
+  // columns named after the material. The rows themselves are the only
+  // description to hand, so they are what it reads.
+  const foreign = node && node.props && node.props.source && doc && node.props.source !== doc.source
+  if (foreign) {
+    const first = (rows || []).find((r) => r && typeof r === 'object')
+    if (first) {
+      return Object.keys(first)
+        // Neither is a column anybody asked to see: one is the row's handle,
+        // the other is the record it belongs to, which is the list itself.
+        .filter((k) => k !== 'id' && k !== (node.props.belongsTo || ''))
+        .map((k) => ({ field: k, label: k }))
+    }
+    return []
+  }
+
   return inputNodes(doc, controls).map((n) => ({ field: n.props.name, label: n.props.label || n.props.name }))
 }
 

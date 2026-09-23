@@ -263,6 +263,13 @@ from* and *Belonging to* together, because a table without its link is a list
 of everybody's rows and a link without a table is nothing — neither half is a
 state worth being able to reach.
 
+**Its columns follow its table.** A list of another table is described by
+that table's rows, not by the screen it sits on — offering the material's
+fields for a list of characteristics ticks four columns that are blank in
+every row. Changing *Records from* clears the chosen columns and the link,
+because a field name from the old table is a header over an empty column, and
+leaving it there reads as the designer not having noticed the change.
+
 **A list is not a dropdown.** Its rows are records people create, so there is
 no "typed list" alternative the way there is for a dropdown's options. If
 what you want is *tags* — several values picked from a fixed set — that is a
