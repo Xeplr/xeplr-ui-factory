@@ -99,6 +99,20 @@ const FIELD_BASICS = (extra) => ({
   ]
 })
 
+/**
+ * A CODE PEOPLE CAN READ OUT — CMP-7K3QF9, assigned on save.
+ *
+ * Offered on a text field only, and only these two rows: whether it is
+ * generated, and what it starts with. The record already has a key; this is
+ * the one anybody says out loud.
+ */
+const GENERATED = [
+  { path: 'props.generated', label: 'Assign a code on save', type: 'toggle',
+    help: 'Nobody types this — it is given when the record is first saved.' },
+  { path: 'props.codePrefix', label: 'Starts with', type: 'text', showWhen: 'props.generated',
+    help: 'CMP → CMP-7K3QF9. Optional.' }
+]
+
 const PLACEHOLDER = { path: 'props.placeholder', label: 'Placeholder', type: 'text' }
 
 /**
@@ -165,13 +179,13 @@ export const CONTROLS = {
     defaultSize: { w: 0.44, h: 0.08 },
     defaults: { label: 'Text' },
     // inputType: the box's keyboard and autofill — text, email, tel, url.
-    props: ['name', 'label', 'preset', 'placeholder', 'required', 'default', 'validation', 'inputType', 'style'],
+    props: ['name', 'label', 'preset', 'placeholder', 'required', 'generated', 'codePrefix', 'default', 'validation', 'inputType', 'style'],
     validation: ['minLength', 'maxLength', 'pattern', 'patternMessage'],
     styles: INPUT_STYLES,
     properties: [
       FIELD_BASICS([PLACEHOLDER, { path: 'props.default', label: 'Default value', type: 'text' }, { path: 'props.inputType', label: 'Keyboard', type: 'select', options: [
         { value: 'text', label: 'Text' }, { value: 'email', label: 'Email' }, { value: 'tel', label: 'Phone' }, { value: 'url', label: 'Web address' }
-      ], help: 'What a phone shows to type with, and what autofill offers' }]),
+      ], help: 'What a phone shows to type with, and what autofill offers' }].concat(GENERATED)),
       {
         key: 'validation',
         title: 'Validation',

@@ -197,6 +197,29 @@ import schemaHandler from '@xeplr/schema-handler'          // CommonJS: default 
 const clean = schemaHandler.applySchema(formSchema(screen), req.body)   // throws ValidationError listing each field
 ```
 
+## A code people can read out
+
+Every record already has a key — 25 characters, made on save, never an
+auto-increment or a sequence. Nobody quotes one over the phone.
+
+So a text field can be given a code instead: on it, **Assign a code on save**
+and, optionally, **Starts with** (`CMP` → `CMP-7K3QF9`).
+
+- **Assigned by the server, on first save only.** A browser cannot be trusted
+  to mint one, two browsers would mint the same one, and a code that changed
+  when a record was edited would be a code nobody could quote.
+- **Random, not counted.** A sequential number needs a counter bumped in the
+  same transaction as the insert, or two saves take the same number — and it
+  still shows gaps whenever a save fails after the number was taken. Random
+  has neither problem, and the record's date tells you the order.
+- **Checked before it is used**, inside the same transaction as the insert:
+  random is not unique, and a code that was free a moment ago is not a promise.
+- **No O, 0, I, 1, S or 5.** The whole point is that it survives being read
+  aloud, written down and typed back in.
+- **Shown, never typed**, and never demanded: "required" on a generated field
+  would refuse the very save that produces it. A value that arrives with the
+  record — an import carrying real codes — is left alone.
+
 ## Masters — the lists the rest of the app points at
 
 Departments, statuses, countries, categories. Mark a form as a master in its

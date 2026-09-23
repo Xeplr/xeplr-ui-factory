@@ -73,7 +73,31 @@ const TEXT_INPUT = {
   url: { type: 'url', autoComplete: 'url', inputMode: 'url' }
 }
 
+/**
+ * A generated code is shown, never typed: the server assigns it on first save
+ * and it never changes, so an editable box would be a box whose contents are
+ * thrown away — and, once saved, an invitation to alter the one thing people
+ * quote to each other.
+ */
 function TextView({ node, p, value, error, onChange, onBlur, disabled }) {
+  if (p.generated) {
+    return (
+      <Field node={node} p={p} error={error}>
+        <input
+          className="xeplr-factory-input"
+          type="text"
+          value={value ?? ''}
+          readOnly
+          placeholder={value ? '' : 'Given when saved'}
+          {...inputProps(node, p, error, true, onBlur)}
+        />
+      </Field>
+    )
+  }
+  return TextInputView({ node, p, value, error, onChange, onBlur, disabled })
+}
+
+function TextInputView({ node, p, value, error, onChange, onBlur, disabled }) {
   const kind = TEXT_INPUT[p.inputType] || { type: 'text' }
   return (
     <Field node={node} p={p} error={error}>

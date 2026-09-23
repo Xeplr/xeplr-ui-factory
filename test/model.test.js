@@ -11,7 +11,8 @@ import {
   tableForScreen, columnForField, migrationFor, nextMigrationName, planTableChange, columnFromDatabase,
   toDbValue, fromDbValue, acceptList, widening, chooseable, fileLabel,
   steppers, stepsOf, stepOf, setNodeStep, nodesForSteps, resolveStep, reachableStep, nextOpenStep,
-  screenParams, paramsText, setScreenParams, resolveBinding, isBinding
+  screenParams, paramsText, setScreenParams, resolveBinding, isBinding,
+  codeFields, generateCode
 } from '../src/model.js'
 import { normaliseOptions } from '../src/useFactoryScreen.js'
 
@@ -622,6 +623,34 @@ console.log('\nwhat a screen is called with')
     initialValues(form, {}).complaintId === undefined)
   check('a literal default is untouched by any of this',
     initialValues(setNodeProperty(form, field.id, 'props.default', 'Draft'), {}).complaintId === 'Draft')
+}
+
+// ── A CODE PEOPLE CAN READ OUT ──────────────────────────────────────────
+// The record's own key is 25 characters nobody quotes over the phone. A
+// field can be marked generated and gets CMP-7K3QF9 instead, assigned by the
+// SERVER on first save.
+console.log('\na code that survives being read aloud')
+{
+  const code = generateCode('CMP')
+  check('it starts with what it was given', /^CMP-/.test(code))
+  check('...and is short enough to say', code.length <= 12)
+
+  // The whole point is that it survives a phone call and a handwritten note.
+  check('no characters people mistake for each other', !/[O0I1S5]/.test(code.slice(4)))
+  check('a prefix is optional', !/-/.test(generateCode('')))
+  check('a lower-case prefix is shouted', /^PO-/.test(generateCode('po')))
+  check('punctuation in a prefix is dropped', /^ABC-/.test(generateCode('a.b c!')))
+
+  // Random, not counted: no counter to contend over, and no gaps to explain.
+  const many = new Set(Array.from({ length: 500 }, () => generateCode('X')))
+  check('500 in a row are 500 different codes', many.size === 500)
+
+  let r = addControl(createScreen({ name: 'Complaint' }), 'text')
+  let doc = setNodeProperty(r.document, r.node.id, 'props.name', 'code')
+  check('a plain field is not generated', codeFields(doc).length === 0)
+  doc = setNodeProperty(doc, r.node.id, 'props.generated', true)
+  check('one that is marked, is', codeFields(doc).map((n) => n.props.name).join() === 'code')
+  check('the screen is still valid with it', validateDocument(doc).ok)
 }
 
 const failed = results.filter(([, ok]) => !ok)

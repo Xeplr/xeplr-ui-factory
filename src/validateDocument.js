@@ -127,6 +127,17 @@ export function validateDocument(doc, controls = CONTROLS) {
       // Where the field came from (a ready-made field's key), or false: plain on purpose.
       if (props.preset !== undefined && props.preset !== false && !presetFor(props.preset)) err(`${at}.props.preset`, `"${props.preset}" is not a ready-made field — one of: ${FIELD_PRESETS.map((p) => p.key).join(', ')}, or false`)
       if (props.inputType !== undefined && !INPUT_TYPES.includes(props.inputType)) err(`${at}.props.inputType`, `must be one of: ${INPUT_TYPES.join(', ')}`)
+
+      // A CODE ASSIGNED ON SAVE. Nobody types it, so a required-and-generated
+      // field is not a contradiction — the value simply arrives later.
+      if (props.generated !== undefined && typeof props.generated !== 'boolean') {
+        err(`${at}.props.generated`, 'must be true or false — whether a code is assigned when the record is first saved')
+      }
+      if (props.codePrefix !== undefined && props.codePrefix !== '') {
+        if (typeof props.codePrefix !== 'string' || !/^[A-Za-z0-9]{1,8}$/.test(props.codePrefix)) {
+          err(`${at}.props.codePrefix`, 'must be up to 8 letters or digits, e.g. "CMP" — it is what the code starts with')
+        }
+      }
       checkDefault(node, def, at, err)
       checkValidation(node, def, at, err)
     }

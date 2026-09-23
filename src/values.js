@@ -132,6 +132,12 @@ export function fieldError(node, value, loadedOptions) {
   const label = p.label || p.name
   const v = p.validation || {}
 
+  // A GENERATED CODE IS NOT SOMEBODY'S TO FILL IN. The server assigns it on
+  // first save, so "required" here would refuse the very save that produces
+  // it — a form that cannot be submitted because a field nobody can type is
+  // empty.
+  if (p.generated) return null
+
   if (node.type === 'checkbox') {
     return p.required && value !== true ? `${label} must be ticked` : null
   }
@@ -332,4 +338,48 @@ export function fromDbValue(node, value) {
     return s.replace(' ', 'T').slice(0, 16)
   }
   return value
+}
+
+// ── a code people can read out ──────────────────────────────────────────
+//
+// The record's own id is a 25-character key made on save. It is unique,
+// stable and completely unquotable: nobody reads one over the phone, writes
+// one on a form, or finds a complaint by it. So a field can be marked
+// GENERATED, and gets a short code instead — CMP-7K3QF9.
+//
+// RANDOM, not sequential. A counted number (CMP-0001) needs a counter bumped
+// in the same transaction as the insert, or two people saving at once take
+// the same one; and it still shows gaps whenever a save fails after the
+// number was taken, which somebody then has to explain. A random code has
+// neither problem, at the cost of not telling you the fifth from the five
+// hundredth — which is what the record's date is for.
+
+/**
+ * The alphabet, minus the characters people mistake for each other.
+ *
+ * No O or 0, no I or 1, no S or 5: the whole point of this code is that it
+ * survives being read aloud, written down and typed back in.
+ */
+var CODE_ALPHABET = '23456789ABCDEFGHJKLMNPQRTUVWXYZ'
+
+/** The fields a screen generates a code for. */
+export function codeFields(doc, controls = CONTROLS) {
+  return inputNodes(doc, controls).filter((n) => n.props && n.props.generated)
+}
+
+/**
+ * One code. `prefix` is what makes it recognisable at a glance — a complaint
+ * is CMP-…, a purchase order is PO-… — and is optional.
+ *
+ * Six characters from 31 is about 900 million codes, which is not a
+ * guarantee: whoever writes one is expected to check it is free and try
+ * again, which is cheap and has to be done in the database anyway.
+ */
+export function generateCode(prefix, length = 6) {
+  let out = ''
+  for (let i = 0; i < length; i++) {
+    out += CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)]
+  }
+  const head = String(prefix || '').trim().toUpperCase().replace(/[^A-Z0-9]+/g, '')
+  return head ? head + '-' + out : out
 }
