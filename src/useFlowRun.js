@@ -15,14 +15,18 @@ import { useCallback, useEffect, useRef, useState } from 'react'
  * @param flowKey    which flow to run (starting one, or picking up a run)
  * @param runId      an existing run to continue — omit to start one
  * @param startRun   async (flowKey) → { runId, status, stepKey, screen }
- * @param loadRun    async (runId) → { runId, status, stepKey, screen, values }
+ * @param loadRun    async (runId) → { runId, status, stepKey, screen, values, given }
  * @param submitRun  async (runId, values, recordId) → { status, stepKey, screen }
  * @param loadScreen async (key) → the screen document
  * @param onStep     (step) → void — told each time the run moves, for the address bar
  * @param onFinish   (run) → void — the journey is over
  */
 export function useFlowRun({ flowKey, runId, startRun, loadRun, submitRun, loadScreen, onStep, onFinish } = {}) {
-  const [state, setState] = useState({ loading: true, error: null, runId: runId || null, status: null, stepKey: null, screen: null, document: null, values: null })
+  // `given` is what the FLOW already knows for the screen about to be shown —
+  // the step's own input, resolved by the engine (see @xeplr/workflow's
+  // screen-show). A field the screen says is filled in by whoever opens it is
+  // filled from here and not asked; one nobody supplied is asked as usual.
+  const [state, setState] = useState({ loading: true, error: null, runId: runId || null, status: null, stepKey: null, screen: null, document: null, values: null, given: null })
   const [sending, setSending] = useState(false)
   const live = useRef({})
   live.current = { startRun, loadRun, submitRun, loadScreen, onStep, onFinish, flowKey }
@@ -31,7 +35,7 @@ export function useFlowRun({ flowKey, runId, startRun, loadRun, submitRun, loadS
   const open = useCallback(async (run) => {
     if (!run) throw new Error('The run said nothing about what to show')
     if (run.status === 'done' || !run.screen) {
-      setState((s) => ({ ...s, loading: false, error: null, runId: run.runId || s.runId, status: 'done', stepKey: null, screen: null, document: null }))
+      setState((s) => ({ ...s, loading: false, error: null, runId: run.runId || s.runId, status: 'done', stepKey: null, screen: null, document: null, given: null }))
       if (live.current.onFinish) live.current.onFinish(run)
       return
     }
@@ -40,7 +44,7 @@ export function useFlowRun({ flowKey, runId, startRun, loadRun, submitRun, loadS
     setState({
       loading: false, error: null,
       runId: run.runId, status: run.status || 'running', stepKey: run.stepKey, screen: run.screen,
-      document: doc, values: run.values || null
+      document: doc, values: run.values || null, given: run.given || null
     })
     if (live.current.onStep) live.current.onStep(run)
   }, [])

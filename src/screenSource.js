@@ -16,6 +16,7 @@
 // Pure: no React. The hook around it is useScreenSource.js.
 
 import { inputNodes } from './document.js'
+import { callerFields } from './values.js'
 
 /**
  * A screen document → what the designer needs.
@@ -31,6 +32,22 @@ export function describeScreen(doc) {
     name: doc.name || doc.id,
     fields: inputNodes(doc).map(function (n) {
       return { name: n.id, type: n.type }
+    }),
+    // WHAT A FLOW HAS TO GIVE IT. A field the screen says is filled in by
+    // whoever opens it — the complaint a containment belongs to. The designer
+    // asks for exactly these on a Screen step, and asks for nothing when a
+    // screen declares none.
+    //
+    // `required` is about the FORM, not about the flow: a step that leaves one
+    // out is a step whose screen will ask the person for it, which is a note
+    // worth showing and never a refusal. See hiddenGiven.
+    inputs: callerFields(doc).map(function (n) {
+      return {
+        name: n.props.name,
+        label: n.props.label || n.props.name,
+        type: n.type,
+        required: Boolean(n.props.required)
+      }
     })
   }
 }

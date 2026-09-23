@@ -23,6 +23,17 @@ const TASK = {
   ]
 }
 
+// A form that belongs to something else: the complaint is known by whatever
+// opened it, never typed.
+const CONTAINMENT = {
+  id: 'containment_edit',
+  name: 'Containment',
+  nodes: [
+    { id: 'complaintId', type: 'dropdown', x: 0, y: 0, props: { name: 'complaintId', label: 'Complaint', filledBy: 'caller', required: true } },
+    { id: 'action', type: 'textarea', x: 0, y: 0.1, props: { name: 'action', label: 'What was done' } }
+  ]
+}
+
 console.log('\na screen says what it holds')
 {
   const d = describeScreen(TASK)
@@ -43,6 +54,20 @@ console.log('\na screen says what it holds')
 
   check('a document with no id describes nothing', describeScreen({ name: 'x' }) === null)
   check('and neither does nothing at all', describeScreen(null) === null)
+}
+
+console.log('\nwhat a flow has to give a screen')
+{
+  const d = describeScreen(CONTAINMENT)
+  check('a caller field is an input the flow supplies', d.inputs.map((i) => i.name).join() === 'complaintId')
+  check('...with the label a person would read', d.inputs[0].label === 'Complaint')
+  check('...and whether the form insists on it', d.inputs[0].required === true)
+  check('a field the person types is not one', !d.inputs.some((i) => i.name === 'action'))
+  check('it is still a field of the record', d.fields.some((f) => f.name === 'complaintId'))
+
+  // A screen nobody has to give anything asks for nothing — which is most of
+  // them, and the reason a Screen step usually has an empty Inputs tab.
+  check('an ordinary form declares no inputs', describeScreen(TASK).inputs.length === 0)
 }
 
 console.log('\nbefore its document has been read')

@@ -46,6 +46,35 @@ export function formSchema(doc, controls = CONTROLS) {
 }
 
 /** Each input's starting value: the caller's, else the control's default. */
+/**
+ * The fields WHOEVER OPENED THIS FORM is expected to provide — `filledBy:
+ * 'caller'`. A flow supplies them from its own steps; nothing else has to.
+ */
+export function callerFields(doc, controls = CONTROLS) {
+  return inputNodes(doc, controls).filter((n) => n.props && n.props.filledBy === 'caller')
+}
+
+/**
+ * HIDDEN WHEN GIVEN, ASKED WHEN NOT.
+ *
+ * A caller field that arrived with a value is not a question — the flow
+ * already knows the complaint, and showing a read-only id would be noise. One
+ * that did NOT arrive stays on screen as an ordinary field, because the same
+ * form opened on its own is somebody filling it in from scratch, and a form
+ * that will not open is worse than a question nobody expected.
+ *
+ * @returns a Set of node ids to leave out
+ */
+export function hiddenGiven(doc, given, controls = CONTROLS) {
+  const out = new Set()
+  if (!given) return out
+  callerFields(doc, controls).forEach((n) => {
+    const v = given[n.props.name]
+    if (v !== undefined && v !== null && v !== '') out.add(n.id)
+  })
+  return out
+}
+
 export function initialValues(doc, provided = {}, controls = CONTROLS) {
   const out = {}
   inputNodes(doc, controls).forEach((node) => {

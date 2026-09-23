@@ -132,7 +132,11 @@ export function FlowRunner(props) {
   const screen = useFactoryScreen({
     ...props,
     document: run.document || EMPTY_SCREEN,
-    record: run.values || undefined
+    record: run.values || undefined,
+    // What this step of the flow already knows — the complaint a containment
+    // belongs to. Hidden on the form, saved with the record. See
+    // useFactoryScreen's `given`.
+    given: run.given || undefined
   })
   return (
     <FlowRunnerSample

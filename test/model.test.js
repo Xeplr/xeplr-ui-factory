@@ -10,7 +10,8 @@ import {
   screensFromSpec, entityNames, scaffoldEntity,
   tableForScreen, columnForField, migrationFor, nextMigrationName, planTableChange, columnFromDatabase,
   toDbValue, fromDbValue, acceptList, widening, chooseable, fileLabel,
-  steppers, stepsOf, stepOf, setNodeStep, nodesForSteps, resolveStep, reachableStep, nextOpenStep
+  steppers, stepsOf, stepOf, setNodeStep, nodesForSteps, resolveStep, reachableStep, nextOpenStep,
+  callerFields, hiddenGiven
 } from '../src/model.js'
 import { normaliseOptions } from '../src/useFactoryScreen.js'
 
@@ -582,6 +583,43 @@ function noOverlaps(nodes) {
     }
   }
   return true
+}
+
+// ── WHO FILLS A FIELD IN ────────────────────────────────────────────────
+// A containment's complaint is known by whatever opened the form. Inside a
+// flow the step supplies it and nobody sees it; opened on its own the same
+// screen asks for it, because a form that will not open is worse than a
+// question nobody expected.
+console.log('\nfields whoever opens the form provides')
+{
+  let doc = createScreen({ name: 'Containment' })
+  let made = addControl(doc, 'dropdown'); doc = made.document
+  const link = made.node
+  made = addControl(doc, 'textarea'); doc = made.document
+  const note = made.node
+  doc = setNodeProperty(doc, link.id, 'props.name', 'complaintId')
+  doc = setNodeProperty(doc, link.id, 'props.filledBy', 'caller')
+  doc = setNodeProperty(doc, note.id, 'props.name', 'action')
+
+  check('the screen says which fields a caller provides',
+    callerFields(doc).map((n) => n.props.name).join() === 'complaintId')
+  check('a field the person types is not one of them',
+    !callerFields(doc).some((n) => n.props.name === 'action'))
+
+  // HIDDEN WHEN GIVEN, ASKED WHEN NOT — the whole contract, both halves.
+  check('given a value, it is not a question', hiddenGiven(doc, { complaintId: 'c_1' }).has(link.id))
+  check('given nothing, it is an ordinary field', hiddenGiven(doc, {}).size === 0)
+  check('opened with no context at all, nothing is hidden', hiddenGiven(doc, undefined).size === 0)
+  check('an empty string is not a value — still asked', hiddenGiven(doc, { complaintId: '' }).size === 0)
+  check('a field the person types is never hidden',
+    !hiddenGiven(doc, { complaintId: 'c_1', action: 'valve replaced' }).has(note.id))
+
+  // It is still a column like any other: the row carries the link.
+  check('it stays part of what the form saves',
+    'complaintId' in initialValues(doc, { complaintId: 'c_1' }))
+  check('...with the value the caller gave',
+    initialValues(doc, { complaintId: 'c_1' }).complaintId === 'c_1')
+  check('a document the checker accepts still accepts it', validateDocument(doc).ok)
 }
 
 const failed = results.filter(([, ok]) => !ok)

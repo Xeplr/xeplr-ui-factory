@@ -22,6 +22,9 @@ export {
   createStatements, addStatements, alterStatement, dropStatement, columnFromDatabase, planTableChange, conversionFor
 } from './tableSchema.js'
 export { FIELD_PRESETS, PATTERNS, INPUT_TYPES, presetFor, presetProps, suggestPreset, presetGroup, presetHints, convertField } from './presets.js'
+// Who fills a field in: the person, or whoever opened the form — and which of
+// those are therefore not questions this time. See values.js.
+export { callerFields, hiddenGiven } from './values.js'
 export { createFlowsApi } from './flows.js'
 export {
   FLOW_KIND, FLOW_VERSION, FLOW_END, FLOW_OPERATORS, VALUELESS_OPERATORS,
