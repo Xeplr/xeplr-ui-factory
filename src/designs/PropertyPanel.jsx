@@ -202,21 +202,28 @@ function LockedEditor({ id, value }) {
 /**
  * A LIST TYPED AS A LINE — the screen's inputs.
  *
- * It cannot be a plain TextEditor. What is stored is a LIST, and what is
- * shown is that list joined again, so committing on every keystroke means the
- * comma you just typed is parsed away ("a," → ["a"] → "a") before the next
- * character arrives, and the box refuses to let you start a second name.
+ * Two bugs live here, and this shape is what avoids both.
  *
- * So: the text is yours while you are typing, and becomes a list when you
- * leave the box. The same rule as every other value in this product that is
- * not what it looks like — see the JSON cells in the flow designer.
+ * It cannot be a plain TextEditor: what is STORED is a list and what is SHOWN
+ * is that list joined again, so a comma is parsed away the moment it is typed
+ * ("a," → ["a"] → "a") and the box refuses to let anybody start a second name.
+ *
+ * And it cannot commit on BLUR, which was the first fix: pressing Publish is
+ * one gesture, so the blur and the click race, and a name typed just before
+ * publishing was not in the document the publish read. The screen went out
+ * with no inputs and nothing said why.
+ *
+ * So the text is kept HERE for display, and the document is told on every
+ * keystroke. Nothing is ever waiting to be committed, and the line somebody
+ * is typing is never rewritten under their fingers.
  */
 function ListLineEditor({ id, value, onChange }) {
   const [text, setText] = useState(value ?? '')
   const [typing, setTyping] = useState(false)
 
   // Taken from the document again when it changes underneath — a different
-  // screen, an undo — unless the box is being typed in right now.
+  // screen, an undo — unless the box is being typed in right now, which is
+  // the only thing this local copy exists for.
   useEffect(() => { if (!typing) setText(value ?? '') }, [value, typing])
 
   return (
@@ -226,10 +233,8 @@ function ListLineEditor({ id, value, onChange }) {
       type="text"
       value={text}
       onFocus={() => setTyping(true)}
-      onChange={(e) => setText(e.target.value)}
+      onChange={(e) => { setText(e.target.value); onChange(e.target.value) }}
       onBlur={(e) => { setTyping(false); onChange(e.target.value) }}
-      // Enter commits, so the keyboard way out is the same as the pointer's.
-      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur() } }}
     />
   )
 }
