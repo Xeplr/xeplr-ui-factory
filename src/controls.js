@@ -88,34 +88,6 @@ function styleGroups(keys) {
 // can become one. `path` points into the node (`props.label`), and the editor
 // for each `type` is in designs/PropertyPanel.jsx.
 
-/**
- * WHO FILLS A FIELD IN.
- *
- * Most fields are a question for the person in front of the form. Some are
- * not: a containment's `complaintId` is known by whatever opened the form —
- * a flow that already has the complaint — and asking somebody to type a
- * twenty-five character id is asking them to fail.
- *
- * `caller` means "whoever opens this form may provide it". HIDDEN WHEN GIVEN,
- * ASKED WHEN NOT: inside a flow the step supplies it and nobody sees it;
- * opened on its own it is an ordinary field and the person fills it in. There
- * is no third case where the form refuses to open, because a form that cannot
- * be opened is worse than a question nobody expected.
- *
- * Make it a dropdown on the parent table rather than a text box. In a flow it
- * is hidden so the control does not matter; standing alone, "CMP-1042 —
- * leaking valve" is a thing a person can answer and an id is not.
- */
-const FILLED_BY = {
-  path: 'props.filledBy',
-  label: 'Filled in by',
-  type: 'select',
-  options: [
-    { value: '', label: 'The person filling the form' },
-    { value: 'caller', label: 'Whoever opens the form — asked only if not given' }
-  ]
-}
-
 const FIELD_BASICS = (extra) => ({
   key: 'field',
   title: 'Field',
@@ -123,8 +95,7 @@ const FIELD_BASICS = (extra) => ({
     { path: 'props.label', label: 'Label', type: 'text' },
     { path: 'props.name', label: 'Field name', type: 'text', help: 'The key this value is saved under — letters, digits and _' },
     ...(extra || []),
-    { path: 'props.required', label: 'Required', type: 'toggle' },
-    FILLED_BY
+    { path: 'props.required', label: 'Required', type: 'toggle' }
   ]
 })
 
@@ -194,7 +165,7 @@ export const CONTROLS = {
     defaultSize: { w: 0.44, h: 0.08 },
     defaults: { label: 'Text' },
     // inputType: the box's keyboard and autofill — text, email, tel, url.
-    props: ['name', 'label', 'preset', 'placeholder', 'required', 'filledBy', 'default', 'validation', 'inputType', 'style'],
+    props: ['name', 'label', 'preset', 'placeholder', 'required', 'default', 'validation', 'inputType', 'style'],
     validation: ['minLength', 'maxLength', 'pattern', 'patternMessage'],
     styles: INPUT_STYLES,
     properties: [
@@ -223,7 +194,7 @@ export const CONTROLS = {
     valueType: 'string',
     defaultSize: { w: 0.92, h: 0.18 },
     defaults: { label: 'Notes' },
-    props: ['name', 'label', 'preset', 'placeholder', 'required', 'filledBy', 'default', 'validation', 'style'],
+    props: ['name', 'label', 'preset', 'placeholder', 'required', 'default', 'validation', 'style'],
     validation: ['minLength', 'maxLength'],
     styles: INPUT_STYLES,
     properties: [
@@ -248,7 +219,7 @@ export const CONTROLS = {
     valueType: 'number',
     defaultSize: { w: 0.44, h: 0.08 },
     defaults: { label: 'Number' },
-    props: ['name', 'label', 'preset', 'placeholder', 'required', 'filledBy', 'default', 'validation', 'style'],
+    props: ['name', 'label', 'preset', 'placeholder', 'required', 'default', 'validation', 'style'],
     validation: ['min', 'max', 'integer'],
     styles: INPUT_STYLES,
     properties: [
@@ -274,7 +245,7 @@ export const CONTROLS = {
     valueType: 'date',
     defaultSize: { w: 0.44, h: 0.08 },
     defaults: { label: 'Date' },
-    props: ['name', 'label', 'preset', 'required', 'filledBy', 'default', 'validation', 'style'],
+    props: ['name', 'label', 'preset', 'required', 'default', 'validation', 'style'],
     // notFuture: on or before TODAY, whenever the form is filled in (a date of
     // birth) — a fixed `max` would go stale.
     validation: ['min', 'max', 'notFuture'],
@@ -303,7 +274,7 @@ export const CONTROLS = {
     defaultSize: { w: 0.44, h: 0.05 },
     defaults: { label: 'Checkbox', default: false },
     // `required` on a checkbox means it must be ticked — "I accept".
-    props: ['name', 'label', 'preset', 'required', 'filledBy', 'default', 'style'],
+    props: ['name', 'label', 'preset', 'required', 'default', 'style'],
     validation: [],
     styles: ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'color'],
     properties: [
@@ -321,7 +292,7 @@ export const CONTROLS = {
     valueType: null,
     defaultSize: { w: 0.44, h: 0.08 },
     defaults: { label: 'Dropdown', placeholder: 'Select…', data: { source: 'static', options: [] } },
-    props: ['name', 'label', 'preset', 'placeholder', 'required', 'filledBy', 'default', 'data', 'style'],
+    props: ['name', 'label', 'preset', 'placeholder', 'required', 'default', 'data', 'style'],
     validation: [],
     styles: INPUT_STYLES.filter((k) => k !== 'textAlign'),
     properties: [
@@ -346,7 +317,7 @@ export const CONTROLS = {
     valueType: null,
     defaultSize: { w: 0.44, h: 0.14 },
     defaults: { label: 'Choose one', data: { source: 'static', options: [] }, layout: 'vertical' },
-    props: ['name', 'label', 'preset', 'required', 'filledBy', 'default', 'data', 'layout', 'style'],
+    props: ['name', 'label', 'preset', 'required', 'default', 'data', 'layout', 'style'],
     validation: [],
     styles: INPUT_STYLES.filter((k) => k !== 'textAlign'),
     properties: [
@@ -373,7 +344,7 @@ export const CONTROLS = {
     valueType: 'array',
     defaultSize: { w: 0.44, h: 0.18 },
     defaults: { label: 'Choose any', data: { source: 'static', options: [] }, layout: 'vertical' },
-    props: ['name', 'label', 'preset', 'required', 'filledBy', 'data', 'layout', 'validation', 'style'],
+    props: ['name', 'label', 'preset', 'required', 'data', 'layout', 'validation', 'style'],
     validation: ['minItems', 'maxItems'],
     styles: INPUT_STYLES.filter((k) => k !== 'textAlign'),
     properties: [
@@ -406,7 +377,7 @@ export const CONTROLS = {
     valueType: 'date',
     defaultSize: { w: 0.44, h: 0.08 },
     defaults: { label: 'Date and time' },
-    props: ['name', 'label', 'preset', 'required', 'filledBy', 'default', 'validation', 'style'],
+    props: ['name', 'label', 'preset', 'required', 'default', 'validation', 'style'],
     validation: ['min', 'max'],
     styles: INPUT_STYLES,
     properties: [
@@ -432,7 +403,7 @@ export const CONTROLS = {
     valueType: 'string',
     defaultSize: { w: 0.44, h: 0.1 },
     defaults: { label: 'File', accept: FILE_KINDS.document.accept, maxSize: 10 },
-    props: ['name', 'label', 'preset', 'required', 'filledBy', 'accept', 'maxSize', 'style'],
+    props: ['name', 'label', 'preset', 'required', 'accept', 'maxSize', 'style'],
     validation: [],
     styles: INPUT_STYLES.filter((k) => k !== 'textAlign'),
     properties: [

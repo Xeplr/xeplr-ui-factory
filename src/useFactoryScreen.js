@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CONTROLS, CHOICE_TYPES } from './controls.js'
 import { inputNodes, nodesForSteps, steppers, stepsOf, stepOf, resolveStep, reachableStep, nextOpenStep } from './document.js'
 import { validateDocument } from './validateDocument.js'
-import { initialValues, parseInput, saveState, fieldError, optionValue, recordValues, listSource, hiddenGiven } from './values.js'
+import { initialValues, parseInput, saveState, fieldError, optionValue, recordValues, listSource } from './values.js'
 import { hookMethod } from './hooks.js'
 
 // A saved screen, running. No JSX — designs/ScreenSample.jsx draws it.
@@ -50,15 +50,15 @@ import { hookMethod } from './hooks.js'
  * @param hooks         a FactoryHooks (or an object with some of its methods) — get / save / delete / actions
  */
 /**
- * @param given  what WHOEVER OPENED THIS FORM already knows — { field: value }.
- *   A flow's screen step passes it (the complaint this containment belongs
- *   to); a person opening the form from a list passes nothing. A field marked
- *   `filledBy: 'caller'` is hidden when its value is in here and shown when it
- *   is not, so the same screen works in both places and neither fails.
+ * @param params  what this screen was CALLED WITH — { name: value } for the
+ *   inputs it declares. A flow's Screen step supplies them; somebody opening
+ *   the form from a list supplies nothing. A field whose default is
+ *   `{params.x}` is filled from here, and left empty (for the person to fill
+ *   in) when nobody said.
  */
 export function useFactoryScreen({
   document: doc, record, recordKey = 'id', onSave, fetchOptions, fetchRecords, fetchRecord, onDelete, onChange, screens, loadScreen, hooks, uploadFile, fileUrl,
-  onOpenRecord, onDone, onDirtyChange, given,
+  onOpenRecord, onDone, onDirtyChange, params,
   controls = CONTROLS
 } = {}) {
   const check = useMemo(() => validateDocument(doc, controls), [doc, controls])
@@ -104,14 +104,13 @@ export function useFactoryScreen({
   }, [check.ok, doc, inputs, fieldsFor])
   const source = check.ok ? doc.source || null : null
 
-  // WHAT WHOEVER OPENED THIS FORM ALREADY KNOWS. A flow's screen step passes
-  // the complaint's id; a record being reopened overrides it with what was
-  // actually saved, because the row is the truth once there is one.
+  // WHAT IT WAS CALLED WITH, then what was actually saved: a record being
+  // reopened wins, because the row is the truth once there is one.
   const startValues = useCallback(
     (rec) => (rec
-      ? { ...initialValues(doc, given || {}, controls), ...recordValues(doc, rec, controls) }
-      : initialValues(doc, given || {}, controls)),
-    [doc, controls, given]
+      ? { ...initialValues(doc, params || {}, controls), ...recordValues(doc, rec, controls) }
+      : initialValues(doc, params || {}, controls)),
+    [doc, controls, params]
   )
 
   const [values, setValues] = useState(() => (check.ok ? startValues(record) : {}))
@@ -178,13 +177,7 @@ export function useFactoryScreen({
   // have branches; which of them apply is the app's to say, from its hooks.
   const [disabledSteps, setDisabledSteps] = useState({})
   const stepperNodes = useMemo(() => (check.ok ? steppers(doc, controls) : []), [check.ok, doc, controls])
-  // A caller field that arrived with a value is not a question — see
-  // hiddenGiven. One that did not stays on screen like any other field.
-  const hidden = useMemo(() => (check.ok ? hiddenGiven(doc, given, controls) : new Set()), [check.ok, doc, given, controls])
-  const visibleNodes = useMemo(
-    () => (check.ok ? nodesForSteps(doc, openSteps, controls).filter((n) => !hidden.has(n.id)) : []),
-    [check.ok, doc, openSteps, controls, hidden]
-  )
+  const visibleNodes = useMemo(() => (check.ok ? nodesForSteps(doc, openSteps, controls) : []), [check.ok, doc, openSteps, controls])
 
   // A screen whose steps changed under it (a field moved to another step, a
   // step removed) must not stay open at a step that is gone.

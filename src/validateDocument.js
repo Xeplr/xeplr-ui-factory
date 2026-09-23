@@ -18,7 +18,7 @@ import { FIELD_PRESETS, INPUT_TYPES, presetFor } from './presets.js'
 const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 const TABLE_NAME = /^[A-Za-z_][A-Za-z0-9_.$-]*$/
 const SCREEN_ID = /^[A-Za-z0-9_-]+$/
-const DOCUMENT_KEYS = ['kind', 'version', 'id', 'name', 'source', 'units', 'aspect', 'width', 'style', 'nodes']
+const DOCUMENT_KEYS = ['kind', 'version', 'id', 'name', 'source', 'units', 'aspect', 'width', 'style', 'params', 'nodes']
 const COLOR = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i
 
 /**
@@ -41,6 +41,24 @@ export function validateDocument(doc, controls = CONTROLS) {
   if (!(typeof doc.aspect === 'number' && doc.aspect > 0)) err('aspect', 'must be a number greater than 0 (1 = page as tall as it is wide)')
   if (!(Number.isInteger(doc.width) && doc.width >= 320 && doc.width <= 1920)) err('width', 'must be a whole number of pixels from 320 to 1920 — the width the screen is designed at')
   if (doc.source !== undefined && !(nonEmptyString(doc.source) && TABLE_NAME.test(doc.source))) err('source', 'must name the table records are saved to, e.g. "employees"')
+
+  // WHAT THIS SCREEN IS CALLED WITH. Names only — a field binds to one with
+  // {params.<name>} as its default, so a name that is not a plain identifier
+  // could never be referenced, and a duplicate would make the reference mean
+  // two things.
+  if (doc.params !== undefined) {
+    if (!Array.isArray(doc.params)) err('params', 'must be a list of inputs this screen is called with')
+    else {
+      const seen = new Set()
+      doc.params.forEach((p, i) => {
+        const name = p && p.name
+        if (!nonEmptyString(name)) err(`params.${i}.name`, 'must be a name, e.g. "complaintId"')
+        else if (!/^[A-Za-z_][\w]*$/.test(name)) err(`params.${i}.name`, `"${name}" must be letters, digits and _, starting with a letter`)
+        else if (seen.has(name)) err(`params.${i}.name`, `"${name}" is declared twice — a field binding to it would mean two things`)
+        else seen.add(name)
+      })
+    }
+  }
   checkStyle(doc.style, SCREEN_STYLE_KEYS, 'style', err, 'the screen')
   Object.keys(doc).forEach((k) => {
     if (!DOCUMENT_KEYS.includes(k)) err(k, `is not a screen property — allowed: ${DOCUMENT_KEYS.join(', ')}`)

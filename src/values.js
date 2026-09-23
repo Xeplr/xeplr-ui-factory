@@ -47,32 +47,30 @@ export function formSchema(doc, controls = CONTROLS) {
 
 /** Each input's starting value: the caller's, else the control's default. */
 /**
- * The fields WHOEVER OPENED THIS FORM is expected to provide — `filledBy:
- * 'caller'`. A flow supplies them from its own steps; nothing else has to.
+ * A VALUE WITH A TOKEN IS A BINDING; a plain value is a literal.
+ *
+ * `{params.complaintId}` in a field's default means "whatever this screen was
+ * called with" — the same brace this product uses in a workflow step, a
+ * condition and a report. Nothing is marked on the field: the brace says it.
+ *
+ * Unknown, or called with nothing, resolves to undefined — the field is then
+ * empty and the person fills it in, which is what the same form does when
+ * somebody opens it on its own. A form that will not open is worse than a
+ * question nobody expected.
+ *
+ * Whole-value only. `{params.a}-{params.b}` is not a value a form field takes,
+ * and splicing text is a formula's job, not a form's.
  */
-export function callerFields(doc, controls = CONTROLS) {
-  return inputNodes(doc, controls).filter((n) => n.props && n.props.filledBy === 'caller')
+export function resolveBinding(value, params) {
+  if (typeof value !== 'string') return value
+  const m = /^\{params\.([A-Za-z_][\w]*)\}$/.exec(value.trim())
+  if (!m) return value
+  return params ? params[m[1]] : undefined
 }
 
-/**
- * HIDDEN WHEN GIVEN, ASKED WHEN NOT.
- *
- * A caller field that arrived with a value is not a question — the flow
- * already knows the complaint, and showing a read-only id would be noise. One
- * that did NOT arrive stays on screen as an ordinary field, because the same
- * form opened on its own is somebody filling it in from scratch, and a form
- * that will not open is worse than a question nobody expected.
- *
- * @returns a Set of node ids to leave out
- */
-export function hiddenGiven(doc, given, controls = CONTROLS) {
-  const out = new Set()
-  if (!given) return out
-  callerFields(doc, controls).forEach((n) => {
-    const v = given[n.props.name]
-    if (v !== undefined && v !== null && v !== '') out.add(n.id)
-  })
-  return out
+/** Is this what somebody typed, or a reference to an input? */
+export function isBinding(value) {
+  return typeof value === 'string' && /^\{params\.[A-Za-z_][\w]*\}$/.test(value.trim())
 }
 
 export function initialValues(doc, provided = {}, controls = CONTROLS) {
@@ -80,7 +78,14 @@ export function initialValues(doc, provided = {}, controls = CONTROLS) {
   inputNodes(doc, controls).forEach((node) => {
     const name = node.props.name
     if (provided[name] !== undefined) out[name] = provided[name]
-    else if (node.props.default !== undefined) out[name] = node.props.default
+    else if (node.props.default !== undefined) {
+      // A default may be a binding to one of the screen's own inputs.
+      const resolved = resolveBinding(node.props.default, provided)
+      if (resolved !== undefined) out[name] = resolved
+      else if (!isBinding(node.props.default)) out[name] = node.props.default
+      else if (node.type === 'checkbox') out[name] = false
+      else if (node.type === 'multiselect') out[name] = []
+    }
     else if (node.type === 'checkbox') out[name] = false
     else if (node.type === 'multiselect') out[name] = []
   })

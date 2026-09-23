@@ -8,6 +8,7 @@ export {
   DOCUMENT_KIND, DOCUMENT_VERSION, DEFAULT_ASPECT, DEFAULT_WIDTH, MARGIN, GAP,
   createScreen, renameScreen, setScreenProperty, addControl, moveNode, setNodeProperty, getNodeProperty, removeNodes,
   inputNodes, readingOrder, contentBottom, camelName, slugify, uniqueFieldName, nextPosition,
+  screenParams, paramsText, setScreenParams,
   steppers, stepsOf, stepOf, setNodeStep, nodesForSteps, resolveStep, reachableStep, nextOpenStep
 } from './document.js'
 export { validateDocument, assertValidDocument } from './validateDocument.js'
@@ -21,10 +22,9 @@ export {
   columnForField, tableForScreen, columnSql, widening, diffTables, migrationFor, nextMigrationName,
   createStatements, addStatements, alterStatement, dropStatement, columnFromDatabase, planTableChange, conversionFor
 } from './tableSchema.js'
+// A value with a {params.x} token is a binding; a plain value is a literal.
+export { resolveBinding, isBinding } from './values.js'
 export { FIELD_PRESETS, PATTERNS, INPUT_TYPES, presetFor, presetProps, suggestPreset, presetGroup, presetHints, convertField } from './presets.js'
-// Who fills a field in: the person, or whoever opened the form — and which of
-// those are therefore not questions this time. See values.js.
-export { callerFields, hiddenGiven } from './values.js'
 export { createFlowsApi } from './flows.js'
 export {
   FLOW_KIND, FLOW_VERSION, FLOW_END, FLOW_OPERATORS, VALUELESS_OPERATORS,

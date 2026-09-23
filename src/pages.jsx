@@ -133,10 +133,9 @@ export function FlowRunner(props) {
     ...props,
     document: run.document || EMPTY_SCREEN,
     record: run.values || undefined,
-    // What this step of the flow already knows — the complaint a containment
-    // belongs to. Hidden on the form, saved with the record. See
-    // useFactoryScreen's `given`.
-    given: run.given || undefined
+    // What the flow called this screen with — its step's own input, resolved
+    // by the engine. A field bound to {params.x} is filled from here.
+    params: run.given || undefined
   })
   return (
     <FlowRunnerSample

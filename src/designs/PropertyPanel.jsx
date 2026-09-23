@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getAtPath } from '../propertyPath.js'
 import { FIELD_PRESETS, presetFor } from '../presets.js'
-import { slugify, inputNodes } from '../document.js'
+import { slugify, inputNodes, paramsText } from '../document.js'
 import { FONT_FAMILIES, STYLE_KEYS, SCREEN_STYLE_KEYS, LIST_ACTIONS, FILE_KINDS } from '../controls.js'
 
 // The selected control's properties, GENERATED from its entry in controls.js:
@@ -149,7 +149,15 @@ function ScreenPanel({ doc, errors, tables, onChange }) {
     return (
       <div key={field.path} className={`xeplr-factory-prop${msg ? ' has-error' : ''}`}>
         {field.type !== 'toggle' && field.type !== 'toggleValue' && <label className="xeplr-factory-prop-label" htmlFor={id}>{field.label}</label>}
-        <Editor id={id} field={field} value={getAtPath(doc, field.path)} onChange={(v) => onChange(field.path, v)} tables={tables} errors={[]} {...extra} />
+        <Editor
+          id={id}
+          field={field}
+          value={field.path === 'paramsLine' ? paramsText(doc) : getAtPath(doc, field.path)}
+          onChange={(v) => onChange(field.path, v)}
+          tables={tables}
+          errors={[]}
+          {...extra}
+        />
         {field.help && <div className="xeplr-factory-prop-help">{field.help}</div>}
         {msg && <div className="xeplr-factory-prop-error">{msg}</div>}
       </div>
@@ -164,6 +172,16 @@ function ScreenPanel({ doc, errors, tables, onChange }) {
       <fieldset className="xeplr-factory-group">
         <legend>Data</legend>
         {row({ path: 'source', label: 'Saves to', type: 'table', help: 'The table this screen\'s records are saved in' }, TableEditor)}
+        {/* WHAT THIS FORM IS CALLED WITH. One line, because that is the whole
+            question — "this form needs contentId, age, name". A field then
+            binds to one with {params.contentId} as its default, the same
+            brace used in a workflow step or a report. */}
+        {row({
+          path: 'paramsLine',
+          label: 'Inputs',
+          type: 'text',
+          help: 'Names, comma separated. A field takes one with {params.name} as its default.'
+        }, TextEditor)}
       </fieldset>
       <fieldset className="xeplr-factory-group">
         <legend>Size</legend>

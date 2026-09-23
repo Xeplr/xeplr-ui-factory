@@ -11,7 +11,7 @@ import {
   tableForScreen, columnForField, migrationFor, nextMigrationName, planTableChange, columnFromDatabase,
   toDbValue, fromDbValue, acceptList, widening, chooseable, fileLabel,
   steppers, stepsOf, stepOf, setNodeStep, nodesForSteps, resolveStep, reachableStep, nextOpenStep,
-  callerFields, hiddenGiven
+  screenParams, paramsText, setScreenParams, resolveBinding, isBinding
 } from '../src/model.js'
 import { normaliseOptions } from '../src/useFactoryScreen.js'
 
@@ -585,41 +585,43 @@ function noOverlaps(nodes) {
   return true
 }
 
-// ── WHO FILLS A FIELD IN ────────────────────────────────────────────────
-// A containment's complaint is known by whatever opened the form. Inside a
-// flow the step supplies it and nobody sees it; opened on its own the same
-// screen asks for it, because a form that will not open is worse than a
-// question nobody expected.
-console.log('\nfields whoever opens the form provides')
+// ── WHAT A SCREEN IS CALLED WITH ────────────────────────────────────────
+// A containment needs the complaint it belongs to, and the person filling it
+// in does not know a twenty-five character id. So the screen declares its
+// INPUTS — one list, like an action's inputSchema — and a field binds to one
+// with the same {token} used in a workflow step or a report. Nothing is
+// marked on the field: the brace says which it is.
+console.log('\nwhat a screen is called with')
 {
   let doc = createScreen({ name: 'Containment' })
-  let made = addControl(doc, 'dropdown'); doc = made.document
-  const link = made.node
-  made = addControl(doc, 'textarea'); doc = made.document
-  const note = made.node
-  doc = setNodeProperty(doc, link.id, 'props.name', 'complaintId')
-  doc = setNodeProperty(doc, link.id, 'props.filledBy', 'caller')
-  doc = setNodeProperty(doc, note.id, 'props.name', 'action')
+  doc = setScreenParams(doc, 'complaintId, raisedBy')
 
-  check('the screen says which fields a caller provides',
-    callerFields(doc).map((n) => n.props.name).join() === 'complaintId')
-  check('a field the person types is not one of them',
-    !callerFields(doc).some((n) => n.props.name === 'action'))
+  check('the screen declares what it needs', screenParams(doc).map((p) => p.name).join() === 'complaintId,raisedBy')
+  check('...and reads back as the line it was typed as', paramsText(doc) === 'complaintId, raisedBy')
+  check('blanks and doubles are dropped', paramsText(setScreenParams(doc, 'a,,  a , b ')) === 'a, b')
+  check('an old screen that declares none is not a crash', screenParams({ nodes: [] }).length === 0)
 
-  // HIDDEN WHEN GIVEN, ASKED WHEN NOT — the whole contract, both halves.
-  check('given a value, it is not a question', hiddenGiven(doc, { complaintId: 'c_1' }).has(link.id))
-  check('given nothing, it is an ordinary field', hiddenGiven(doc, {}).size === 0)
-  check('opened with no context at all, nothing is hidden', hiddenGiven(doc, undefined).size === 0)
-  check('an empty string is not a value — still asked', hiddenGiven(doc, { complaintId: '' }).size === 0)
-  check('a field the person types is never hidden',
-    !hiddenGiven(doc, { complaintId: 'c_1', action: 'valve replaced' }).has(note.id))
+  // A VALUE WITH A TOKEN IS A BINDING; a plain value is a literal.
+  check('a token is a binding', isBinding('{params.complaintId}'))
+  check('...and what it resolves to is what the screen was called with',
+    resolveBinding('{params.complaintId}', { complaintId: 'cmp_1042' }) === 'cmp_1042')
+  check('a plain value is left exactly as it is', resolveBinding('Leaking valve', {}) === 'Leaking valve')
+  check('something that merely mentions params is not a binding', !isBinding('see {params.x} for details'))
+  check('called with nothing, it resolves to nothing', resolveBinding('{params.complaintId}', null) === undefined)
 
-  // It is still a column like any other: the row carries the link.
-  check('it stays part of what the form saves',
-    'complaintId' in initialValues(doc, { complaintId: 'c_1' }))
-  check('...with the value the caller gave',
-    initialValues(doc, { complaintId: 'c_1' }).complaintId === 'c_1')
-  check('a document the checker accepts still accepts it', validateDocument(doc).ok)
+  // The field is then empty and the person fills it in — the same thing the
+  // form does when somebody opens it on its own.
+  let form = addControl(createScreen({ name: 'C' }), 'text')
+  const field = form.node
+  form = setNodeProperty(form.document, field.id, 'props.name', 'complaintId')
+  form = setNodeProperty(form, field.id, 'props.default', '{params.complaintId}')
+
+  check('given a value, the field starts filled',
+    initialValues(form, { complaintId: 'cmp_1042' }).complaintId === 'cmp_1042')
+  check('given nothing, it starts empty rather than holding the token',
+    initialValues(form, {}).complaintId === undefined)
+  check('a literal default is untouched by any of this',
+    initialValues(setNodeProperty(form, field.id, 'props.default', 'Draft'), {}).complaintId === 'Draft')
 }
 
 const failed = results.filter(([, ok]) => !ok)

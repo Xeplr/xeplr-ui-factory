@@ -22,10 +22,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
  * @param onFinish   (run) → void — the journey is over
  */
 export function useFlowRun({ flowKey, runId, startRun, loadRun, submitRun, loadScreen, onStep, onFinish } = {}) {
-  // `given` is what the FLOW already knows for the screen about to be shown —
-  // the step's own input, resolved by the engine (see @xeplr/workflow's
-  // screen-show). A field the screen says is filled in by whoever opens it is
-  // filled from here and not asked; one nobody supplied is asked as usual.
+  // `given` is what the flow called this screen with — the step's own input,
+  // resolved by the engine (see @xeplr/workflow's screen-show). A field bound
+  // to {params.x} is filled from it.
   const [state, setState] = useState({ loading: true, error: null, runId: runId || null, status: null, stepKey: null, screen: null, document: null, values: null, given: null })
   const [sending, setSending] = useState(false)
   const live = useRef({})
@@ -35,7 +34,7 @@ export function useFlowRun({ flowKey, runId, startRun, loadRun, submitRun, loadS
   const open = useCallback(async (run) => {
     if (!run) throw new Error('The run said nothing about what to show')
     if (run.status === 'done' || !run.screen) {
-      setState((s) => ({ ...s, loading: false, error: null, runId: run.runId || s.runId, status: 'done', stepKey: null, screen: null, document: null, given: null }))
+      setState((s) => ({ ...s, loading: false, error: null, runId: run.runId || s.runId, status: 'done', stepKey: null, screen: null, document: null }))
       if (live.current.onFinish) live.current.onFinish(run)
       return
     }

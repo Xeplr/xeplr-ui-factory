@@ -33,6 +33,53 @@ export const MARGIN = 0.04
 export const GAP = 0.025
 
 /** A new, empty screen. */
+/**
+ * WHAT A SCREEN IS CALLED WITH.
+ *
+ * A form can need things it must not ask for: a containment needs the
+ * complaint it belongs to, and the person filling it in does not know a
+ * twenty-five character id. So a screen declares its INPUTS the way an action
+ * declares its inputSchema — one named list, at the screen — and a field
+ * binds to one with the same `{token}` this product uses everywhere else:
+ *
+ *   props.default = '{params.complaintId}'
+ *
+ * A value with a token is a binding; a plain value is a literal. Nothing is
+ * marked on the field, because nothing needs to be: the brace already says
+ * which it is.
+ *
+ * Written as a plain list of names, the shortest thing that answers the
+ * question — "this form needs contentId, age, name".
+ */
+export function screenParams(doc) {
+  var raw = (doc && doc.params) || []
+  if (typeof raw === 'string') raw = raw.split(',')
+  return raw
+    .map(function (p) { return typeof p === 'string' ? { name: p.trim() } : p })
+    .filter(function (p) { return p && p.name })
+}
+
+/** The list as one line, which is how it is typed. */
+export function paramsText(doc) {
+  return screenParams(doc).map(function (p) { return p.name }).join(', ')
+}
+
+/** One line back to the list, for the panel. */
+export function setScreenParams(doc, text) {
+  var names = String(text == null ? '' : text)
+    .split(',')
+    .map(function (n) { return n.trim() })
+    .filter(Boolean)
+  var seen = {}
+  var params = []
+  names.forEach(function (n) {
+    if (seen[n]) return
+    seen[n] = true
+    params.push({ name: n })
+  })
+  return Object.assign({}, doc, { params: params })
+}
+
 export function createScreen({ name, id, aspect, width, source, style } = {}) {
   const title = String(name || 'Untitled screen').trim() || 'Untitled screen'
   const doc = {
@@ -60,6 +107,10 @@ export function renameScreen(doc, name) {
  */
 export function setScreenProperty(doc, path, value) {
   if (path === 'nodes' || path.startsWith('nodes.')) throw new Error('setScreenProperty cannot change nodes')
+  // The inputs are TYPED as one line and STORED as a list, so the document
+  // stays self-describing — the server, the CLI and a flow read names, not a
+  // string somebody has to split again.
+  if (path === 'paramsLine') return setScreenParams(doc, value)
   return setAtPath(doc, path, value)
 }
 
