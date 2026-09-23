@@ -172,6 +172,23 @@ function ScreenPanel({ doc, errors, tables, onChange }) {
       <fieldset className="xeplr-factory-group">
         <legend>Data</legend>
         {row({ path: 'source', label: 'Saves to', type: 'table', help: 'The table this screen\'s records are saved in' }, TableEditor)}
+        {/* A MASTER is a list other forms point at — departments, statuses,
+            countries. A flag on an ordinary form, not a kind of its own. */}
+        {row({
+          path: 'master',
+          label: 'This is a master',
+          type: 'toggle',
+          help: 'A list other forms choose from. Masters are kept together in the admin section.'
+        }, EDITORS.toggle || TextEditor)}
+        {doc.master && row({
+          path: 'labelField',
+          label: 'Shown as',
+          type: 'select',
+          options: [{ value: '', label: '— choose a field —' }].concat(
+            inputNodes(doc).map((n) => ({ value: n.props.name, label: n.props.label || n.props.name }))
+          ),
+          help: 'What a picker shows for a record. Said once here, not on every dropdown.'
+        }, EDITORS.select || TextEditor)}
         {/* WHAT THIS FORM IS CALLED WITH. One line, because that is the whole
             question — "this form needs contentId, age, name". A field then
             binds to one with {params.contentId} as its default, the same

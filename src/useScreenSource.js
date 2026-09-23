@@ -21,7 +21,7 @@
 // createElement so the file stays .js.
 
 import { createElement, useCallback, useEffect, useMemo, useState } from 'react'
-import { loadScreens } from './screenSource.js'
+import { loadScreens, masterForms } from './screenSource.js'
 import { ScreenEditorSample } from './designs/ScreenEditorSample.jsx'
 
 /**
@@ -29,7 +29,7 @@ import { ScreenEditorSample } from './designs/ScreenEditorSample.jsx'
  * @param opts { Builder, labels } — the builder component to draw, normally
  *             FactoryBuilder. Passed in rather than imported so this hook does
  *             not pull the whole builder into a bundle that never opens it.
- * @returns { screens, screenEditor, reload, loading, error }
+ * @returns { screens, masters, screenEditor, reload, loading, error }
  */
 export function useScreenSource(api, opts) {
   opts = opts || {}
@@ -74,8 +74,12 @@ export function useScreenSource(api, opts) {
     })
   }, [api, Builder, labels, reload])
 
+  // The lists other forms point at, one entry per FORM — what the admin
+  // section shows. Derived here so no application groups screens by hand.
+  const masters = useMemo(() => masterForms(screens), [screens])
+
   return useMemo(
-    () => ({ screens, screenEditor, reload, loading, error }),
-    [screens, screenEditor, reload, loading, error]
+    () => ({ screens, masters, screenEditor, reload, loading, error }),
+    [screens, masters, screenEditor, reload, loading, error]
   )
 }

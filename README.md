@@ -197,6 +197,35 @@ import schemaHandler from '@xeplr/schema-handler'          // CommonJS: default 
 const clean = schemaHandler.applySchema(formSchema(screen), req.body)   // throws ValidationError listing each field
 ```
 
+## Masters — the lists the rest of the app points at
+
+Departments, statuses, countries, categories. Mark a form as a master in its
+design (select nothing on the canvas → **This is a master**), and say what a
+picker should show for one of its records:
+
+```js
+{ master: true, labelField: 'name' }     // on the form's own document
+```
+
+**A flag on a form, not a kind of form.** A master has a table, a list, an
+edit screen and permissions like anything else; a separate type would be two
+things that behave the same until they do not, and every feature after it
+would have to ask which one it is holding. The flag adds a fact; a type adds
+a fork.
+
+`labelField` is said once, here, rather than on every dropdown that points at
+this form — thirty dropdowns should not each be told that a department is
+shown by its name.
+
+`useScreenSource` returns `masters` alongside `screens`: one entry per FORM
+(`{ key, name, labelField, edit, list, source }`), gathered by `masterForms`,
+so an app's admin section renders a list and groups nothing itself. That is
+what `@xeplr/cli` generates as Configure UI → **Masters**.
+
+They are gathered in the admin section rather than scattered through the side
+rail because that is what they are — reference data somebody maintains
+occasionally. The rail stays for the work.
+
 ## Your screens, inside someone else's designer
 
 `@xeplr/ui-workflow`'s flow designer has a **Screen** step, and it asks its

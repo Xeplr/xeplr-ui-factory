@@ -18,7 +18,7 @@ import { FIELD_PRESETS, INPUT_TYPES, presetFor } from './presets.js'
 const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 const TABLE_NAME = /^[A-Za-z_][A-Za-z0-9_.$-]*$/
 const SCREEN_ID = /^[A-Za-z0-9_-]+$/
-const DOCUMENT_KEYS = ['kind', 'version', 'id', 'name', 'source', 'units', 'aspect', 'width', 'style', 'params', 'nodes']
+const DOCUMENT_KEYS = ['kind', 'version', 'id', 'name', 'source', 'units', 'aspect', 'width', 'style', 'master', 'labelField', 'params', 'nodes']
 const COLOR = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i
 
 /**
@@ -41,6 +41,23 @@ export function validateDocument(doc, controls = CONTROLS) {
   if (!(typeof doc.aspect === 'number' && doc.aspect > 0)) err('aspect', 'must be a number greater than 0 (1 = page as tall as it is wide)')
   if (!(Number.isInteger(doc.width) && doc.width >= 320 && doc.width <= 1920)) err('width', 'must be a whole number of pixels from 320 to 1920 — the width the screen is designed at')
   if (doc.source !== undefined && !(nonEmptyString(doc.source) && TABLE_NAME.test(doc.source))) err('source', 'must name the table records are saved to, e.g. "employees"')
+
+  // A MASTER is a form whose records other forms point at — departments,
+  // statuses, countries. It is a FLAG on an ordinary form, not a kind of its
+  // own: a master has a table, a list, an edit screen and permissions like
+  // anything else, and a separate type would be two things that behave the
+  // same until they do not, with every later feature asking which it has.
+  if (doc.master !== undefined && typeof doc.master !== 'boolean') {
+    err('master', 'must be true or false — whether other forms pick from this one')
+  }
+  // What a picker SHOWS for a record. Said once here rather than on every
+  // dropdown that points at this form.
+  if (doc.labelField !== undefined) {
+    if (!nonEmptyString(doc.labelField)) err('labelField', 'must name a field of this screen, e.g. "name"')
+    else if (!(doc.nodes || []).some((n) => n.props && n.props.name === doc.labelField)) {
+      err('labelField', `"${doc.labelField}" is not a field on this screen`)
+    }
+  }
 
   // WHAT THIS SCREEN IS CALLED WITH. Names only — a field binds to one with
   // {params.<name>} as its default, so a name that is not a plain identifier

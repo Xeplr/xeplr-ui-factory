@@ -37,8 +37,54 @@ export function describeScreen(doc) {
     // these; a screen that declares none is asked for nothing.
     inputs: screenParams(doc).map(function (p) {
       return { name: p.name, label: p.label || p.name, type: p.type || 'string', required: Boolean(p.required) }
-    })
+    }),
+    // A MASTER is a list other forms point at. Reported here so a picker can
+    // offer "Departments" before it offers thirty raw table names, and so the
+    // admin section can gather them without reading every document again.
+    master: Boolean(doc.master),
+    labelField: doc.labelField || null,
+    source: doc.source || null
   }
+}
+
+/** The form a screen belongs to: task_edit and task_list are one form. */
+export function formKeyOf(screenKey) {
+  var m = /^(.*)_(edit|list)$/.exec(String(screenKey || ''))
+  return m ? m[1] : String(screenKey || '')
+}
+
+/**
+ * THE MASTERS, gathered from the screens an app has.
+ *
+ * A master is a property of the FORM, and a form is two screens — the edit
+ * screen is where it is declared, because that is the one that describes the
+ * record. The list screen is what the admin section opens, because looking at
+ * a master means looking at its rows.
+ *
+ * Returns [{ key, name, labelField, edit, list, source }], by name.
+ */
+export function masterForms(screens) {
+  var byForm = {}
+  ;(screens || []).forEach(function (sc) {
+    if (!sc || !sc.key) return
+    var form = formKeyOf(sc.key)
+    var entry = byForm[form] || (byForm[form] = { key: form, name: null, labelField: null, edit: null, list: null, source: null })
+    if (/_list$/.test(sc.key)) entry.list = sc.key
+    else entry.edit = sc.key
+    if (sc.master) {
+      entry.master = true
+      entry.name = entry.name || sc.name
+      entry.labelField = entry.labelField || sc.labelField
+      entry.source = entry.source || sc.source
+    }
+    // A name to show even when the flag is on the other half of the pair.
+    if (!entry.name && !/_list$/.test(sc.key)) entry.name = sc.name
+  })
+
+  return Object.keys(byForm)
+    .map(function (k) { return byForm[k] })
+    .filter(function (f) { return f.master })
+    .sort(function (a, b) { return String(a.name).localeCompare(String(b.name)) })
 }
 
 /** A listing row → the same shape, before its document has been read. */
