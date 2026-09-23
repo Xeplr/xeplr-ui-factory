@@ -356,8 +356,12 @@ export function fromDbValue(node, value) {
 /**
  * The alphabet, minus the characters people mistake for each other.
  *
- * No O or 0, no I or 1, no S or 5: the whole point of this code is that it
- * survives being read aloud, written down and typed back in.
+ * ONE OF EACH PAIR SURVIVES, which is the whole trick: O and I and S are
+ * gone, so 0, 1 and 5 are unambiguous and can stay. Dropping both halves
+ * would cost a third of the alphabet to solve a problem already solved.
+ *
+ * The point of this code is that it survives being read aloud, written down
+ * and typed back in.
  */
 var CODE_ALPHABET = '23456789ABCDEFGHJKLMNPQRTUVWXYZ'
 

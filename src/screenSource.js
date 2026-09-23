@@ -29,6 +29,7 @@ export function describeScreen(doc) {
   return {
     key: doc.id,
     name: doc.name || doc.id,
+    description: doc.description || null,
     fields: inputNodes(doc).map(function (n) {
       return { name: n.id, type: n.type }
     }),

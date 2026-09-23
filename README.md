@@ -218,7 +218,8 @@ it — the column, who fills it in, and whether it is on the form at all:
 - **A code is random, not counted.** A sequential one needs a counter bumped
   in the insert's transaction, or two saves take the same number, and it still
   shows gaps when a save fails after the number is taken. Its alphabet drops
-  O, 0, I, 1, S and 5: the point of a code is surviving a phone call.
+  O, I and S — one of each confusable pair, so 0, 1 and 5 stay usable: the
+  point of a code is surviving a phone call.
 - **Assigned by the server**, checked for a clash inside the insert's own
   transaction — random is not unique, and a code that was free a moment ago is
   not a promise.

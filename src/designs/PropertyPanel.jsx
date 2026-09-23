@@ -170,6 +170,18 @@ function ScreenPanel({ doc, errors, tables, onChange }) {
       </header>
       <p className="xeplr-factory-panel-empty">Select a control to change it, or drag one in from the left.</p>
       <fieldset className="xeplr-factory-group">
+        <legend>About</legend>
+        {/* WHAT IT IS FOR. When a lot of people can make forms, a lot of
+            people make the same one — and the fields say what a form holds,
+            never what it was for or whether this is the one still in use. */}
+        {row({
+          path: 'description',
+          label: 'What this form is for',
+          type: 'textarea',
+          help: 'One sentence. It is what tells this apart from the other three called the same thing.'
+        }, TextareaEditor)}
+      </fieldset>
+      <fieldset className="xeplr-factory-group">
         <legend>Data</legend>
         {row({ path: 'source', label: 'Saves to', type: 'table', help: 'The table this screen\'s records are saved in' }, TableEditor)}
         {/* A MASTER is a list other forms point at — departments, statuses,

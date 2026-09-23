@@ -635,8 +635,13 @@ console.log('\na code that survives being read aloud')
   check('it starts with what it was given', /^CMP-/.test(code))
   check('...and is short enough to say', code.length <= 12)
 
-  // The whole point is that it survives a phone call and a handwritten note.
-  check('no characters people mistake for each other', !/[O0I1S5]/.test(code.slice(4)))
+  // ONE OF EACH PAIR: O, I and S are gone, so 0, 1 and 5 are unambiguous and
+  // are kept — dropping both halves would cost a third of the alphabet to
+  // solve a problem already solved.
+  check('no letter people mistake for a digit', !/[OIS]/.test(code.slice(4)))
+  // Said over 200 codes, because one code proves nothing about an alphabet.
+  check('...in any of them',
+    Array.from({ length: 200 }, () => generateCode('X')).every((c) => !/[OIS]/.test(c.slice(2))))
   check('a prefix is optional', !/-/.test(generateCode('')))
   check('a lower-case prefix is shouted', /^PO-/.test(generateCode('po')))
   check('punctuation in a prefix is dropped', /^ABC-/.test(generateCode('a.b c!')))
