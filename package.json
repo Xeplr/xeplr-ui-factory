@@ -48,7 +48,8 @@
     "@tanstack/react-table": "^8.0.0",
     "@xeplr/ui-canvas": "^1.0.2",
     "@xeplr/ui-table": "^1.0.6",
-    "react": "^18.0.0 || ^19.0.0"
+    "react": "^18.0.0 || ^19.0.0",
+    "react-router-dom": "^6.0.0 || ^7.0.0"
   },
   "devDependencies": {
     "@tanstack/react-table": "^8.21.3",
@@ -58,6 +59,10 @@
     "@xeplr/ui-table": "^1.0.6",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-router-dom": "^7.18.4",
     "vite": "^7.3.1"
+  },
+  "dependencies": {
+    "@xeplr/ui-utils": "^1.1.2"
   }
 }

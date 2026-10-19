@@ -4,6 +4,7 @@ import {
   addTransition, setTransition, removeTransition, validateFlow, firstStep, layoutFlow, FLOW_END
 } from './flow.js'
 import { inputNodes } from './document.js'
+import { useUrlSelection } from './useUrlPlaces.js'
 
 // DESIGNING a flow: which screens, in what order, and what decides the order.
 //
@@ -23,10 +24,12 @@ export const FLOW_AUTOSAVE_DELAY = 800
  * @param onSave      async (flow) → void — called after edits, only with a flow that makes sense
  * @param onPublish   async (key) → void — shows a Publish button
  * @param onChange    (flow) → void — every edit
+ * @param urlKey      where the selected step lives in the URL (`<urlKey>Selected`), so a
+ *                    refresh or a shared link opens the same step. Omitted → in memory.
  */
-export function useFlowBuilder({ flow: given, name, screens = [], loadScreen, onSave, onPublish, onChange } = {}) {
+export function useFlowBuilder({ flow: given, name, screens = [], loadScreen, onSave, onPublish, onChange, urlKey } = {}) {
   const [flow, setFlow] = useState(() => given || createFlow({ name }))
-  const [selected, setSelected] = useState(null)          // a step key
+  const [selected, setSelected] = useUrlSelection(urlKey)  // a step key
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(null)
@@ -102,13 +105,13 @@ export function useFlowBuilder({ flow: given, name, screens = [], loadScreen, on
     })
     if (added) setSelected(added.stepKey)
     return added
-  }, [update])
+  }, [update, setSelected])
   const move = useCallback((stepKey, at) => update((f) => moveStep(f, stepKey, at)), [update])
   const change = useCallback((stepKey, patch) => update((f) => setStep(f, stepKey, patch)), [update])
   const remove = useCallback((stepKey) => {
     update((f) => removeStep(f, stepKey))
     setSelected((s) => (s === stepKey ? null : s))
-  }, [update])
+  }, [update, setSelected])
   const connect = useCallback((fromKey, target, when = null) => update((f) => addTransition(f, fromKey, target, when)), [update])
   const changeTransition = useCallback((fromKey, index, patch) => update((f) => setTransition(f, fromKey, index, patch)), [update])
   const disconnect = useCallback((fromKey, index) => update((f) => removeTransition(f, fromKey, index)), [update])
