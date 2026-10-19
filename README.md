@@ -44,10 +44,10 @@ Most internal apps are a long tail of forms, and every one of them is hand-built
 ## Install
 
 ```sh
-npm i @xeplr/ui-factory @xeplr/ui-canvas @xeplr/ui-table @tanstack/react-table
+npm i @xeplr/ui-factory @xeplr/ui-canvas @xeplr/ui-table @tanstack/react-table react-router-dom
 ```
 
-Peer dependencies: `react ^18 || ^19`, [`@xeplr/ui-canvas`](https://www.npmjs.com/package/@xeplr/ui-canvas) (the canvas the builder places controls on) and [`@xeplr/ui-table`](https://www.npmjs.com/package/@xeplr/ui-table) (lists of saved records). Your bundler must compile JSX and import CSS from the package (Vite does both).
+Peer dependencies: `react ^18 || ^19`, [`@xeplr/ui-canvas`](https://www.npmjs.com/package/@xeplr/ui-canvas) (the canvas the builder places controls on), [`@xeplr/ui-table`](https://www.npmjs.com/package/@xeplr/ui-table) (lists of saved records) and `react-router-dom ^6 || ^7` (imported by [`@xeplr/ui-utils`](https://www.npmjs.com/package/@xeplr/ui-utils)' `useUrlState`, a dependency, for the URL state below; with no router above, everything stays in memory). Your bundler must compile JSX and import CSS from the package (Vite does both).
 
 ## The builder
 
@@ -486,6 +486,26 @@ npx xeplr-factory controls                   # controls, props and rules
 
 Layout is **proportional**, like `@xeplr/ui-canvas` dashboards: `x` and `w` are fractions of the width, `y` and `h` fractions of a page (`width × aspect`). The screen is shown at its design `width`; on a narrower display everything — positions and text — scales down together.
 
+## Where you are lives in the URL: `urlKey`
+
+The control whose properties are open, the step a stepper is open at, and the flow step being edited are places a person navigates to. Give a controller (or its ready-made page) a `urlKey` and they are written to the URL's query, so a refresh or a shared link lands on them again:
+
+| controller / page | key | holds | history |
+|---|---|---|---|
+| `useFactoryBuilder` / `<FactoryBuilder>` | `<urlKey>Selected` | the id of the one selected control | opening or closing its properties adds an entry (Back closes them); moving to another control replaces it |
+| `useFactoryBuilder` / `<FactoryBuilder>` | `<urlKey>Steps` | the step each stepper is open at: `stepperId:index`, comma-separated, step 0 left out | replaces |
+| `useFactoryScreen` / `<FactoryScreen>`, `<FlowRunner>` | `<urlKey>Steps` | as above | replaces |
+| `useFlowBuilder` / `<FlowBuilder>` | `<urlKey>Selected` | the key of the selected flow step | as for a control |
+
+```jsx
+<FactoryBuilder urlKey="form" document={doc} onSave={save} />    // ?formSelected=email&formSteps=stepper:1
+```
+
+- **The key is the host's, never a default.** A builder, its Preview and a list's Edit popup can share a page, and the host has keys of its own, so nothing is written to the URL without a `urlKey` — give each its own. **Without one the state stays in memory**, as before. The Preview and the Edit popup are never given one.
+- **A multi-selection is not a place.** Several controls selected is a working set for Delete and Duplicate, not somewhere a person goes, so it stays in memory and the URL then names nothing. Only a single selection — the one whose properties are open — is in the URL.
+- **Ids, found again.** The selected control is looked up in the document; one that is not there selects nothing. A document handed in after mounting keeps the URL's control, so a host that loads the screen late still lands on it. A step past the last is pulled back to the last, and steppers not in the document (a screen still loading) are left alone.
+- The rule is in `src/urlState.js` (`factoryUrlKeys`, `encodeSteps`, `decodeSteps`, `replacesHistory`, `selectionPlace`); the hooks that keep it are `src/useUrlPlaces.js`.
+
 ## Three ways to use it
 
 1. **Ready-made** — `<FactoryBuilder>` and `<FactoryScreen>`.
@@ -523,6 +543,9 @@ src/
   model.js               ─ everything above, React-free
   useFactoryBuilder.js   ─ builder controller
   useFactoryScreen.js    ─ screen controller
+  useFlowBuilder.js      ─ flow designer controller
+  urlState.js            ─ the URL keys and values for selection and steps (React-free)
+  useUrlPlaces.js        ─ useUrlSteps, useUrlSelection: those places, in the URL or in memory
   useScreenSource.js     ─ { screens, screenEditor } for @xeplr/ui-workflow's Screen step
   designs/               ─ BuilderSample, ScreenSample, ScreenEditorSample, ControlView, ListView, Palette, PropertyPanel, styles.js, factory.css
   pages.jsx              ─ FactoryBuilder, FactoryScreen
@@ -536,6 +559,8 @@ dev/                     ─ the stand-in app for `npm run dev` (not published)
 ```sh
 npm test
 ```
+
+`test/urlState.test.js` covers the URL state: the key format, and the three controllers reading their places back from a real `MemoryRouter` and being clicked through in memory, rendered with `react-dom/server`.
 
 ## License
 
