@@ -4,6 +4,7 @@ import { inputNodes, nodesForSteps, steppers, stepsOf, stepOf, resolveStep, reac
 import { validateDocument } from './validateDocument.js'
 import { initialValues, parseInput, saveState, fieldError, optionValue, recordValues, listSource } from './values.js'
 import { hookMethod } from './hooks.js'
+import { useUrlSteps } from './useUrlPlaces.js'
 
 // A saved screen, running. No JSX — designs/ScreenSample.jsx draws it.
 //
@@ -48,6 +49,8 @@ import { hookMethod } from './hooks.js'
  * @param onDirtyChange (dirty) → void — whether there are unsaved changes, as that changes
  * @param controls      the control registry (default: the built-ins)
  * @param hooks         a FactoryHooks (or an object with some of its methods) — get / save / delete / actions
+ * @param urlKey        where the open step of each stepper lives in the URL (`<urlKey>Steps`),
+ *                      so a refresh or a shared link lands on the same step. Omitted → in memory.
  */
 /**
  * @param params  what this screen was CALLED WITH — { name: value } for the
@@ -58,7 +61,7 @@ import { hookMethod } from './hooks.js'
  */
 export function useFactoryScreen({
   document: doc, record, recordKey = 'id', onSave, fetchOptions, fetchRecords, fetchRecord, onDelete, onChange, screens, loadScreen, hooks, uploadFile, fileUrl,
-  onOpenRecord, onDone, onDirtyChange, params,
+  onOpenRecord, onDone, onDirtyChange, params, urlKey,
   controls = CONTROLS
 } = {}) {
   const check = useMemo(() => validateDocument(doc, controls), [doc, controls])
@@ -172,7 +175,7 @@ export function useFactoryScreen({
   // A stepper shows one step at a time. Which step each is open at lives here;
   // the fields of the steps not showing are still filled in, still checked and
   // still saved — a step is what the person sees, not a separate form.
-  const [openSteps, setOpenSteps] = useState({})
+  const [openSteps, setOpenSteps] = useUrlSteps(urlKey)
   // Steps the app has switched off — { stepper id: [index, …] }. A screen may
   // have branches; which of them apply is the app's to say, from its hooks.
   const [disabledSteps, setDisabledSteps] = useState({})
@@ -180,20 +183,20 @@ export function useFactoryScreen({
   const visibleNodes = useMemo(() => (check.ok ? nodesForSteps(doc, openSteps, controls) : []), [check.ok, doc, openSteps, controls])
 
   // A screen whose steps changed under it (a field moved to another step, a
-  // step removed) must not stay open at a step that is gone.
+  // step removed) must not stay open at a step that is gone. Steppers this
+  // document does not have are left alone: a screen still loading has none,
+  // and dropping them would lose the step a link was opened at.
   useEffect(() => {
     setOpenSteps((open) => {
-      let changed = false
-      const next = {}
+      const next = { ...open }
       stepperNodes.forEach((n) => {
         const count = stepsOf(n).length
         const at = Number.isInteger(open[n.id]) ? open[n.id] : 0
         next[n.id] = Math.min(Math.max(at, 0), Math.max(count - 1, 0))
-        if (next[n.id] !== open[n.id]) changed = true
       })
-      return changed || Object.keys(next).length !== Object.keys(open).length ? next : open
+      return next
     })
-  }, [stepperNodes])
+  }, [stepperNodes, setOpenSteps])
 
   const stepControl = useMemo(() => {
     const at = (id) => (Number.isInteger(openSteps[id]) ? openSteps[id] : 0)
@@ -285,7 +288,7 @@ export function useFactoryScreen({
       })
     }
     return control
-  }, [stepperNodes, openSteps, disabledSteps, doc, controls])
+  }, [stepperNodes, openSteps, setOpenSteps, disabledSteps, doc, controls])
 
   live.current.steps = stepControl
 

@@ -19,6 +19,7 @@ import { BuilderSample, ScreenSample, ScreenModal, FlowRunnerSample, FlowBuilder
  * @prop lockedNames  field names that are already columns of the table — shown read-only
  * @prop screens      [{ id, name, document? }] — other screens: "Edit in" choices, and Preview's popups
  * @prop controls     control registry (default: built-ins)
+ * @prop urlKey       keep the selected control and open steps in the URL (<urlKey>Selected, <urlKey>Steps)
  */
 export function FactoryBuilder(props) {
   const ctrl = useFactoryBuilder(props)
@@ -60,6 +61,7 @@ export function FactoryBuilder(props) {
  * @prop loadScreen   async (id) → document — for screens not in `screens`
  * @prop controls     control registry (default: built-ins)
  * @prop hooks        your FactoryHooks subclass (get / save / delete / actions) — also used by the popup
+ * @prop urlKey       keep the open step of each stepper in the URL (<urlKey>Steps); never passed to the popup
  */
 export function FactoryScreen(props) {
   const ctrl = useFactoryScreen(props)
@@ -176,6 +178,7 @@ const EMPTY_SCREEN = {
  * @prop onSave     async (flow) → void
  * @prop onPublish  async (key) → void
  * @prop onChange   (flow) → void
+ * @prop urlKey     keep the selected step in the URL (<urlKey>Selected)
  */
 export function FlowBuilder(props) {
   const ctrl = useFlowBuilder(props)

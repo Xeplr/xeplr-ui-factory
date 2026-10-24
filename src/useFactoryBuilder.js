@@ -7,6 +7,8 @@ import {
 } from './document.js'
 import { validateDocument } from './validateDocument.js'
 import { presetFor, presetProps, presetGroup, presetHints, convertField } from './presets.js'
+import { useUrlSteps, useUrlSelection } from './useUrlPlaces.js'
+import { selectionPlace } from './urlState.js'
 
 // The builder's controller: the document being edited, what is selected, and
 // every change the builder can make. No JSX — designs/BuilderSample.jsx draws
@@ -36,6 +38,9 @@ import { presetFor, presetProps, presetGroup, presetHints, convertField } from '
  *                    shown); throw with `confirm: [{ column, records }]` when removed fields would drop
  *                    columns — the builder asks, and calls again with confirmDrop naming them.
  * @param controls    the control registry (default: the built-ins)
+ * @param urlKey      where the selected control and the open steps live in the URL:
+ *                    `<urlKey>Selected` and `<urlKey>Steps`, so a refresh or a shared
+ *                    link lands on the same control. Omitted → kept in memory.
  */
 /**
  * What the link column on a child is called: materials → materialId.
@@ -52,9 +57,25 @@ function linkNameFor(doc) {
   return singular.replace(/_([a-z])/g, function (_, c) { return c.toUpperCase() }) + 'Id'
 }
 
-export function useFactoryBuilder({ document: given, name, onSave, onChange, onPublish, listTables, makeChildTable, screens, lockedNames, controls = CONTROLS, autosaveDelay = 800 } = {}) {
+export function useFactoryBuilder({ document: given, name, onSave, onChange, onPublish, listTables, makeChildTable, screens, lockedNames, controls = CONTROLS, autosaveDelay = 800, urlKey } = {}) {
   const [doc, setDoc] = useState(() => given || createScreen({ name }))
-  const [selected, setSelected] = useState(() => new Set())
+
+  // ── selection ─────────────────────────────────────────────────────────
+  // ONE selected control is a place — its properties are open — so it is
+  // named in the URL (by id, found again in the document). Several selected
+  // is a working set for Delete or Duplicate, not a place: it stays here, and
+  // the URL then names nothing.
+  const [placeId, selectPlace] = useUrlSelection(urlKey)
+  const [several, setSeveral] = useState(null)
+  const placeNode = placeId === null ? null : doc.nodes.find((n) => String(n.id) === placeId) || null
+  const placeNodeId = placeNode ? placeNode.id : null
+  const selected = useMemo(() => several || new Set(placeNodeId === null ? [] : [placeNodeId]), [several, placeNodeId])
+  const selectedRef = useRef(selected); selectedRef.current = selected
+  const setSelected = useCallback((next) => {
+    const ids = [...((typeof next === 'function' ? next(selectedRef.current) : next) || [])]
+    setSeveral(ids.length > 1 ? new Set(ids) : null)
+    selectPlace(selectionPlace(ids))
+  }, [selectPlace])
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState(null)
@@ -72,7 +93,10 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
     if (JSON.stringify(given) === JSON.stringify(docRef.current)) return
     docRef.current = given
     setDoc(given)
-    setSelected(new Set())
+    // A multi-selection belongs to the old document. The URL's control is
+    // kept: a host that loads the screen after mounting hands it in here, and
+    // the link's control is found in it — or, if it is not there, nothing is.
+    setSeveral(null)
     setDirty(false)
   }, [given])
 
@@ -124,7 +148,7 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
   // Which step of each stepper is open on the canvas. Everything dropped while
   // a step is open belongs to that step, and the canvas shows only that step —
   // so one screen holds as many little screens as it has steps.
-  const [openSteps, setOpenSteps] = useState({})
+  const [openSteps, setOpenSteps] = useUrlSteps(urlKey)
   const stepperNodes = useMemo(() => steppers(doc, controls), [doc, controls])
   const [building, setBuilding] = useState(null)      // the stepper being built
   const activeStepper = stepperNodes.find((n) => n.id === building) || stepperNodes[stepperNodes.length - 1] || null
@@ -133,7 +157,7 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
   const goToStep = useCallback((id, index) => {
     setBuilding(id)
     setOpenSteps((o) => ({ ...o, [id]: index }))
-  }, [])
+  }, [setOpenSteps])
 
   /** The step a new control lands on: the one open on the stepper being built. */
   const dropStep = useCallback(() => (
@@ -162,7 +186,7 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
     })
     if (added) setSelected(new Set([added.id]))
     return added
-  }, [update, controls, dropStep])
+  }, [update, controls, dropStep, setSelected])
 
   const moveControl = useCallback((id, patch) => update((d) => moveNode(d, id, patch)), [update])
 
@@ -184,13 +208,12 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
     return dropped
   }, [update, controls])
 
-  const selectedRef = useRef(selected); selectedRef.current = selected
   const removeSelected = useCallback(() => {
     const ids = [...selectedRef.current]
     if (!ids.length) return
     update((d) => removeNodes(d, ids))
     setSelected(new Set())
-  }, [update])
+  }, [update, setSelected])
 
   /** Everything selected moves to a copy, just below the original. */
   const duplicateSelected = useCallback(() => {
@@ -211,7 +234,7 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
       return next
     })
     setSelected(new Set(created))
-  }, [update, controls])
+  }, [update, controls, setSelected])
 
   // ── validation + save ─────────────────────────────────────────────────
   const validation = useMemo(() => validateDocument(doc, controls), [doc, controls])
