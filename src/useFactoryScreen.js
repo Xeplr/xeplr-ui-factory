@@ -29,6 +29,15 @@ import { useUrlSteps } from './useUrlPlaces.js'
 // A list whose `editScreen` names another screen opens that screen in a popup
 // for Edit and New. The screen comes from `screens` ({ id → document }) or the
 // host's `loadScreen(id)`. The list refreshes as the popup saves.
+//
+// ── A FORM INSIDE THIS ONE (subform) ─────────────────────────────────────
+// A `subform` node draws another published form inline, saving into its own
+// table. The view renders it as a second useFactoryScreen with `link` (the
+// field on it pointing back here) and `onReady`, through which it hands this
+// one a handle: validate / dirty / save. One Save writes THIS record first —
+// so a new one has an id — then every subform with changes, with that id in
+// its link field. An untouched subform is not saved: it is one optional
+// record, and an empty one is not worth a row.
 
 /**
  * @param document      a valid screen document
@@ -62,9 +71,23 @@ import { useUrlSteps } from './useUrlPlaces.js'
 export function useFactoryScreen({
   document: doc, record, recordKey = 'id', onSave, fetchOptions, fetchRecords, fetchRecord, onDelete, onChange, screens, loadScreen, hooks, uploadFile, fileUrl,
   onOpenRecord, onDone, onDirtyChange, params, urlKey,
+  link, onReady,
   controls = CONTROLS
 } = {}) {
   const check = useMemo(() => validateDocument(doc, controls), [doc, controls])
+  // EMBEDDED AS A SUBFORM: `link` is the field pointing back at the record
+  // this sits in. It is never shown and never asked for — the host fills it
+  // in on save — so it is left out of what is checked here, and a form
+  // without that field is a mistake said out loud, not a record saved
+  // belonging to nothing.
+  const embedded = Boolean(link)
+  const checkDoc = useMemo(
+    () => (embedded && check.ok ? { ...doc, nodes: doc.nodes.filter((n) => !(n.props && n.props.name === link)) } : doc),
+    [doc, link, embedded, check.ok]
+  )
+  const linkError = embedded && check.ok && !inputNodes(doc, controls).some((n) => n.props.name === link)
+    ? { path: '', message: `"${doc.name || doc.id}" has no field "${link}" — add it, or change "Linked by" on the form this is placed in` }
+    : null
   // Read at call time, so a new hooks object never re-runs loads by itself.
   const hooksRef = useRef(hooks); hooksRef.current = hooks
   const hook = (name) => hookMethod(hooksRef.current, name)
@@ -139,7 +162,7 @@ export function useFactoryScreen({
 
   // Latest of everything a save needs, read at the moment it runs.
   const live = useRef({})
-  live.current = { doc, values, recordId, touched, source, onSave, controls, recordKey }
+  live.current = { doc, checkDoc, values, recordId, touched, source, onSave, controls, recordKey }
 
   // ── options for table dropdowns, fetched once per table ───────────────
   const [options, setOptions] = useState({})   // node id → { loading, items, error }
@@ -180,7 +203,10 @@ export function useFactoryScreen({
   // have branches; which of them apply is the app's to say, from its hooks.
   const [disabledSteps, setDisabledSteps] = useState({})
   const stepperNodes = useMemo(() => (check.ok ? steppers(doc, controls) : []), [check.ok, doc, controls])
-  const visibleNodes = useMemo(() => (check.ok ? nodesForSteps(doc, openSteps, controls) : []), [check.ok, doc, openSteps, controls])
+  const visibleNodes = useMemo(
+    () => (check.ok ? nodesForSteps(doc, openSteps, controls).filter((n) => !(embedded && n.props && n.props.name === link)) : []),
+    [check.ok, doc, openSteps, controls, embedded, link]
+  )
 
   // A screen whose steps changed under it (a field moved to another step, a
   // step removed) must not stay open at a step that is gone. Steppers this
@@ -320,26 +346,50 @@ export function useFactoryScreen({
   }, [options])
   live.current.loadedItems = loadedItems
 
-  const state = useMemo(() => (check.ok ? saveState(doc, values, touched, loadedItems, controls) : { canSave: false, status: 'invalid', errors: {}, shown: {} }),
-    [check.ok, doc, values, touched, loadedItems, controls])
+  const state = useMemo(() => (check.ok ? saveState(checkDoc, values, touched, loadedItems, controls) : { canSave: false, status: 'invalid', errors: {}, shown: {} }),
+    [check.ok, checkDoc, values, touched, loadedItems, controls])
+
+  // ── subforms: the handles they hand over, and which hold changes ──────
+  const subApis = useRef({})          // node id → { validate, dirty, save, name }
+  const subDirty = useRef(new Set())  // node ids of subforms with unsaved changes
+  const [subVersion, setSubVersion] = useState(0)
+  const registerSubform = useCallback((id, api) => {
+    if (api) subApis.current[id] = api
+    else { delete subApis.current[id]; subDirty.current.delete(id) }
+  }, [])
 
   // ── saving ────────────────────────────────────────────────────────────
   const inFlight = useRef(null)     // the promise of the save running now
 
-  /** Save — what the Save button does. One AJAX call; never on its own. */
-  const runSave = useCallback(async () => {
+  /**
+   * Is it fit to save? Says what is missing on every field — including the
+   * ones nobody has been in yet — because pressing Save is the moment to.
+   */
+  const checkNow = useCallback(() => {
+    const l = live.current
+    const st = saveState(l.checkDoc, l.values, l.touched, l.loadedItems, l.controls)
+    if (st.canSave) return { ok: true }
+    const t = new Set([...l.touched, ...Object.keys(st.errors)])
+    live.current.touched = t
+    setTouched(t)
+    setStatus('invalid')
+    return { ok: false, errors: st.errors }
+  }, [])
+
+  /**
+   * Save — what the Save button does. One AJAX call; never on its own.
+   * `extra` is merged into what is sent: a subform's link, from its host.
+   */
+  const runSave = useCallback(async (extra) => {
     if (inFlight.current) return inFlight.current
     const l = live.current
-    const st = saveState(l.doc, l.values, l.touched, l.loadedItems, l.controls)
-    if (!st.canSave) {
-      // Pressing Save is the moment to say what is missing — on every field,
-      // including the ones nobody has been in yet.
-      const t = new Set([...l.touched, ...Object.keys(st.errors)])
-      live.current.touched = t
-      setTouched(t)
-      setStatus('invalid')
-      return { ok: false, errors: st.errors }
-    }
+    // A subform with changes is checked BEFORE anything is written, so a bad
+    // bank account never leaves an employee saved without one.
+    const subs = Object.entries(subApis.current).filter(([id]) => subDirty.current.has(id))
+    const subsOk = subs.map(([, api]) => api.validate()).every(Boolean)
+    const own = checkNow()
+    if (!own.ok) return own
+    if (!subsOk) { setStatus('invalid'); return { ok: false } }
     const customSave = hooksRef.current && typeof hooksRef.current.save === 'function'
     const writing = changes.current
     if (!l.onSave && !customSave) { savedChanges.current = writing; setDirty(false); setStatus('saved'); return { ok: true } }
@@ -349,13 +399,14 @@ export function useFactoryScreen({
     const task = (async () => {
       try {
         const meta = { id: l.recordId, source: l.source, screen: l.doc.id, document: l.doc }
-        const saved = await hook('save')(l.values, {
+        const vals = extra ? { ...l.values, ...extra } : l.values
+        const saved = await hook('save')(vals, {
           ...meta,
           isNew: l.recordId === null || l.recordId === undefined,
           // Save is where an app usually learns which branch it is on, so it
           // can switch steps off from here as well as from step().
           steps: live.current.steps,
-          defaults: { save: (vals) => (l.onSave ? l.onSave(vals, meta) : undefined) }
+          defaults: { save: (v) => (l.onSave ? l.onSave(v, meta) : undefined) }
         })
         // A new record's first save creates it; its id makes the next save an update.
         if (saved && typeof saved === 'object' && saved[l.recordKey] !== undefined && saved[l.recordKey] !== null) {
@@ -363,7 +414,28 @@ export function useFactoryScreen({
           live.current.recordId = saved[l.recordKey]
         }
         savedChanges.current = writing
-        const still = changes.current !== writing
+
+        // THEN THE SUBFORMS, each with this record's id in its link field.
+        // One that fails leaves this record saved and says which did not.
+        if (subs.length) {
+          const failed = []
+          for (const [id, api] of subs) {
+            const r = await api.save(live.current.recordId)
+            if (!r || !r.ok) failed.push(`${api.name()}${r && r.error && r.error.message ? ` (${r.error.message})` : ''}`)
+            // Read from the subform itself, now — its own report of being
+            // clean arrives after this function has decided what to say.
+            else if (!api.dirty()) subDirty.current.delete(id)
+          }
+          setSubVersion((v) => v + 1)
+          if (failed.length) {
+            setDirty(true)
+            setSaveError(`this record was saved, but ${failed.join(', ')} was not`)
+            setStatus('error')
+            return { ok: false, record: saved }
+          }
+        }
+
+        const still = changes.current !== writing || subDirty.current.size > 0
         setDirty(still)
         setSavedAt(new Date())
         setListVersion((v) => v + 1)
@@ -386,21 +458,45 @@ export function useFactoryScreen({
     })()
     inFlight.current = task
     return task
+  }, [setDirty, checkNow])
+
+  /** A subform's changes are this form's unsaved changes too. */
+  const subformDirty = useCallback((id, d) => {
+    if (d) subDirty.current.add(id)
+    else subDirty.current.delete(id)
+    setDirty(changes.current !== savedChanges.current || subDirty.current.size > 0)
+    if (d) setStatus('pending')
   }, [setDirty])
+
+  const unsaved = () => changes.current !== savedChanges.current || subDirty.current.size > 0
 
   /** Save if there is anything unsaved — what a flow's Next does before moving on. */
   const flush = useCallback(async () => {
     if (inFlight.current) await inFlight.current
-    if (changes.current !== savedChanges.current) return runSave()
+    if (unsaved()) return runSave()
     return { ok: true }
-  }, [runSave])
+  }, [runSave])                                               // eslint-disable-line react-hooks/exhaustive-deps
+
+  // EMBEDDED: hand the host what it needs to check and save this form as part
+  // of its own Save. Read through refs, so the handle never goes stale.
+  const onReadyRef = useRef(onReady); onReadyRef.current = onReady
+  useEffect(() => {
+    if (!onReadyRef.current) return undefined
+    onReadyRef.current({
+      validate: () => checkNow().ok,
+      dirty: () => changes.current !== savedChanges.current,
+      save: (ownerId) => runSave({ [link]: ownerId }),
+      name: () => live.current.doc.name || live.current.doc.id
+    })
+    return () => { if (onReadyRef.current) onReadyRef.current(null) }
+  }, [runSave, checkNow, link])
 
   /**
    * May the person leave? True when nothing is unsaved, or when they agree to
    * lose it. Cancel, the popup's × and opening another record all ask this.
    */
   const confirmDiscard = useCallback(() => {
-    if (changes.current === savedChanges.current) return true
+    if (!unsaved()) return true
     // eslint-disable-next-line no-alert
     return typeof window === 'undefined' || window.confirm('Discard your unsaved changes?')
   }, [])
@@ -467,6 +563,8 @@ export function useFactoryScreen({
     setSaveError(null)
     setServerErrors({})
     setStatus('idle')
+    // Its subforms are this record's, so they are read again for it.
+    setSubVersion((v) => v + 1)
   }, [startValues, recordKey, setDirty])
 
   const newRecord = useCallback(() => openRecord(null), [openRecord])
@@ -602,6 +700,49 @@ export function useFactoryScreen({
     }
   }, [])
 
+  // ── subforms: the form each draws, and this record's row of it ────────
+  //
+  // Read when the screen opens, when another record is opened, and after a
+  // Save — never just because the id changed, or a new record's first save
+  // would re-read an empty row over the subform it is in the middle of saving.
+  const [subforms, setSubforms] = useState({})   // node id → { loading, error, document, record }
+  const subformNodes = useMemo(() => (check.ok ? doc.nodes.filter((n) => n.type === 'subform') : []), [doc, check.ok])
+  useEffect(() => {
+    if (!subformNodes.length) return undefined
+    let cancelled = false
+    subformNodes.forEach((node) => {
+      const screenId = node.props.screen
+      setSubforms((m) => ({ ...m, [node.id]: { ...(m[node.id] || {}), loading: true, error: null } }))
+      ;(async () => {
+        let found = screensRef.current && screensRef.current[screenId]
+        if (!found && loadScreenRef.current) found = await loadScreenRef.current(screenId)
+        if (!found) throw new Error(`Form "${screenId}" was not provided — pass it in \`screens\` or supply loadScreen`)
+        const ownerId = live.current.recordId
+        // Nothing to read for a record that is not saved yet: it owns nothing.
+        if (ownerId === null || ownerId === undefined) return { document: found, record: null }
+        const rows = await hook('get')({
+          many: true, id: null, screen: screenId, source: found.source || null, node, document: found,
+          defaults: {
+            get: () => {
+              if (!fetchRecordsRef.current) throw new Error(`No fetchRecords was provided to read "${screenId}"`)
+              return fetchRecordsRef.current({
+                source: found.source || null, screen: screenId, node,
+                belongsTo: node.props.belongsTo, belongsToId: ownerId
+              })
+            }
+          }
+        })
+        return { document: found, record: Array.isArray(rows) && rows.length ? rows[0] : null }
+      })().then(
+        (got) => { if (!cancelled) setSubforms((m) => ({ ...m, [node.id]: { loading: false, error: null, ...got } })) },
+        (err) => { if (!cancelled) setSubforms((m) => ({ ...m, [node.id]: { ...(m[node.id] || {}), loading: false, error: err.message || 'Could not load the form' } })) }
+      )
+    })
+    return () => { cancelled = true }
+  }, [subformNodes, subVersion])                              // eslint-disable-line react-hooks/exhaustive-deps
+
+  const subformFor = useCallback((node) => subforms[node.id] || { loading: true, error: null, document: null, record: null }, [subforms])
+
   const closeEditor = useCallback(() => {
     setPopup(null)
     setListVersion((v) => v + 1)
@@ -617,7 +758,11 @@ export function useFactoryScreen({
 
   return {
     document: doc,
-    documentErrors: check.errors,
+    documentErrors: linkError ? [...check.errors, linkError] : check.errors,
+    embedded,
+    subformFor,
+    registerSubform,
+    subformDirty,
     popup,
     fieldsFor,
     openEditor,

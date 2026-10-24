@@ -124,7 +124,7 @@ function SaveButtons({ ctrl }) {
   )
 }
 
-export default function ScreenSample({ ctrl, className, style, renderPopup }) {
+export default function ScreenSample({ ctrl, className, style, renderPopup, renderSubform }) {
   const { document: doc } = ctrl
 
   if (ctrl.documentErrors.length) {
@@ -147,20 +147,23 @@ export default function ScreenSample({ ctrl, className, style, renderPopup }) {
   // A screen with no fields of its own (a list screen) has nothing to save —
   // and no sheet: its list is the card (factory.css, --bare).
   const hasFields = fieldNodes.length > 0
-  const status = hasFields ? <SaveStatus ctrl={ctrl} /> : null
+  // A form inside another has no footer of its own: the host's Save saves it.
+  const footer = !ctrl.embedded
+  const status = hasFields && footer ? <SaveStatus ctrl={ctrl} /> : null
+  // Nor a <form> of its own — one form inside another is not valid HTML.
+  const Page = ctrl.embedded ? 'div' : 'form'
   const steppers = ctrl.steps.nodes
 
   return (
     <div
-      className={'xeplr-factory-screen' + (hasFields ? '' : ' xeplr-factory-screen--bare') + (className ? ' ' + className : '')}
+      className={'xeplr-factory-screen' + (hasFields ? '' : ' xeplr-factory-screen--bare') + (ctrl.embedded ? ' xeplr-factory-screen--embedded' : '') + (className ? ' ' + className : '')}
       style={{ maxWidth: doc.width, '--xf-margin': `${MARGIN * 100}%`, ...screenStyle(doc), ...style }}
     >
-      <form
+      <Page
         className="xeplr-factory-page"
         style={{ height: `${pageHeight}cqw` }}
         // Never a submit: Enter posts nothing and saves nothing. Save is a button.
-        onSubmit={(e) => e.preventDefault()}
-        noValidate
+        {...(ctrl.embedded ? { role: 'group' } : { onSubmit: (e) => e.preventDefault(), noValidate: true })}
         aria-label={doc.name}
       >
         {[...shown].sort((a, b) => (a.z || 0) - (b.z || 0)).map((node) => (
@@ -206,19 +209,22 @@ export default function ScreenSample({ ctrl, className, style, renderPopup }) {
                 onDelete: (rec) => ctrl.deleteRecord(node, rec).catch((err) => window.alert(err.message || 'Could not delete')),
                 onNew: () => (node.props.editScreen ? ctrl.openEditor(node, null) : (ctrl.confirmDiscard() && ctrl.newRecord()))
               } : undefined}
+              // A form inside this one: the page draws it (renderSubform).
+              subform={node.type === 'subform' ? { sub: ctrl.subformFor(node), render: renderSubform } : undefined}
             />
           </div>
         ))}
-      </form>
+      </Page>
       {steppers.map((node, i) => {
         const last = i === steppers.length - 1
         return (
+          // An embedded form keeps its Back and Next; only Save is the host's.
           <StepNav key={node.id} ctrl={ctrl} node={node} status={last ? status : null}>
-            {last && (hasFields || ctrl.doneLabel) && <SaveButtons ctrl={ctrl} />}
+            {last && footer && (hasFields || ctrl.doneLabel) && <SaveButtons ctrl={ctrl} />}
           </StepNav>
         )
       })}
-      {!steppers.length && (hasFields || ctrl.doneLabel) && (
+      {footer && !steppers.length && (hasFields || ctrl.doneLabel) && (
         <div className="xeplr-factory-footer">
           <div className="xeplr-factory-footer-mid">{status}</div>
           <SaveButtons ctrl={ctrl} />

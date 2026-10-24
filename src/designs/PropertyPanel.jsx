@@ -550,6 +550,24 @@ function ScreenEditor({ id, value, onChange, screens, doc }) {
   return <input id={id} className="xeplr-factory-prop-input xeplr-factory-mono" type="text" placeholder="employee_edit" value={value ?? ''} onChange={(e) => onChange(e.target.value.trim() || undefined)} />
 }
 
+/**
+ * A form to draw inside this one: the screens with fields of their own (a list
+ * screen has nothing to fill in), never this one — a form cannot hold itself.
+ */
+function FormEditor({ id, value, onChange, screens, doc }) {
+  const forms = (screens || []).filter((s) => (!doc || s.id !== doc.id)
+    && (!s.document || (s.document.nodes || []).some((n) => n.props && n.props.name)))
+  if (forms.length) {
+    return (
+      <select id={id} className="xeplr-factory-prop-input" value={value ?? ''} onChange={(e) => onChange(e.target.value || undefined)}>
+        <option value="">— choose a form</option>
+        {forms.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+      </select>
+    )
+  }
+  return <input id={id} className="xeplr-factory-prop-input xeplr-factory-mono" type="text" placeholder="bank_details_edit" value={value ?? ''} onChange={(e) => onChange(e.target.value.trim() || undefined)} />
+}
+
 const ACTION_LABELS = { new: 'New — add a record', edit: 'Edit — open a row for editing', delete: 'Delete — remove a row' }
 
 function ActionsEditor({ value, onChange }) {
@@ -732,6 +750,7 @@ export const EDITORS = {
   color: ColorEditor,
   table: TableEditor,
   screen: ScreenEditor,
+  form: FormEditor,
   columns: ColumnsEditor,
   listTable: ListTableEditor,
   actions: ActionsEditor,

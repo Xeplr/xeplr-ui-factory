@@ -13,7 +13,7 @@ import { fieldStyle, labelStyle, boxStyle } from './styles.js'
 
 const ids = (node) => `xeplr-factory-${node.id}`
 
-export default function ControlView({ node, mode = 'live', value, error, options, onChange, onBlur, disabled, list, upload, stepper }) {
+export default function ControlView({ node, mode = 'live', value, error, options, onChange, onBlur, disabled, list, upload, stepper, subform }) {
   const View = VIEWS[node.type]
   if (!View) {
     return <div className="xeplr-factory-unknown">Unknown control “{node.type}”</div>
@@ -33,6 +33,7 @@ export default function ControlView({ node, mode = 'live', value, error, options
       list={list}
       upload={upload}
       stepper={stepper}
+      subform={subform}
     />
   )
 }
@@ -425,6 +426,39 @@ function LabelView({ p }) {
   )
 }
 
+/**
+ * A form inside this one.
+ *
+ * On a running screen, its title and then the form itself — drawn by the page
+ * (`subform.render`), because a design never mounts a controller; until it
+ * has loaded, or when it cannot, that is said in the space it will take.
+ *
+ * On the builder's canvas, what it will draw and how it is linked — never the
+ * form itself, which is another screen's to design.
+ */
+function SubformView({ p, node, design, subform }) {
+  if (!design && subform) {
+    const sub = subform.sub
+    return (
+      <div className="xeplr-factory-subform" style={boxStyle(p.style)}>
+        {p.title && <div className="xeplr-factory-subform-title">{p.title}</div>}
+        {sub.error && <div className="xeplr-factory-invalid" role="alert">{sub.error}</div>}
+        {!sub.error && !sub.document && <div className="xeplr-factory-hint">Loading…</div>}
+        {!sub.error && sub.document && subform.render && subform.render(node, sub)}
+      </div>
+    )
+  }
+  return (
+    <div className="xeplr-factory-subform xeplr-factory-subform--design" style={boxStyle(p.style)}>
+      {p.title && <div className="xeplr-factory-subform-title">{p.title}</div>}
+      <div className="xeplr-factory-subform-what">
+        {p.screen ? <>Form <code>{p.screen}</code></> : 'Choose a form'}
+        {p.belongsTo ? <>, linked by <code>{p.belongsTo}</code></> : ', and the field that links it'}
+      </div>
+    </div>
+  )
+}
+
 function ListControl({ node, design, list }) {
   return <ListView node={node} design={design} {...(list || {})} />
 }
@@ -443,5 +477,6 @@ export const VIEWS = {
   file: FileView,
   stepper: StepperView,
   label: LabelView,
-  list: ListControl
+  list: ListControl,
+  subform: SubformView
 }

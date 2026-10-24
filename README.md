@@ -285,6 +285,44 @@ what you want is *tags* — several values picked from a fixed set — that is a
 of the record. Making it a sub-table means a two-table design for what is
 really one column.
 
+## A form inside a form
+
+This employee's bank details; this department's contact. Access calls it a
+subform. Put a **Form** (palette, Data) on the screen and give it two things:
+
+```
+Form        Bank details          ← any published form with fields of its own
+Linked by   employeeId            ← the field on THAT form pointing back here
+```
+
+```json
+{ "id": "n9", "type": "subform", "props": { "title": "Bank details", "screen": "bank_detail_edit", "belongsTo": "employeeId" } }
+```
+
+- **It is drawn as itself**, inline — its own fields, its own layout — and its
+  records stay in **its own table**. Nothing of it is a column of this one.
+- **One record of it per record of this one.** It reads the row whose link
+  field equals this record's `id` (the same server filter as a sub-table:
+  `belongsTo` + `belongsToId`). A record not saved yet has none, so it opens
+  empty. Several records of it is a **List**, not this.
+- **One Save.** Its changes are this form's "Unsaved changes". Save checks
+  both first — an invalid subform keeps this record from being written too —
+  then saves this record (so a new one has an id), then the subform with that
+  id in its link field. If the subform fails after this record saved, the
+  status says so and names it. A subform nobody touched is not saved: an
+  empty row is not worth one.
+- **The link field is never shown or asked for** on the subform — it is filled
+  in on save. The form must HAVE that field (a dropdown on this form's table,
+  usually): one that does not is refused out loud, with what to change, rather
+  than saving a record that belongs to nothing.
+- **A form cannot contain itself**, and a form shown inside another cannot be
+  deleted until it is removed there (`DELETE /factory/screens/:key` says where).
+
+Controller: the embedded screen is a second `useFactoryScreen` with `link`
+(the link field's name) and `onReady` (it hands the host `{ validate, dirty,
+save, name }`). `FactoryScreen` wires both; a custom design gets `subformFor(node)`,
+`registerSubform(id, api)` and `subformDirty(id, dirty)` from the host's controller.
+
 ## Masters — the lists the rest of the app points at
 
 Departments, statuses, countries, categories. Mark a form as a master in its
@@ -464,6 +502,7 @@ Both walk someone through something, and they answer different questions:
 | `stepper` | — | a journey across the top; every other control says which step it is on |
 | `label` | — | text with a heading, subheading or text preset |
 | `list` | — | saved records, with New / Edit / Delete |
+| `subform` | — | another form drawn inside this one (palette: **Form**), saving into its own table — see below |
 
 A screen is a **sheet**, centred in the space it is given and shown at its
 design width: an elevated card in the app's theme (`--xeplr-bg-tertiary`, with

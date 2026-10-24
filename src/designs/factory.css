@@ -241,6 +241,19 @@
 .xeplr-factory-text { margin: 0; color: var(--xf-ink); height: 100%; overflow: hidden; line-height: 1.25; box-sizing: border-box; }
 .xeplr-factory-text--text { color: var(--xf-muted); }
 
+/* ── a form inside a form ────────────────────────────────────────────────
+   The inner form is drawn as itself, without its own sheet or footer: it is
+   part of this page, and its Save is this page's Save. Its box scrolls when
+   the form is taller than the space it was given. */
+.xeplr-factory-subform { display: flex; flex-direction: column; gap: 8px; width: 100%; height: 100%; box-sizing: border-box; overflow: auto; }
+.xeplr-factory-subform-title { font-weight: 600; font-size: 1.05em; color: var(--xf-ink); }
+.xeplr-factory-screen--embedded { border: none; border-radius: 0; background: none; }
+.xeplr-factory-subform--design {
+  justify-content: center; align-items: center; text-align: center; padding: 12px;
+  border: 1px dashed var(--xf-border); border-radius: 10px; color: var(--xf-muted);
+}
+.xeplr-factory-subform-what code { color: var(--xf-ink); }
+
 /* ── list ───────────────────────────────────────────────────────────────── */
 .xeplr-factory-list {
   display: flex; flex-direction: column; width: 100%; box-sizing: border-box; overflow: auto;
@@ -335,6 +348,7 @@
 .xeplr-factory-palette-icon--file { border-radius: 2px; border-top: 3px solid var(--xf-muted); height: 12px; width: 10px; }
 .xeplr-factory-palette-icon--stepper { height: 8px; border-radius: 999px; background: linear-gradient(to right, var(--xf-muted) 0 30%, transparent 30%); border: none; }
 .xeplr-factory-palette-icon--label { border: none; border-top: 2px solid var(--xf-muted); border-bottom: 2px solid var(--xf-muted); height: 6px; }
+.xeplr-factory-palette-icon--subform { border-style: double; border-width: 3px; height: 11px; }
 .xeplr-factory-palette-icon--list { height: 12px; background: repeating-linear-gradient(to bottom, var(--xf-muted) 0 1.5px, transparent 1.5px 4px); border: none; }
 .xeplr-factory-palette-icon--textarea { height: 14px; }
 

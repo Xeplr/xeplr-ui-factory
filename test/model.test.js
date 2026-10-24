@@ -710,6 +710,24 @@ console.log('\nwhat a sub-table shows')
     listColumns(picked, picked.nodes.find((n) => n.id === list.node.id), undefined, rows).map((c) => c.field).join() === 'value')
 }
 
+console.log('\na form inside a form')
+{
+  const host = screenFromSpec(EMPLOYEE)
+  const withSub = (props) => {
+    const r = addControl(host, 'subform', { props })
+    return { doc: r.document, node: r.node }
+  }
+  const ok = withSub({ title: 'Bank details', screen: 'bank_details_edit', belongsTo: 'employeeId' })
+  check('a form with its link is a valid control', validateDocument(ok.doc).ok, JSON.stringify(validateDocument(ok.doc).errors))
+  check('...and adds no field — its records are in its own table', inputNodes(ok.doc).length === inputNodes(host).length)
+  check('...nor a column of this table', tableForScreen(ok.doc).columns.length === tableForScreen(host).columns.length)
+  const errs = (props) => validateDocument(withSub(props).doc).errors.map((e) => e.path + ' ' + e.message).join(' | ')
+  check('a form with no link is refused, saying what the link is', /props\.belongsTo is required/.test(errs({ screen: 'bank_details_edit' })))
+  check('a link with no form is refused', /props\.screen is required/.test(errs({ belongsTo: 'employeeId' })))
+  check('a form cannot contain itself', /cannot contain itself/.test(errs({ screen: host.id, belongsTo: 'employeeId' })))
+  check('a link that could never be a column is refused', /props\.belongsTo/.test(errs({ screen: 'bank_details_edit', belongsTo: 'employee id' })))
+}
+
 const failed = results.filter(([, ok]) => !ok)
 console.log(`\n${results.length - failed.length}/${results.length} passed`)
 process.exit(failed.length ? 1 : 0)

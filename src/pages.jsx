@@ -79,6 +79,32 @@ export function FactoryScreen(props) {
       ctrl={ctrl}
       className={props.className}
       style={props.style}
+      // A form inside this one: the same component again, saving into its own
+      // table, checked and saved by this one's Save (see useFactoryScreen).
+      // Keyed by the form, never by this record's id — a new record's first
+      // save changes that id while the subform is being saved.
+      renderSubform={(node, sub) => (
+        <FactoryScreen
+          key={`${node.id}:${sub.document.id}`}
+          document={sub.document}
+          record={sub.record || undefined}
+          link={node.props.belongsTo}
+          onReady={(api) => ctrl.registerSubform(node.id, api)}
+          onDirtyChange={(d) => ctrl.subformDirty(node.id, d)}
+          recordKey={props.recordKey}
+          onSave={props.onSave}
+          fetchOptions={props.fetchOptions}
+          fetchRecord={props.fetchRecord}
+          fetchRecords={props.fetchRecords}
+          onDelete={props.onDelete}
+          uploadFile={props.uploadFile}
+          fileUrl={props.fileUrl}
+          screens={props.screens}
+          loadScreen={props.loadScreen}
+          controls={props.controls}
+          hooks={props.hooks}
+        />
+      )}
       renderPopup={(popup) => (
         <ScreenModal
           title={popup.document ? popup.document.name : 'Loading…'}

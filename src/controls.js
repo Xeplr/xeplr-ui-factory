@@ -572,6 +572,41 @@ CONTROLS.list = {
   ]
 }
 
+// A FORM INSIDE THIS ONE — Access's subform. Another published form, drawn
+// inline with its own fields, saving into ITS OWN table: this employee's bank
+// details. One record of it belongs to each record of this one, through
+// `belongsTo` — the column on that form pointing back here, as on a sub-table
+// list. Several records of it is a List, not this.
+//
+// Nothing of it is stored in this screen's table: it is not an input, so it
+// adds no column. Save writes this record first, then the subform's, with
+// this record's id in its link column.
+CONTROLS.subform = {
+  type: 'subform',
+  label: 'Form',
+  group: 'Data',
+  input: false,
+  defaultSize: { w: 0.92, h: 0.32 },
+  defaults: { title: '' },
+  props: ['title', 'screen', 'belongsTo', 'style'],
+  validation: [],
+  styles: ['borderColor', 'borderWidth', 'borderRadius'],
+  properties: [
+    {
+      key: 'subform',
+      title: 'Form',
+      fields: [
+        { path: 'props.title', label: 'Title', type: 'text', help: 'Shown above it. Blank → none' },
+        { path: 'props.screen', label: 'Form', type: 'form', help: 'The published form drawn here, saving into its own table' },
+        { path: 'props.belongsTo', label: 'Linked by', type: 'text',
+          help: 'The field on that form that points back at this record, e.g. employeeId. ' +
+                'Filled in on save and never shown.' }
+      ]
+    },
+    ...styleGroups(['borderColor', 'borderWidth', 'borderRadius'])
+  ]
+}
+
 export const LABEL_VARIANTS = ['heading', 'subheading', 'text']
 
 /** The sizes a label preset starts from, in px at the design width. */

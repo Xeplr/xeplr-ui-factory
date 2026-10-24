@@ -162,6 +162,7 @@ export function validateDocument(doc, controls = CONTROLS) {
     if (node.type === 'stepper') checkSteps(props, at, err)
     checkStep(node, doc, at, err)
     if (node.type === 'list') checkList(props, doc, at, err)
+    if (node.type === 'subform') checkSubform(props, doc, at, err)
     if (node.type === 'label') {
       if (typeof props.text !== 'string') err(`${at}.props.text`, 'must be a string')
       if (props.variant !== undefined && !LABEL_VARIANTS.includes(props.variant)) err(`${at}.props.variant`, `must be one of: ${LABEL_VARIANTS.join(', ')}`)
@@ -414,6 +415,20 @@ function checkList(props, doc, at, err) {
       const extra = Object.keys(c).filter((k) => k !== 'field' && k !== 'label')
       if (extra.length) err(p, `only "field" and "label" are used — remove: ${extra.join(', ')}`)
     })
+  }
+}
+
+/**
+ * A form inside this one. Both halves are required: a form with no link saves
+ * a record belonging to nothing, and a link with no form is nothing. Itself is
+ * refused — a form containing itself draws forever.
+ */
+function checkSubform(props, doc, at, err) {
+  if (props.title !== undefined && typeof props.title !== 'string') err(`${at}.props.title`, 'must be a string')
+  if (!(nonEmptyString(props.screen) && SCREEN_ID.test(props.screen))) err(`${at}.props.screen`, 'is required — the id of the form drawn here, e.g. "bank_details_edit"')
+  else if (props.screen === doc.id) err(`${at}.props.screen`, 'cannot be this screen — a form cannot contain itself')
+  if (!(nonEmptyString(props.belongsTo) && /^[A-Za-z_][\w]*$/.test(props.belongsTo))) {
+    err(`${at}.props.belongsTo`, 'is required — the field on that form pointing back at this record, e.g. "employeeId"')
   }
 }
 
