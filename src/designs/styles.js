@@ -32,7 +32,7 @@ export function boxStyle(style) {
     fontStyle: s.fontStyle,
     textAlign: s.textAlign,
     color: s.color,
-    background: s.background,
+    backgroundColor: s.background,
     borderColor: s.borderColor,
     borderWidth: s.borderWidth != null ? `${s.borderWidth}px` : undefined,
     borderStyle: s.borderWidth != null ? 'solid' : undefined,
