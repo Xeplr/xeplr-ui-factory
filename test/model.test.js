@@ -12,7 +12,8 @@ import {
   toDbValue, fromDbValue, acceptList, widening, chooseable, fileLabel,
   steppers, stepsOf, stepOf, setNodeStep, nodesForSteps, resolveStep, reachableStep, nextOpenStep,
   screenParams, paramsText, setScreenParams, resolveBinding, isBinding,
-  codeFields, countedFields, generateCode
+  codeFields, countedFields, generateCode,
+  SCREEN_EVENTS, SCREEN_EVENT_KEYS, screenFunctions, missingFunctions
 } from '../src/model.js'
 import { normaliseOptions } from '../src/useFactoryScreen.js'
 
@@ -726,6 +727,30 @@ console.log('\na form inside a form')
   check('a link with no form is refused', /props\.screen is required/.test(errs({ belongsTo: 'employeeId' })))
   check('a form cannot contain itself', /cannot contain itself/.test(errs({ screen: host.id, belongsTo: 'employeeId' })))
   check('a link that could never be a column is refused', /props\.belongsTo/.test(errs({ screen: 'bank_details_edit', belongsTo: 'employee id' })))
+}
+
+console.log('\na screen\'s events')
+{
+  const doc = screenFromSpec(EMPLOYEE)
+  const withEvents = (events) => ({ ...doc, events })
+  const errs = (events) => validateDocument(withEvents(events)).errors.map((e) => e.path + ' ' + e.message).join(' | ')
+  check('every event has a contract a developer can write to', SCREEN_EVENTS.every((e) => e.key && e.label && e.when && e.gets && e.returns))
+  check('the events are load, save, delete and error', SCREEN_EVENT_KEYS.join() === 'beforeLoad,beforeSave,afterSave,beforeDelete,onError')
+  check('a screen naming a function per event is valid', validateDocument(withEvents({ beforeSave: 'checkSalaryBand', afterSave: 'notifyHR' })).ok)
+  check('an event left empty is fine', validateDocument(withEvents({ beforeSave: '' })).ok)
+  check('an event that does not exist is refused, naming the ones that do', /events\.onSaved is not an event — one of: beforeLoad/.test(errs({ onSaved: 'x' })))
+  check('code in place of a name is refused', /events\.beforeSave must be the name/.test(errs({ beforeSave: 'function () { return 1 }' })))
+  check('events that are not an object are refused', /^events must be/.test(errs(['beforeSave'])))
+  const named = withEvents({ beforeSave: 'checkSalaryBand', afterSave: 'notifyHR', onError: '' })
+  check('the functions a screen names, by event', JSON.stringify(screenFunctions(named)) === JSON.stringify([{ event: 'beforeSave', name: 'checkSalaryBand' }, { event: 'afterSave', name: 'notifyHR' }]))
+  const registry = [{ name: 'checkSalaryBand', event: 'beforeSave' }, { name: 'notifyHR', event: 'afterSave' }, { name: 'sendEmail', event: null }]
+  check('all registered for their event: nothing missing', missingFunctions(named, registry).length === 0)
+  const gone = missingFunctions(named, registry.slice(1))
+  check('one not registered is named', gone.length === 1 && /"checkSalaryBand" is not a registered function/.test(gone[0].problem))
+  const wrong = missingFunctions(withEvents({ beforeSave: 'notifyHR' }), registry)
+  check('one written for another event is named, with the event it is for', /written for "afterSave", not "beforeSave"/.test(wrong[0].problem))
+  const step = missingFunctions(withEvents({ afterSave: 'sendEmail' }), registry)
+  check('a workflow step is not a screen function', /written for a workflow step/.test(step[0].problem))
 }
 
 const failed = results.filter(([, ok]) => !ok)

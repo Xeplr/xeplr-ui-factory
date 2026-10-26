@@ -12,6 +12,8 @@ export {
   steppers, stepsOf, stepOf, setNodeStep, nodesForSteps, resolveStep, reachableStep, nextOpenStep
 } from './document.js'
 export { validateDocument, assertValidDocument } from './validateDocument.js'
+// A screen's events: functions picked by name, run on the server.
+export { SCREEN_EVENTS, SCREEN_EVENT_KEYS, DECIDE_EVENT, FUNCTION_NAME, screenFunctions, missingFunctions } from './events.js'
 export { formSchema, initialValues, parseInput, validateValues, fieldError, sameId, optionValue, chooseable, saveState, recordValues, displayValue, fileLabel, toDbValue, fromDbValue, listColumns, listSource } from './values.js'
 export { screenFromSpec, screensFromSpec, entityNames, SPEC_HEIGHTS, ROW_GAP } from './generate.js'
 export { scaffoldEntity } from './scaffold.js'

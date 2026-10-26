@@ -10,6 +10,7 @@
 // Loud by design: a screen that half-renders — a dropdown with no options, two
 // fields writing the same key — looks like a data problem to whoever uses it.
 
+import { SCREEN_EVENT_KEYS, FUNCTION_NAME } from './events.js'
 import { CONTROLS, LABEL_VARIANTS, LIST_ACTIONS, STYLE_KEYS, SCREEN_STYLE_KEYS, LAYOUTS, MULTI_SEPARATOR, MAX_FILE_MB, STEP_LIMIT, acceptList } from './controls.js'
 import { DOCUMENT_KIND, DOCUMENT_VERSION } from './document.js'
 import { RESERVED_COLUMNS, MAX_IDENTIFIER } from './tableSchema.js'
@@ -18,7 +19,7 @@ import { FIELD_PRESETS, INPUT_TYPES, presetFor } from './presets.js'
 const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 const TABLE_NAME = /^[A-Za-z_][A-Za-z0-9_.$-]*$/
 const SCREEN_ID = /^[A-Za-z0-9_-]+$/
-const DOCUMENT_KEYS = ['kind', 'version', 'id', 'name', 'source', 'units', 'aspect', 'width', 'style', 'description', 'master', 'labelField', 'params', 'nodes']
+const DOCUMENT_KEYS = ['kind', 'version', 'id', 'name', 'source', 'units', 'aspect', 'width', 'style', 'description', 'master', 'labelField', 'params', 'events', 'nodes']
 const COLOR = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i
 
 /**
@@ -71,6 +72,17 @@ export function validateDocument(doc, controls = CONTROLS) {
   // {params.<name>} as its default, so a name that is not a plain identifier
   // could never be referenced, and a duplicate would make the reference mean
   // two things.
+  // EVENTS — functions picked by name, one per event (see events.js). Whether
+  // each is REGISTERED is the server's to say, at publish and at run time:
+  // this checks only that the screen asks for something that could exist.
+  if (doc.events !== undefined) {
+    if (!doc.events || typeof doc.events !== 'object' || Array.isArray(doc.events)) err('events', `must be { ${SCREEN_EVENT_KEYS.join(', ')} } — each the name of a registered function`)
+    else Object.keys(doc.events).forEach((k) => {
+      const v = doc.events[k]
+      if (!SCREEN_EVENT_KEYS.includes(k)) err(`events.${k}`, `is not an event — one of: ${SCREEN_EVENT_KEYS.join(', ')}`)
+      else if (v !== null && v !== '' && !(typeof v === 'string' && FUNCTION_NAME.test(v))) err(`events.${k}`, 'must be the name of a registered function, e.g. "checkSalaryBand"')
+    })
+  }
   if (doc.params !== undefined) {
     if (!Array.isArray(doc.params)) err('params', 'must be a list of inputs this screen is called with')
     else {

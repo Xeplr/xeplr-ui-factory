@@ -323,6 +323,29 @@ Controller: the embedded screen is a second `useFactoryScreen` with `link`
 save, name }`). `FactoryScreen` wires both; a custom design gets `subformFor(node)`,
 `registerSubform(id, api)` and `subformDirty(id, dirty)` from the host's controller.
 
+## Events — the app's code, picked by name
+
+A screen says which of the app's functions run around its records, one per
+event. The code is registered in the app (with `@xeplr/actions`, `event` set
+to one of these); the screen only names it:
+
+```json
+"events": { "beforeSave": "checkSalaryBand", "afterSave": "notifyHR" }
+```
+
+| event | runs | gets | returns |
+|---|---|---|---|
+| `beforeLoad` | Before records are read — the list, and one record for Edit | ctx.query (narrow it), ctx.id (one record) or ctx.many (the list), ctx.user, ctx.tenant | nothing, or a new query |
+| `beforeSave` | Before a record is written — the screen's rules run on what it returns | ctx.values, ctx.isNew, ctx.previous (on update), ctx.user | the values to save (or nothing to keep them); ctx.reject(message, { field }) refuses |
+| `afterSave` | Once the record is saved | ctx.result (the saved row), ctx.isNew, ctx.values | nothing — what it does is the point (an email, another record) |
+| `beforeDelete` | Before a record is deleted | ctx.previous (the row), ctx.id | nothing; ctx.reject(message) refuses |
+| `onError` | When loading, saving or deleting failed | ctx.error, ctx.op (get, save or delete) | nothing — the error is still the answer; this is for telling someone |
+
+- **This is the only way to attach code to a screen's records.** One function per event, named in the screen — the screen is the one place that says what runs.
+- **Every event runs on the server** (`@xeplr/factory` 2+). A rule that runs in the browser is one a person can skip.
+- **Checked twice.** Here, that each name could be a function and each event exists. On the server, at publish and when it runs, that the function is registered *for that event* — a missing one refuses with its name (`missingFunctions(doc, registry)`).
+- `SCREEN_EVENTS` carries each event's contract (`when`, `gets`, `returns`) — what the designer shows beside each picker.
+
 ## Masters — the lists the rest of the app points at
 
 Departments, statuses, countries, categories. Mark a form as a master in its
