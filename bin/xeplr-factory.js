@@ -5,7 +5,7 @@
 // turn a short spec into a laid-out document, and check a document before
 // handing it to an app, with errors precise enough to fix without guessing.
 //
-//   xeplr-factory screens entity.json [-o dir]           an entity → list + edit screens, their .jsx pages, server hooks + model stubs
+//   xeplr-factory screens entity.json [-o dir]           an entity → list + edit screens, their .jsx pages, server functions + model stubs
 //   xeplr-factory migration edit.screen.json [--from previous.screen.json] [-o migrations/]
 //                                                        the SQL that makes the table match the form
 //   xeplr-factory generate spec.json [-o screen.json]   spec → laid-out document
@@ -81,11 +81,11 @@ switch (cmd) {
     } catch (err) {
       fail(err.message)
     }
-    // The app's own code — the server hooks, and the pages with their front-end
-    // hooks — is kept as it is, even with --force. Only the screen JSON is replaced.
+    // The app's own code — the server functions and model, and the pages with
+    // their front-end hooks — is kept as it is, even with --force. Only the screen JSON is replaced.
     // --no-pages: only the screens and the server files — for an app whose pages live elsewhere (ui/src/pages).
     if (args.includes('--no-pages')) Object.keys(result.files).filter((f) => f.endsWith('.jsx')).forEach((f) => delete result.files[f])
-    const kept = Object.keys(result.files).filter((f) => (f.endsWith('.hooks.js') || f.endsWith('.model.js') || f.endsWith('.jsx')) && existsSync(path.join(dir, f)))
+    const kept = Object.keys(result.files).filter((f) => (f.endsWith('.functions.js') || f.endsWith('.model.js') || f.endsWith('.jsx')) && existsSync(path.join(dir, f)))
     const writing = Object.keys(result.files).filter((f) => !kept.includes(f))
     const targets = writing.map((f) => path.join(dir, f))
     // Never overwrite a screen someone has since refined in the designer.

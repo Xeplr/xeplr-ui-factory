@@ -5,7 +5,7 @@
 //
 //   employee-list.screen.json   EmployeeList.jsx   — the list; Edit / New open a popup
 //   employee-edit.screen.json   EditEmployee.jsx   — the add / edit form, also a page on its own
-//   employee.hooks.js                              — the server's hooks for its records (all empty)
+//   employee.functions.js                          — the code its events can run, registered by event (none yet)
 //   employee.model.js                              — the server's model: getters / setters for its values (none yet)
 //
 // The pages are thin on purpose: a screen document and the app's data calls,
@@ -31,7 +31,7 @@ export function scaffoldEntity(spec, controls) {
     [editJson]: JSON.stringify(edit, null, 2) + '\n',
     [`${names.listComponent}.jsx`]: listPage(names, listJson, editJson, list, edit),
     [`${names.editComponent}.jsx`]: editPage(names, editJson, edit),
-    [`${names.file}.hooks.js`]: hooksFile(names, edit),
+    [`${names.file}.functions.js`]: functionsFile(names, edit),
     [`${names.file}.model.js`]: modelFile(names, edit)
   }
   return { files, names, list, edit }
@@ -66,44 +66,40 @@ export default function ${n.listComponent}({ api }) {
 `
 }
 
-function hooksFile(n, edit) {
-  return `// Server hooks for ${n.singular} records — screen "${edit.id}" (and "${n.key}_list", which edits in it).
+function functionsFile(n, edit) {
+  return `// Functions for ${n.singular} records — the code the "${edit.id}" screen's events run.
 //
-// Register with @xeplr/factory:
-//   factory.init({ knex, hooks: { ${edit.id}: require('./${n.file}.hooks') } })
+// Each is registered with @xeplr/actions under the EVENT it is for, and runs
+// once the screen NAMES it — in ${n.file}-edit.screen.json's "events", or in the
+// designer (Configure UI → Flows → a step → Events). A screen naming a function
+// nobody registered is refused when it is published, so register first.
 //
-// Each operation has four hooks. Delete the ones you do not need.
-//   before(ctx)       first — save: return new values to replace them (they are then checked
-//                     against the screen's rules); get: narrow ctx.query; any: ctx.reject(message, { field })
-//   after(ctx)        once it succeeded — ctx.id, ctx.result; return a value to replace the result.
-//                     If it throws, the operation still happened (and error is told).
-//   error(ctx, err)   when the operation failed
-//   override(ctx)     does the WHOLE operation instead — no rules, no before / after / error,
-//                     no generic query. What it returns is the response.
+// Load this file once at startup, before the screens: require it from the
+// app's functions/index.js.
 //
-// ctx: op, screenKey, screen, table, id, isNew (save), many (get), input (what the UI sent, read-only),
-//      values (save), previous (save / delete: the row before), result, user, tenant, knex, query (get), reject
+//   event          runs                                   return
+//   beforeLoad     before records are read                nothing, or a narrower ctx.query
+//   beforeSave     before a record is written             the values to save
+//   afterSave      once it is saved                       (ignored)
+//   beforeDelete   before a delete                        nothing
+//   onError        when load / save / delete failed       (ignored)
+//
+// ctx: op, screenKey, screen, table, id, isNew (save), many (get), input (what the
+//      UI sent, read-only), values (save), previous (save / delete: the row
+//      before), result (afterSave), error (onError), query (beforeLoad), user,
+//      tenant, knex, db() (this form's table, scoped), reject(message, { field })
 
-module.exports = {
-  save: {
-    // before: async function(ctx) { return ctx.values },
-    // after: async function(ctx) {},
-    // error: async function(ctx, err) {},
-    // override: async function(ctx) { return savedRecord },
-  },
-  get: {
-    // before: async function(ctx) { /* ctx.query.where(...) */ },
-    // after: async function(ctx) { return ctx.result },
-    // error: async function(ctx, err) {},
-    // override: async function(ctx) { return ctx.id ? record : records },
-  },
-  delete: {
-    // before: async function(ctx) {},
-    // after: async function(ctx) {},
-    // error: async function(ctx, err) {},
-    // override: async function(ctx) { return { id: ctx.id } },
-  }
-}
+var { register } = require('@xeplr/actions');
+
+// register({
+//   name: '${n.key}BeforeSave',
+//   event: 'beforeSave',
+//   description: 'What it checks or changes, in one sentence — the designer shows it.',
+//   execute: function(ctx) {
+//     // ctx.reject('Explain what is wrong', { field: 'someField' })
+//     return ctx.values;
+//   }
+// });
 `
 }
 
@@ -111,10 +107,10 @@ function modelFile(n, edit) {
   return `// The model for ${n.singular} records — how values are shaped between your code and
 // the "${edit.source}" table, like Sequelize's getters and setters.
 //
-// Register with @xeplr/factory:  factory.init({ knex, hooks, models: [require('./${n.file}.model')] })
+// Register with @xeplr/factory:  factory.init({ knex, models: [require('./${n.file}.model')] })
 //
 // Used everywhere: the screens' routes and factory.table('${edit.source}'). Models shape
-// data; the hooks file decides behaviour.
+// data; the functions its events name decide behaviour.
 
 var { FactoryModel } = require('@xeplr/factory');
 
@@ -159,7 +155,7 @@ import editScreen from './${editJson}'
 //
 // ctx.screen says which screen is calling ("${n.key}_list" or "${edit.id}").
 // Keep them as methods (save(values, ctx) { … }) — super does not work in
-// arrow functions. Rules that must hold belong in the server's hooks.
+// arrow functions. Rules that must hold belong in the server's functions (${n.file}.functions.js).
 export class ${n.hooksClass} extends FactoryHooks {
   /** A list's rows (ctx.many), or the record Edit opens (ctx.id). */
   get(ctx) {

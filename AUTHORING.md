@@ -15,7 +15,7 @@ A request for "a form for employees" is an **entity**. Every entity is the same 
 | `employee-edit.screen.json` | the **add / edit form** the list opens in a popup | browser |
 | `EditEmployee.jsx` | the form's page, holding the **front-end hooks** class (`EmployeeHooks extends FactoryHooks`) | browser |
 | `EmployeeList.jsx` | the list's page — uses `EditEmployee.jsx`'s hooks | browser |
-| `employee.hooks.js` | **server hooks**: `save` / `get` / `delete` × `before` / `after` / `error` / `override` | server |
+| `employee.functions.js` | **server functions**, registered with `@xeplr/actions` by event (`beforeLoad`, `beforeSave`, `afterSave`, `beforeDelete`, `onError`) and named in the screen's `events` | server |
 | `employee.model.js` | **server model**: `EmployeeModel extends FactoryModel` — getters / setters for values | server |
 
 `npx xeplr-factory screens employee.entity.json -o <dir>` writes all of them from the spec (`--no-pages` leaves out the two `.jsx`). The hooks and the model start as defaults — every method calling `super` — and stay that way unless the request needs more.
@@ -26,7 +26,7 @@ A request for "a form for employees" is an **entity**. Every entity is the same 
 |---|---|
 | a field, a label, a rule, a dropdown, the layout, a colour | the screen JSON (then validate) |
 | "show / hide / filter rows on screen", "an extra button on each row", "fill in X before saving" (convenience) | front-end hooks in `EditEmployee.jsx` |
-| "must", "only if", "check against…", "email when…", "only managers see…" | server hooks in `employee.hooks.js` |
+| "must", "only if", "check against…", "email when…", "only managers see…" | a server function in `employee.functions.js`, named in the screen's `events` |
 | "store as…", "convert…", "comma-separated / array", "work out X from Y" (data shape) | server model in `employee.model.js` |
 | a query in your own server code | `factory.table('employees')` — this company, active rows, the model applied |
 
@@ -37,7 +37,7 @@ A request for "a form for employees" is an **entity**. Every entity is the same 
    ```sh
    npx xeplr-factory screens employee.entity.json -o src/screens/employee
    ```
-   This writes `employee-list.screen.json`, `employee-edit.screen.json`, `EmployeeList.jsx`, `EditEmployee.jsx` (which holds the front-end hooks — see below) and an empty `employee.hooks.js` (the server's). Wire the two pages into the app's menu next to two `<FactoryBuilder>` pages for designing them (Screen · List, Screen · Edit, Designer · List, Designer · Edit). It refuses to overwrite existing files — they may have been refined in the designer — unless given `--force`, which replaces the screen JSON only: the `.jsx` pages and the hooks file are the app's code and are always kept.
+   This writes `employee-list.screen.json`, `employee-edit.screen.json`, `EmployeeList.jsx`, `EditEmployee.jsx` (which holds the front-end hooks — see below) and `employee.functions.js` (the server's functions, none registered yet). Wire the two pages into the app's menu next to two `<FactoryBuilder>` pages for designing them (Screen · List, Screen · Edit, Designer · List, Designer · Edit). It refuses to overwrite existing files — they may have been refined in the designer — unless given `--force`, which replaces the screen JSON only: the `.jsx` pages, the functions and the model are the app's code and are always kept.
 
    A single screen that is not an entity (a settings form, say) uses `npx xeplr-factory generate spec.json -o screen.json` with the screen spec below.
 3. **The table comes from Publish.** Records live in a **real table** — `employees`, one column per field — never in JSON, and there are no migration files to write: **publishing** the edit screen creates its table (`CREATE TABLE`, a column per field, real foreign keys for table dropdowns, the standard `id` / `isActive` / `mtId1–4` / audit columns), and publishing a later version changes it:
@@ -89,7 +89,7 @@ A request for "a form for employees" is an **entity**. Every entity is the same 
    ```
 
    Setters run on every write (after `save.before`, before the screen's rules), getters on every read, on the routes and in `factory.table()`. Register it: `factory.init({ knex, hooks, models: [require('./employee.model')] })`.
-8. **Server hooks, if the request needs them.** Anything beyond storing what the form shows — a value worked out on save, a check against other records, an email afterwards, a list narrowed to the user — goes in `employee.hooks.js`, never in the screen: `save`, `get` (list and one record) and `delete`, each with `before`, `after`, `error` and `override`. Register it with `factory.init({ hooks: { employee_edit: require('./employee.hooks') } })`. `override` replaces the whole operation — rules and the other hooks included — so use it only when the generic save / get / delete does not apply at all. The `screens` command never overwrites an existing hooks file, even with `--force`. Details: the [`@xeplr/factory` README](https://www.npmjs.com/package/@xeplr/factory#hooks).
+8. **Server functions, if the request needs them.** Anything beyond storing what the form shows — a value worked out on save, a check against other records, an email afterwards, a list narrowed to the user — is a function in `employee.functions.js`, never in the screen: `register({ name, event, description, execute })` with `@xeplr/actions`, then name it in `employee-edit.screen.json`'s `events` (`{ "beforeSave": "employeeBeforeSave" }`). Register before naming — a screen naming a function nobody registered is refused at publish. The app loads the file from its `functions/index.js`. The `screens` command never overwrites an existing functions file, even with `--force`. Details: the [`@xeplr/factory` README](https://www.npmjs.com/package/@xeplr/factory#events--the-apps-code-picked-by-name-in-the-screen).
 9. **Hand over.** The person opens the screens in the designer to move, resize and restyle controls.
 
 Do **not** add a button control for saving: every screen's footer already has **Save** (an AJAX call — never a form submit) and **Cancel** where it can go back. If the request mentions seeing or editing what was entered ("…and show the employees below"), add a `list`.
