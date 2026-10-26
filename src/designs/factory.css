@@ -575,7 +575,6 @@
 .xeplr-factory-fd-step-name { font-size: 18px; font-weight: 650; background: transparent; border-color: transparent; padding: 4px 8px; margin-left: -8px; min-width: 220px; }
 .xeplr-factory-fd-step-name:hover { border-color: var(--xf-border); }
 .xeplr-factory-fd-step-screen { color: var(--xf-muted); }
-.xeplr-factory-fd-step-screen code { color: var(--xf-ink); }
 .xeplr-factory-fd-remove { margin-left: auto; font: inherit; font-size: 12px; color: var(--xf-danger); background: none; border: none; cursor: pointer; padding: 4px 6px; border-radius: 6px; }
 .xeplr-factory-fd-remove:hover { background: color-mix(in srgb, var(--xf-danger) 10%, transparent); }
 .xeplr-factory-fd-tabs { display: flex; gap: 4px; padding: 10px 20px 0; border-bottom: 1px solid var(--xf-border); }

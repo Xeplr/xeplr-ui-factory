@@ -84,7 +84,7 @@ export default function FlowDesignerSample({ ctrl, step, events, catalog, tab, o
                   onChange={(e) => ctrl.setStep(step.stepKey, { label: e.target.value })}
                   aria-label="Step name"
                 />
-                <span className="xeplr-factory-fd-step-screen">Shows <code>{screenName(ctrl, step.screen)}</code></span>
+                <span className="xeplr-factory-fd-step-screen">Shows the form “{screenName(ctrl, step.screen)}”</span>
                 <button type="button" className="xeplr-factory-fd-remove" onClick={() => ctrl.removeStep(step.stepKey)}>Remove step</button>
               </div>
               <div className="xeplr-factory-fd-tabs" role="tablist">
@@ -239,7 +239,7 @@ function EventsPanel({ step, events, catalog }) {
 
 /** Where this step goes once its screen is saved: a screen, a function's choice, or the end. */
 function NavigationPanel({ step, ctrl, catalog }) {
-  const nav = navigationOfStep(ctrl, step)
+  const nav = ctrl.navigationOf(step)
   const others = ctrl.flow.steps.filter((s) => s.stepKey !== step.stepKey)
   const deciders = catalog.forEvent(DECIDE_EVENT)
   const set = (patch) => ctrl.setNavigation(step.stepKey, { ...nav, ...patch })
@@ -338,10 +338,6 @@ function NavigationPanel({ step, ctrl, catalog }) {
   )
 }
 
-function navigationOfStep(ctrl, step) {
-  return ctrl.navigationOf(step)
-}
-
 /** "→ Contract", "→ routeByAmount decides", "Finishes" — under each step in the list. */
 function nextInWords(ctrl, step) {
   const nav = ctrl.navigationOf(step)
@@ -349,6 +345,9 @@ function nextInWords(ctrl, step) {
   if (nav.mode === 'decide') return nav.decide ? `→ ${nav.decide} decides` : '→ a function decides'
   if (nav.mode === 'branches') return `→ ${step.transitions.length} branches`
   if (nav.mode === 'end') return 'Finishes the journey'
+  // No arrows on the LAST step is the engine's own end of the journey.
+  const last = ctrl.flow.steps[ctrl.flow.steps.length - 1]
+  if (last && last.stepKey === step.stepKey) return 'Finishes the journey'
   return 'Where next?'
 }
 
