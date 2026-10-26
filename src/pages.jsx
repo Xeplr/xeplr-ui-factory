@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useFactoryBuilder } from './useFactoryBuilder.js'
 import { useFactoryScreen } from './useFactoryScreen.js'
 import { useFlowRun } from './useFlowRun.js'
@@ -6,6 +6,7 @@ import { useFlowBuilder } from './useFlowBuilder.js'
 import { useScreenEvents } from './useScreenEvents.js'
 import { useFunctionCatalog } from './useFunctionCatalog.js'
 import { useUrlTab } from './useUrlPlaces.js'
+import { loadScreens } from './screenSource.js'
 import { BuilderSample, ScreenSample, ScreenModal, FlowRunnerSample, FlowBuilderSample, FlowDesignerSample } from './designs/index.js'
 
 /**
@@ -266,6 +267,55 @@ export function FlowDesigner(props) {
       ) : (
         <div className="xeplr-factory-hint">{events.error || 'Opening the screen…'}</div>
       ))}
+    />
+  )
+}
+
+/**
+ * <FlowDesigner>, wired to an app's two API clients — what an app's
+ * /configure/flows/:key page renders, so the wiring lives here and not, copied
+ * and drifting, in every generated app.
+ *
+ * Loads the flow and the app's FORMS (screens with fields of their own — a
+ * step shows one to be filled in) and hands everything else straight on.
+ *
+ * @prop factory   createFactoryApi(…) — screens, drafts, publish, the app's functions
+ * @prop flows     createFlowsApi(…) — load, save, publish the flow
+ * @prop flowKey   the flow to open
+ * @prop urlKey    keep the selected step and tab in the URL
+ */
+export function FlowDesignerPage({ factory, flows, flowKey, urlKey, className, style }) {
+  const [flow, setFlow] = useState(null)
+  const [screens, setScreens] = useState(null)
+  const [error, setError] = useState(null)
+  useEffect(() => {
+    let gone = false
+    setFlow(null); setError(null)
+    Promise.all([flows.loadFlow(flowKey), loadScreens(factory)]).then(([f, list]) => {
+      if (gone) return
+      setFlow(f)
+      setScreens(list.filter((s) => s.fields && s.fields.length).map((s) => ({ id: s.key, name: s.name })))
+    }, (e) => { if (!gone) setError(e.message || `Could not open "${flowKey}"`) })
+    return () => { gone = true }
+  }, [factory, flows, flowKey])
+
+  if (error) return <div className="xeplr-factory-invalid" role="alert">{error}</div>
+  if (!flow || !screens) return <div className="xeplr-factory-hint">Opening the flow…</div>
+  return (
+    <FlowDesigner
+      flow={flow}
+      screens={screens}
+      loadScreen={factory.loadScreen}
+      onSave={flows.saveFlow}
+      onPublish={flows.publishFlow}
+      listFunctions={factory.listFunctions}
+      loadDraft={factory.loadDraft}
+      saveDraft={factory.saveDraft}
+      publishScreen={factory.publish}
+      builderProps={factory.builderProps}
+      urlKey={urlKey}
+      className={className}
+      style={style}
     />
   )
 }

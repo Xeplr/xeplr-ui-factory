@@ -31,4 +31,4 @@ export { BuilderSample, ScreenSample, ListView, ScreenModal, FlowRunnerSample, F
 export { FactoryHooks } from './hooks.js'
 
 // Ready-made
-export { FactoryBuilder, FactoryScreen, FlowRunner, FlowBuilder, FlowDesigner } from './pages.jsx'
+export { FactoryBuilder, FactoryScreen, FlowRunner, FlowBuilder, FlowDesigner, FlowDesignerPage } from './pages.jsx'

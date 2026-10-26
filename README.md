@@ -382,6 +382,13 @@ const flows = createFlowsApi({ fetch: authFetch, base: '/api/workflow' })
 - Approvals (another person's turn, with an assignee and a timeout) are not
   part of this designer.
 
+An app page needs only its two API clients — the flow and the forms are
+loaded for it:
+
+```jsx
+<FlowDesignerPage factory={factory} flows={flows} flowKey={key} urlKey="flow" />
+```
+
 Controllers, for a design of your own: `useFlowBuilder` (the flow, plus
 `navigationOf` / `setNavigation`), `useScreenEvents` (one screen's events,
 `adopt` to share its draft with a builder), `useFunctionCatalog` (the app's
