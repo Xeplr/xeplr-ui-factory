@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { getAtPath } from '../propertyPath.js'
 import { FIELD_PRESETS, presetFor } from '../presets.js'
-import { slugify, inputNodes, paramsText } from '../document.js'
+import { slugify, inputNodes, paramsText, screenParams } from '../document.js'
+import { isBinding, previousBinding } from '../values.js'
 import { FONT_FAMILIES, STYLE_KEYS, SCREEN_STYLE_KEYS, LIST_ACTIONS, FILE_KINDS } from '../controls.js'
 
 // The selected control's properties, GENERATED from its entry in controls.js:
@@ -58,7 +59,7 @@ function FieldType({ node, controls, hint, onConvert, onKeepPlain }) {
   )
 }
 
-export default function PropertyPanel({ doc, node, control, controls, errors, tables, screens, lockedNames, onChange, onConvert, hint, onScreenChange, onRemove, onMakeChildTable, selectionCount }) {
+export default function PropertyPanel({ doc, node, control, controls, errors, tables, screens, forms, lockedNames, onChange, onConvert, hint, onScreenChange, onRemove, onMakeChildTable, selectionCount }) {
   if (selectionCount > 1) {
     return (
       <aside className="xeplr-factory-panel">
@@ -95,17 +96,22 @@ export default function PropertyPanel({ doc, node, control, controls, errors, ta
             // A field name that is already a column cannot change — see setNodeProperty.
             const locked = field.path === 'props.name' && (lockedNames || []).includes(node.props?.name)
             const Editor = locked ? LockedEditor : (EDITORS[field.type] || TextEditor)
-            const id = `xf-prop-${node.id}-${field.path.replace(/\W+/g, '-')}`
+            const id = `xf-prop-${node.id}-${field.path.replace(/\W+/g, '-')}-${field.type}`
+            // A default that is a BINDING belongs to "Fill in from"; the typed
+            // box beside it shows empty rather than the binding's braces.
+            const raw = getAtPath(node, field.path)
+            const value = field.path === 'props.default' && field.type !== 'fillFrom' && isBinding(raw) ? undefined : raw
             return (
-              <div key={field.path} className={`xeplr-factory-prop${errs.length ? ' has-error' : ''}`}>
+              <div key={field.path + ':' + field.type} className={`xeplr-factory-prop${errs.length ? ' has-error' : ''}`}>
                 {field.type !== 'toggle' && field.type !== 'toggleValue' && field.type !== 'columns' && field.type !== 'actions' && <label className="xeplr-factory-prop-label" htmlFor={id}>{field.label}</label>}
                 <Editor
                   id={id}
                   field={field}
-                  value={getAtPath(node, field.path)}
+                  value={value}
                   onChange={(v) => onChange(field.path, v)}
                   tables={tables}
                   screens={screens}
+                  forms={forms}
                   node={node}
                   doc={doc}
                   errors={errs}
@@ -568,6 +574,43 @@ function FormEditor({ id, value, onChange, screens, doc }) {
   return <input id={id} className="xeplr-factory-prop-input xeplr-factory-mono" type="text" placeholder="bank_details_edit" value={value ?? ''} onChange={(e) => onChange(e.target.value.trim() || undefined)} />
 }
 
+/**
+ * FILL IN FROM — a field's default as a BINDING, picked, never typed: what
+ * this screen is called with ({params.x}), or what a screen before it in a
+ * flow saved ({previous.<screen>.values.<field>}). Picking "nothing" clears
+ * only a binding; a typed default value is left alone.
+ */
+function FillFromEditor({ id, value, onChange, doc, forms }) {
+  const bound = isBinding(value) ? value : ''
+  const inputs = doc ? screenParams(doc) : []
+  const others = (forms || []).filter((f) => !doc || f.key !== doc.id)
+  const offered = new Set([
+    ...inputs.map((p) => `{params.${p.name}}`),
+    ...others.flatMap((f) => f.fields.map((x) => previousBinding(f.key, x.name)))
+  ])
+  return (
+    <select
+      id={id}
+      className="xeplr-factory-prop-input"
+      value={bound}
+      onChange={(e) => { if (e.target.value || bound) onChange(e.target.value || undefined) }}
+    >
+      <option value="">Nothing — empty, or the default value</option>
+      {inputs.length > 0 && (
+        <optgroup label="What this screen is called with">
+          {inputs.map((p) => <option key={p.name} value={`{params.${p.name}}`}>{p.label || p.name}</option>)}
+        </optgroup>
+      )}
+      {others.map((f) => (
+        <optgroup key={f.key} label={`${f.name} — a screen before this one`}>
+          {f.fields.map((x) => <option key={x.name} value={previousBinding(f.key, x.name)}>{f.name} → {x.label}</option>)}
+        </optgroup>
+      ))}
+      {bound && !offered.has(bound) && <option value={bound}>{bound}</option>}
+    </select>
+  )
+}
+
 const ACTION_LABELS = { new: 'New — add a record', edit: 'Edit — open a row for editing', delete: 'Delete — remove a row' }
 
 function ActionsEditor({ value, onChange }) {
@@ -751,6 +794,7 @@ export const EDITORS = {
   table: TableEditor,
   screen: ScreenEditor,
   form: FormEditor,
+  fillFrom: FillFromEditor,
   columns: ColumnsEditor,
   listTable: ListTableEditor,
   actions: ActionsEditor,

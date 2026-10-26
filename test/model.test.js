@@ -13,7 +13,7 @@ import {
   steppers, stepsOf, stepOf, setNodeStep, nodesForSteps, resolveStep, reachableStep, nextOpenStep,
   screenParams, paramsText, setScreenParams, resolveBinding, isBinding,
   codeFields, countedFields, generateCode,
-  SCREEN_EVENTS, SCREEN_EVENT_KEYS, screenFunctions, missingFunctions
+  SCREEN_EVENTS, SCREEN_EVENT_KEYS, screenFunctions, missingFunctions, previousBinding
 } from '../src/model.js'
 import { normaliseOptions } from '../src/useFactoryScreen.js'
 
@@ -752,6 +752,32 @@ console.log('\na screen\'s events')
   check('one written for another event is named, with the event it is for', /written for "afterSave", not "beforeSave"/.test(wrong[0].problem))
   const step = missingFunctions(withEvents({ afterSave: 'sendEmail' }), registry)
   check('a workflow step is not a screen function', /written for a workflow step/.test(step[0].problem))
+}
+
+console.log('\nfilled in from a screen before this one')
+{
+  const contact = screenFromSpec({ name: 'Contact', fields: [
+    { label: 'Department', name: 'departmentId' }, { label: 'Name' }, { label: 'Head count', type: 'number' }, { label: 'Since', type: 'date' }
+  ] })
+  const bind = (name, binding) => ({ ...contact, nodes: contact.nodes.map((n) => (n.props && n.props.name === name ? { ...n, props: { ...n.props, default: binding } } : n)) })
+  let doc = bind('departmentId', previousBinding('department_edit', 'id'))
+  doc = { ...doc, nodes: bind('name', previousBinding('department_edit', 'name')).nodes.map((n, i) => (n.props && n.props.name === 'departmentId' ? doc.nodes[i] : n)) }
+  const previous = { department_edit: { values: { id: 'dep_42', name: 'Finance' } } }
+  check('the binding is written the agreed way', previousBinding('department_edit', 'name') === '{previous.department_edit.values.name}')
+  check('it is a binding', isBinding('{previous.department_edit.values.name}'))
+  check('it resolves to what that screen saved', resolveBinding('{previous.department_edit.values.name}', {}, previous) === 'Finance')
+  check('...the saved row as id', resolveBinding(previousBinding('department_edit', 'id'), {}, previous) === 'dep_42')
+  const v = initialValues(doc, {}, undefined, previous)
+  check('a field fills itself from the screen before', v.departmentId === 'dep_42' && v.name === 'Finance')
+  const none = initialValues(doc, {}, undefined, {})
+  check('a screen not on the way here leaves it empty — nothing errors', none.departmentId === undefined && none.name === undefined)
+  check('a field that screen does not have is empty too', resolveBinding('{previous.department_edit.values.nope}', {}, previous) === undefined)
+  check('{params.x} still works beside it', resolveBinding('{params.a}', { a: 1 }, previous) === 1)
+  const numberBound = bind('headCount', previousBinding('stats_edit', 'staff'))
+  const dateBound = bind('since', previousBinding('department_edit', 'openedOn'))
+  check('a number field may be filled from one', validateDocument(numberBound).ok, JSON.stringify(validateDocument(numberBound).errors))
+  check('so may a date field', validateDocument(dateBound).ok)
+  check('a typed default must still be the right kind', !validateDocument(bind('headCount', 'lots')).ok)
 }
 
 const failed = results.filter(([, ok]) => !ok)

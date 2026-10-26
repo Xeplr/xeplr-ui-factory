@@ -29,7 +29,9 @@ const STATUS = {
   error: 'Not saved'
 }
 
-export default function BuilderSample({ ctrl, renderPreview, className, style }) {
+// screenApi: the app's factory API client, for designing a child table in place.
+// forms: the app's forms and their fields (useFormFields), for "Fill in from".
+export default function BuilderSample({ ctrl, renderPreview, className, style, screenApi, forms }) {
   const { document: doc } = ctrl
   const [preview, setPreview] = useState(false)
   const problemCount = ctrl.validation.errors.length
@@ -272,6 +274,7 @@ export default function BuilderSample({ ctrl, renderPreview, className, style })
             errors={ctrl.selectedNode ? ctrl.errorsByNode[ctrl.selectedNode.id] : ctrl.errorsByNode._document}
             tables={ctrl.tables}
             screens={ctrl.screens}
+            forms={forms}
             lockedNames={ctrl.lockedNames}
             onChange={(path, value) => (
               // A list's table is not an ordinary property: changing it makes

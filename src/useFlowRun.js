@@ -15,7 +15,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
  * @param flowKey    which flow to run (starting one, or picking up a run)
  * @param runId      an existing run to continue — omit to start one
  * @param startRun   async (flowKey) → { runId, status, stepKey, screen }
- * @param loadRun    async (runId) → { runId, status, stepKey, screen, values, given }
+ * @param loadRun    async (runId) → { runId, status, stepKey, screen, values, given, previous }
  * @param submitRun  async (runId, values, recordId) → { status, stepKey, screen }
  * @param loadScreen async (key) → the screen document
  * @param onStep     (step) → void — told each time the run moves, for the address bar
@@ -25,7 +25,7 @@ export function useFlowRun({ flowKey, runId, startRun, loadRun, submitRun, loadS
   // `given` is what the flow called this screen with — the step's own input,
   // resolved by the engine (see @xeplr/workflow's screen-show). A field bound
   // to {params.x} is filled from it.
-  const [state, setState] = useState({ loading: true, error: null, runId: runId || null, status: null, stepKey: null, screen: null, document: null, values: null, given: null })
+  const [state, setState] = useState({ loading: true, error: null, runId: runId || null, status: null, stepKey: null, screen: null, document: null, values: null, given: null, previous: null })
   const [sending, setSending] = useState(false)
   const live = useRef({})
   live.current = { startRun, loadRun, submitRun, loadScreen, onStep, onFinish, flowKey }
@@ -43,7 +43,9 @@ export function useFlowRun({ flowKey, runId, startRun, loadRun, submitRun, loadS
     setState({
       loading: false, error: null,
       runId: run.runId, status: run.status || 'running', stepKey: run.stepKey, screen: run.screen,
-      document: doc, values: run.values || null, given: run.given || null
+      // previous: what the screens before this one saved, by screen key —
+      // what {previous.<screen>.values.<field>} defaults fill from.
+      document: doc, values: run.values || null, given: run.given || null, previous: run.previous || null
     })
     if (live.current.onStep) live.current.onStep(run)
   }, [])

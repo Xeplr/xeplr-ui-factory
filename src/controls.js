@@ -95,6 +95,10 @@ const FIELD_BASICS = (extra) => ({
     { path: 'props.label', label: 'Label', type: 'text' },
     { path: 'props.name', label: 'Field name', type: 'text', help: 'The key this value is saved under — letters, digits and _' },
     ...(extra || []),
+    // FILLED IN WHEN THE SCREEN OPENS, from somewhere else — the same
+    // props.default, holding a binding instead of a typed value.
+    { path: 'props.default', label: 'Fill in from', type: 'fillFrom',
+      help: 'What this screen is called with, or — in a flow — what a screen before this one saved. Nothing is checked: a screen not on the way here leaves it empty.' },
     { path: 'props.required', label: 'Required', type: 'toggle' }
   ]
 })

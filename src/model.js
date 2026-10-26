@@ -25,7 +25,7 @@ export {
   createStatements, addStatements, alterStatement, dropStatement, columnFromDatabase, planTableChange, conversionFor
 } from './tableSchema.js'
 // A value with a {params.x} token is a binding; a plain value is a literal.
-export { resolveBinding, isBinding } from './values.js'
+export { resolveBinding, isBinding, previousBinding } from './values.js'
 // A code people can read out, unlike the record's own key.
 export { codeFields, countedFields, generateCode } from './values.js'
 export { FIELD_PRESETS, PATTERNS, INPUT_TYPES, presetFor, presetProps, suggestPreset, presetGroup, presetHints, convertField } from './presets.js'

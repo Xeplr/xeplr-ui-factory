@@ -3,6 +3,7 @@ import { useFactoryBuilder } from './useFactoryBuilder.js'
 import { useFactoryScreen } from './useFactoryScreen.js'
 import { useFlowRun } from './useFlowRun.js'
 import { useFlowBuilder } from './useFlowBuilder.js'
+import { useFormFields } from './useFormFields.js'
 import { useScreenEvents } from './useScreenEvents.js'
 import { useFunctionCatalog } from './useFunctionCatalog.js'
 import { useUrlTab } from './useUrlPlaces.js'
@@ -27,9 +28,12 @@ import { BuilderSample, ScreenSample, ScreenModal, FlowRunnerSample, FlowBuilder
  */
 export function FactoryBuilder(props) {
   const ctrl = useFactoryBuilder(props)
+  // The app's forms and their fields, for a field's "Fill in from".
+  const forms = useFormFields(props.screenApi)
   return (
     <BuilderSample
       ctrl={ctrl}
+      forms={forms}
       className={props.className}
       style={props.style}
       // So a child table made here can be designed here — see the modal in
@@ -174,7 +178,10 @@ export function FlowRunner(props) {
     record: run.values || undefined,
     // What the flow called this screen with — its step's own input, resolved
     // by the engine. A field bound to {params.x} is filled from here.
-    params: run.given || undefined
+    params: run.given || undefined,
+    // What the screens before this one saved, by screen key — a field bound to
+    // {previous.<screen>.values.<field>} is filled from here.
+    previous: run.previous || undefined
   })
   return (
     <FlowRunnerSample

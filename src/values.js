@@ -61,26 +61,43 @@ export function formSchema(doc, controls = CONTROLS) {
  * Whole-value only. `{params.a}-{params.b}` is not a value a form field takes,
  * and splicing text is a formula's job, not a form's.
  */
-export function resolveBinding(value, params) {
+export function resolveBinding(value, params, previous) {
   if (typeof value !== 'string') return value
-  const m = /^\{params\.([A-Za-z_][\w]*)\}$/.exec(value.trim())
-  if (!m) return value
-  return params ? params[m[1]] : undefined
+  const v = value.trim()
+  const p = PARAM_BINDING.exec(v)
+  if (p) return params ? params[p[1]] : undefined
+  // WHAT A SCREEN BEFORE THIS ONE SAVED, in a flow — by that screen's key, the
+  // saved row as `id`. Handed over as plain JSON with no contract: a screen
+  // not reached on this run, or a field it does not have, is simply empty.
+  const q = PREVIOUS_BINDING.exec(v)
+  if (q) {
+    const screen = previous && previous[q[1]]
+    return screen && screen.values ? screen.values[q[2]] : undefined
+  }
+  return value
 }
 
-/** Is this what somebody typed, or a reference to an input? */
+const PARAM_BINDING = /^\{params\.([A-Za-z_][\w]*)\}$/
+const PREVIOUS_BINDING = /^\{previous\.([A-Za-z][A-Za-z0-9_]*)\.values\.([A-Za-z_][\w]*)\}$/
+
+/** Is this what somebody typed, or a reference — to an input, or to a screen before this one? */
 export function isBinding(value) {
-  return typeof value === 'string' && /^\{params\.[A-Za-z_][\w]*\}$/.test(value.trim())
+  return typeof value === 'string' && (PARAM_BINDING.test(value.trim()) || PREVIOUS_BINDING.test(value.trim()))
 }
 
-export function initialValues(doc, provided = {}, controls = CONTROLS) {
+/** The binding to a field a screen before this one saved: `{previous.<screen>.values.<field>}`. */
+export function previousBinding(screen, field) {
+  return `{previous.${screen}.values.${field}}`
+}
+
+export function initialValues(doc, provided = {}, controls = CONTROLS, previous = null) {
   const out = {}
   inputNodes(doc, controls).forEach((node) => {
     const name = node.props.name
     if (provided[name] !== undefined) out[name] = provided[name]
     else if (node.props.default !== undefined) {
       // A default may be a binding to one of the screen's own inputs.
-      const resolved = resolveBinding(node.props.default, provided)
+      const resolved = resolveBinding(node.props.default, provided, previous)
       if (resolved !== undefined) out[name] = resolved
       else if (!isBinding(node.props.default)) out[name] = node.props.default
       else if (node.type === 'checkbox') out[name] = false

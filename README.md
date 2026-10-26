@@ -395,6 +395,34 @@ Controllers, for a design of your own: `useFlowBuilder` (the flow, plus
 functions, `forEvent`). Model: `navigationOf`, `setNavigation`, `arrowTargets`,
 `setEvent`, `functionsFor`.
 
+## Filled in from a screen before — `{previous.<screen>.values.<field>}`
+
+In a flow, what one screen saved is handed to the screens after it as plain
+JSON, by SCREEN key (the workflow API's `previous` on every run view):
+
+```json
+{ "department_edit": { "values": { "id": "dep_42", "name": "Finance" } } }
+```
+
+A field fills itself from it with a default of
+`{previous.department_edit.values.name}` — or `.id`, the row that screen
+saved, to link to it. Pick it in the builder: **Fill in from** on any field
+offers this screen's own inputs (`{params.x}`) and every form's fields, so
+nothing is typed. Any kind of field may be filled this way, a number or a date
+too.
+
+- **No contract.** A screen not on this run's way here, or a field it does not
+  have, leaves the field empty — nothing errors. Making the names line up is
+  the flow's author's job; declared contracts between steps are the paid
+  workflow's.
+- **By screen, not by step**, because the binding lives on the screen, and a
+  screen is the same form in every flow. A screen shown twice hands over its
+  latest.
+- `FlowRunner` passes the run's `previous` to the screen; with your own design,
+  hand it to `useFactoryScreen({ previous })`. Model: `previousBinding`,
+  `resolveBinding(value, params, previous)`, `initialValues(doc, params,
+  controls, previous)`.
+
 ## Masters — the lists the rest of the app points at
 
 Departments, statuses, countries, categories. Mark a form as a master in its

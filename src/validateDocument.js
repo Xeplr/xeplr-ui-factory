@@ -15,6 +15,7 @@ import { CONTROLS, LABEL_VARIANTS, LIST_ACTIONS, STYLE_KEYS, SCREEN_STYLE_KEYS, 
 import { DOCUMENT_KIND, DOCUMENT_VERSION } from './document.js'
 import { RESERVED_COLUMNS, MAX_IDENTIFIER } from './tableSchema.js'
 import { FIELD_PRESETS, INPUT_TYPES, presetFor } from './presets.js'
+import { isBinding } from './values.js'
 
 const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 const TABLE_NAME = /^[A-Za-z_][A-Za-z0-9_.$-]*$/
@@ -210,6 +211,10 @@ function checkGeometry(node, at, err) {
 function checkDefault(node, def, at, err) {
   const v = node.props.default
   if (v === undefined) return
+  // A BINDING fills the field when the screen opens — {params.x} or
+  // {previous.<screen>.values.<field>} — so it is text whatever the field
+  // holds. A date or number field may be filled from one as well.
+  if (isBinding(v)) return
   const isDatetime = node.type === 'datetime'
   const ok = {
     string: () => typeof v === 'string',

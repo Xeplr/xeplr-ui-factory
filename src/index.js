@@ -23,6 +23,8 @@ export { useFlowBuilder, FLOW_AUTOSAVE_DELAY } from './useFlowBuilder.js'
 export { useScreenEvents } from './useScreenEvents.js'
 export { useFunctionCatalog } from './useFunctionCatalog.js'
 export { useUrlTab } from './useUrlPlaces.js'
+// The app's forms and their fields — what "Fill in from" offers.
+export { useFormFields } from './useFormFields.js'
 
 // Designs
 export { BuilderSample, ScreenSample, ListView, ScreenModal, FlowRunnerSample, FlowBuilderSample, FlowDesignerSample, FLOW_DESIGNER_TABS, ScreenEditorSample, ControlView, VIEWS, Palette, DRAG_TYPE, PropertyPanel, EDITORS } from './designs/index.js'

@@ -67,10 +67,14 @@ import { useUrlSteps } from './useUrlPlaces.js'
  *   the form from a list supplies nothing. A field whose default is
  *   `{params.x}` is filled from here, and left empty (for the person to fill
  *   in) when nobody said.
+ * @param previous  in a flow, what the screens before this one saved, by
+ *   screen key: { department_edit: { values: { id, name, … } } }. A field
+ *   whose default is `{previous.department_edit.values.name}` is filled from
+ *   here — empty when that screen was not on this run's path.
  */
 export function useFactoryScreen({
   document: doc, record, recordKey = 'id', onSave, fetchOptions, fetchRecords, fetchRecord, onDelete, onChange, screens, loadScreen, hooks, uploadFile, fileUrl,
-  onOpenRecord, onDone, onDirtyChange, params, urlKey,
+  onOpenRecord, onDone, onDirtyChange, params, urlKey, previous,
   link, onReady,
   controls = CONTROLS
 } = {}) {
@@ -134,9 +138,9 @@ export function useFactoryScreen({
   // reopened wins, because the row is the truth once there is one.
   const startValues = useCallback(
     (rec) => (rec
-      ? { ...initialValues(doc, params || {}, controls), ...recordValues(doc, rec, controls) }
-      : initialValues(doc, params || {}, controls)),
-    [doc, controls, params]
+      ? { ...initialValues(doc, params || {}, controls, previous), ...recordValues(doc, rec, controls) }
+      : initialValues(doc, params || {}, controls, previous)),
+    [doc, controls, params, previous]
   )
 
   const [values, setValues] = useState(() => (check.ok ? startValues(record) : {}))
