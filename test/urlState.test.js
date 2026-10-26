@@ -16,7 +16,7 @@ const check = (name, cond) => { results.push([name, cond]); console.log((cond ? 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
 
 console.log('\nthe keys are the host\'s')
-check('derived from urlKey', same(factoryUrlKeys('form'), { steps: 'formSteps', selected: 'formSelected' }))
+check('derived from urlKey', same(factoryUrlKeys('form'), { steps: 'formSteps', selected: 'formSelected', tab: 'formTab' }))
 check('none without one: in memory', factoryUrlKeys(undefined) === null && factoryUrlKeys('') === null)
 
 console.log('\nsteps in one value')

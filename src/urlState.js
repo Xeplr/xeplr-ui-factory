@@ -12,11 +12,11 @@
 
 /**
  * The query keys under a host's `urlKey`, or null (in memory).
- *   factoryUrlKeys('form') → { steps: 'formSteps', selected: 'formSelected' }
+ *   factoryUrlKeys('form') → { steps: 'formSteps', selected: 'formSelected', tab: 'formTab' }
  */
 export function factoryUrlKeys(urlKey) {
   if (!urlKey) return null
-  return { steps: `${urlKey}Steps`, selected: `${urlKey}Selected` }
+  return { steps: `${urlKey}Steps`, selected: `${urlKey}Selected`, tab: `${urlKey}Tab` }
 }
 
 /**

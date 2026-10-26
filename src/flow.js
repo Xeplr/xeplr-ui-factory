@@ -21,6 +21,12 @@
 //       …
 //     ] }
 //
+// LET A FUNCTION DECIDE: an arrow may name one of the app's registered
+// functions (@xeplr/actions, event 'decide') instead of a step. The engine
+// asks it where to go; `targets` are the steps it may choose (none: any):
+//
+//   { when: null, decide: 'routeByAmount', targets: ['review', 'thanks'] }
+//
 // WHO RUNS IT: the workflow engine, not the browser. A run remembers where it
 // got to, so a journey can be left and picked up later — by someone else, on
 // another day. The browser only shows the screen it is told to and sends back
@@ -55,6 +61,18 @@ export const FLOW_OPERATORS = [
 export const VALUELESS_OPERATORS = ['isEmpty', 'isNotEmpty']
 
 const KEY = /^[A-Za-z][A-Za-z0-9_]*$/
+// A registered function's name — the same rule as events.js.
+const FUNCTION = /^[A-Za-z_][\w.-]{0,99}$/
+
+/**
+ * Where an arrow can lead: its target, or — when a function decides — the
+ * steps it may choose, and every step when it lists none.
+ */
+export function arrowTargets(flow, t) {
+  if (!t) return []
+  if (t.decide) return Array.isArray(t.targets) && t.targets.length ? t.targets : flow.steps.map((s) => s.stepKey)
+  return t.target ? [t.target] : []
+}
 const MAX_KEY = 63
 
 /** An empty flow, ready to have screens dropped on it. */
@@ -126,7 +144,12 @@ export function removeStep(flow, stepKey) {
     ...flow,
     steps: flow.steps
       .filter((s) => s.stepKey !== stepKey)
-      .map((s) => ({ ...s, transitions: s.transitions.filter((t) => t.target !== stepKey) }))
+      .map((s) => ({
+        ...s,
+        transitions: s.transitions
+          .filter((t) => t.decide || t.target !== stepKey)
+          .map((t) => (t.decide && Array.isArray(t.targets) ? { ...t, targets: t.targets.filter((k) => k !== stepKey) } : t))
+      }))
   }
 }
 
@@ -162,7 +185,9 @@ export function removeTransition(flow, fromKey, index) {
 /** The step a journey starts at: the first one that nothing else points to, else the first. */
 export function firstStep(flow) {
   if (!flow.steps.length) return null
-  const pointedAt = new Set(flow.steps.flatMap((s) => s.transitions.map((t) => t.target)))
+  // A function that may go anywhere points at nothing in particular — it does
+  // not make every step look like the middle of the journey.
+  const pointedAt = new Set(flow.steps.flatMap((s) => s.transitions.flatMap((t) => (t.decide && !(t.targets && t.targets.length) ? [] : arrowTargets(flow, t)))))
   return flow.steps.find((s) => !pointedAt.has(s.stepKey)) || flow.steps[0]
 }
 
@@ -177,7 +202,7 @@ export function reachableSteps(flow) {
     const step = byKey.get(key)
     if (!step) return
     seen.add(key)
-    step.transitions.forEach((t) => walk(t.target))
+    step.transitions.forEach((t) => arrowTargets(flow, t).forEach(walk))
   }
   walk(start.stepKey)
   return seen
@@ -200,9 +225,11 @@ export function layoutFlow(flow, size = {}) {
   while (queue.length) {
     const key = queue.shift()
     ;(byKey.get(key).transitions || []).forEach((t) => {
-      if (!byKey.has(t.target) || depth.has(t.target)) return
-      depth.set(t.target, depth.get(key) + 1)
-      queue.push(t.target)
+      arrowTargets(flow, t).forEach((target) => {
+        if (!byKey.has(target) || depth.has(target)) return
+        depth.set(target, depth.get(key) + 1)
+        queue.push(target)
+      })
     })
   }
   // Steps nothing reaches go in a column of their own at the end, where they
@@ -264,7 +291,10 @@ export function validateFlow(flow, options = {}) {
     step.transitions.forEach((t, j) => {
       const tp = `${at}.transitions[${j}]`
       if (!t || typeof t !== 'object') { err(tp, 'must be { when, target }'); return }
-      if (!String(t.target || '').trim()) err(`${tp}.target`, `must name the step this arrow goes to, or "${FLOW_END}"`)
+      if (t.decide !== undefined && t.decide !== null && t.decide !== '') {
+        if (!FUNCTION.test(String(t.decide))) err(`${tp}.decide`, 'must be the name of a registered function, e.g. "routeByAmount"')
+        if (t.targets !== undefined && !(Array.isArray(t.targets) && t.targets.every((k) => typeof k === 'string' && k))) err(`${tp}.targets`, 'must be a list of the steps the function may choose')
+      } else if (!String(t.target || '').trim()) err(`${tp}.target`, `must name the step this arrow goes to, or "${FLOW_END}" — or a function to decide`)
       if (t.when === null || t.when === undefined) {
         if (otherwiseAt !== -1) err(tp, 'a step can have only one "otherwise" — the others need a test')
         otherwiseAt = j
@@ -278,6 +308,12 @@ export function validateFlow(flow, options = {}) {
   // Targets are checked once every step key is known.
   flow.steps.forEach((step, i) => {
     ;(step.transitions || []).forEach((t, j) => {
+      if (t && t.decide) {
+        ;(t.targets || []).forEach((k) => {
+          if (k !== FLOW_END && !keys.has(k)) err(`steps[${i}].transitions[${j}].targets`, `"${t.decide}" may choose "${k}", which is not a step of this flow`)
+        })
+        return
+      }
       const target = t && t.target
       if (!target || target === FLOW_END) return
       if (!keys.has(target)) err(`steps[${i}].transitions[${j}].target`, `"${target}" is not a step of this flow`)
@@ -302,6 +338,41 @@ function checkWhen(when, at, err) {
   if (known && !VALUELESS_OPERATORS.includes(when.op) && (when.value === undefined || when.value === null || when.value === '')) {
     err(`${at}.when.value`, 'needs a value to compare with')
   }
+}
+
+// ── navigation: where a step goes once its screen is saved ──────────────
+//
+// What the designer's Navigation panel says, in three plain choices — the
+// common case of a step's arrows. A step whose arrows test its fields
+// ("branches") is drawn with those; the panel says so rather than flattening
+// them.
+
+/**
+ * How a step moves on:
+ *   { mode: 'screen', target }            — always to this step
+ *   { mode: 'decide', decide, targets }   — a registered function chooses
+ *   { mode: 'end' }                       — the journey finishes here
+ *   { mode: 'branches' }                  — arrows that test the screen's fields
+ *   { mode: 'none' }                      — nothing chosen yet
+ */
+export function navigationOf(step) {
+  const ts = (step && step.transitions) || []
+  if (!ts.length) return { mode: 'none' }
+  if (ts.some((t) => t.when)) return { mode: 'branches' }
+  const t = ts[0]
+  if (t.decide) return { mode: 'decide', decide: t.decide, targets: t.targets || [] }
+  if (t.target === FLOW_END) return { mode: 'end' }
+  return { mode: 'screen', target: t.target }
+}
+
+/** Sets how a step moves on — one of navigationOf's shapes (not 'branches'). */
+export function setNavigation(flow, stepKey, nav) {
+  const n = nav || {}
+  const transitions = n.mode === 'decide' ? [{ when: null, decide: n.decide || '', targets: n.targets || [] }]
+    : n.mode === 'end' ? [{ when: null, target: FLOW_END }]
+      : n.mode === 'screen' ? [{ when: null, target: n.target || '' }]
+        : []
+  return mapStep(flow, stepKey, (s) => ({ ...s, transitions }))
 }
 
 /** A test in words: "Type is contractor". */

@@ -26,6 +26,7 @@
 .xeplr-factory-screen,
 .xeplr-factory-canvas,
 .xeplr-factory-flow-builder,
+.xeplr-factory-fd,
 .xeplr-factory-builder,
 .xeplr-factory-modal-backdrop {
   --xf-accent: var(--xeplr-accent, #2563eb);
@@ -107,7 +108,7 @@
    the theme's muted ink and follows a dark theme. Only background-image and
    its longhands are set: each box keeps its own colour, and a control's
    Background (boxStyle) is a background-COLOR so it cannot wipe the arrow. */
-:is(.xeplr-factory-screen, .xeplr-factory-canvas, .xeplr-factory-flow-builder, .xeplr-factory-builder, .xeplr-factory-modal-backdrop) select:not([multiple]) {
+:is(.xeplr-factory-screen, .xeplr-factory-canvas, .xeplr-factory-flow-builder, .xeplr-factory-fd, .xeplr-factory-builder, .xeplr-factory-modal-backdrop) select:not([multiple]) {
   -webkit-appearance: none;
   appearance: none;
   /* Two thin diagonals side by side — each corner to corner of its own small
@@ -122,7 +123,7 @@
   text-overflow: ellipsis;
   cursor: pointer;
 }
-:is(.xeplr-factory-screen, .xeplr-factory-canvas, .xeplr-factory-flow-builder, .xeplr-factory-builder, .xeplr-factory-modal-backdrop) select:not([multiple]):disabled { cursor: default; opacity: .6; }
+:is(.xeplr-factory-screen, .xeplr-factory-canvas, .xeplr-factory-flow-builder, .xeplr-factory-fd, .xeplr-factory-builder, .xeplr-factory-modal-backdrop) select:not([multiple]):disabled { cursor: default; opacity: .6; }
 .xeplr-factory-field.has-error .xeplr-factory-input { border-color: var(--xf-danger); }
 .xeplr-factory-error {
   /* In the gap BELOW the field, out of flow: a message appearing must not
@@ -524,3 +525,115 @@
 .xeplr-factory-modal-body { flex: 1; min-height: 0; overflow: hidden; }
 .xeplr-factory-modal-body > * { height: 100%; }
 .xeplr-factory-builder--nested { min-height: 0; }
+
+/* ── the flow designer, as a list (FlowDesignerSample) ────────────────────
+   The journey's screens down the left; for the one picked, two cards side by
+   side — the screen's events, and where the journey goes after it. Wears the
+   builder's bar; everything else is its own. */
+.xeplr-factory-fd {
+  display: flex; flex-direction: column; height: 100%; min-height: 560px;
+  color: var(--xf-ink); background: var(--xf-plane); font-size: 13px;
+}
+.xeplr-factory-fd select, .xeplr-factory-fd-step-name {
+  font: inherit; color: var(--xf-ink); background-color: var(--xf-field-bg);
+  border: 1px solid var(--xf-field-border); border-radius: 6px; padding: 6px 8px; min-width: 0;
+}
+.xeplr-factory-fd select:focus-visible, .xeplr-factory-fd-step-name:focus-visible {
+  outline: none; border-color: var(--xf-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--xf-accent) 22%, transparent);
+}
+.xeplr-factory-fd-body { flex: 1; min-height: 0; display: flex; }
+
+/* the steps */
+.xeplr-factory-fd-steps {
+  width: 260px; flex: 0 0 auto; display: flex; flex-direction: column; gap: 12px;
+  padding: 14px 12px; border-right: 1px solid var(--xf-border); background: var(--xf-surface); overflow-y: auto;
+}
+.xeplr-factory-fd-step-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.xeplr-factory-fd-step {
+  display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 9px 10px; text-align: left;
+  font: inherit; color: inherit; background: transparent; cursor: pointer;
+  border: 1px solid transparent; border-radius: 8px;
+}
+.xeplr-factory-fd-step:hover { background: var(--xf-hover); }
+.xeplr-factory-fd-step.is-selected { border-color: color-mix(in srgb, var(--xf-accent) 55%, var(--xf-border)); background: color-mix(in srgb, var(--xf-accent) 9%, transparent); }
+.xeplr-factory-fd-step.has-error .xeplr-factory-fd-step-number { background: var(--xf-danger); color: #fff; }
+.xeplr-factory-fd-step-number {
+  flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; background: var(--xf-hover); color: var(--xf-muted);
+}
+.xeplr-factory-fd-step.is-selected .xeplr-factory-fd-step-number { background: var(--xf-accent); color: var(--xf-accent-ink); }
+.xeplr-factory-fd-step-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.xeplr-factory-fd-step-label { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xeplr-factory-fd-step-next { color: var(--xf-muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xeplr-factory-fd-add { display: flex; flex-direction: column; gap: 4px; padding-top: 10px; border-top: 1px solid var(--xf-border); }
+.xeplr-factory-fd-add-label { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--xf-muted); }
+
+/* the step that is open */
+.xeplr-factory-fd-main { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow-y: auto; }
+.xeplr-factory-fd-empty { margin: auto; color: var(--xf-muted); }
+.xeplr-factory-fd-head { display: flex; align-items: center; gap: 12px; padding: 14px 20px 0; flex-wrap: wrap; }
+.xeplr-factory-fd-step-name { font-size: 18px; font-weight: 650; background: transparent; border-color: transparent; padding: 4px 8px; margin-left: -8px; min-width: 220px; }
+.xeplr-factory-fd-step-name:hover { border-color: var(--xf-border); }
+.xeplr-factory-fd-step-screen { color: var(--xf-muted); }
+.xeplr-factory-fd-step-screen code { color: var(--xf-ink); }
+.xeplr-factory-fd-remove { margin-left: auto; font: inherit; font-size: 12px; color: var(--xf-danger); background: none; border: none; cursor: pointer; padding: 4px 6px; border-radius: 6px; }
+.xeplr-factory-fd-remove:hover { background: color-mix(in srgb, var(--xf-danger) 10%, transparent); }
+.xeplr-factory-fd-tabs { display: flex; gap: 4px; padding: 10px 20px 0; border-bottom: 1px solid var(--xf-border); }
+.xeplr-factory-fd-tab {
+  font: inherit; font-weight: 500; color: var(--xf-muted); background: none; cursor: pointer;
+  border: none; border-bottom: 2px solid transparent; padding: 8px 12px; margin-bottom: -1px;
+}
+.xeplr-factory-fd-tab:hover { color: var(--xf-ink); }
+.xeplr-factory-fd-tab.is-active { color: var(--xf-accent); border-bottom-color: var(--xf-accent); font-weight: 600; }
+.xeplr-factory-fd-design { flex: 1; min-height: 560px; display: flex; }
+.xeplr-factory-fd-design > * { flex: 1; min-width: 0; }
+.xeplr-factory-fd-settings { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; padding: 16px 20px 24px; align-items: start; }
+@container (max-width: 900px) { .xeplr-factory-fd-settings { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 1100px) { .xeplr-factory-fd-settings { grid-template-columns: minmax(0, 1fr); } }
+
+/* a card: the events, or the navigation */
+.xeplr-factory-fd-card { display: flex; flex-direction: column; gap: 12px; padding: 16px; border: 1px solid var(--xf-border); border-radius: 12px; background: var(--xf-surface); }
+.xeplr-factory-fd-card-head h3 { margin: 0 0 4px; font-size: 15px; }
+.xeplr-factory-fd-card-head p { margin: 0; color: var(--xf-muted); line-height: 1.45; }
+.xeplr-factory-fd-card-foot { display: flex; align-items: center; gap: 12px; justify-content: space-between; padding-top: 4px; }
+.xeplr-factory-fd-save { color: var(--xf-muted); font-size: 12px; }
+.xeplr-factory-fd-save--saved { color: var(--xf-good); }
+.xeplr-factory-fd-save--error { color: var(--xf-danger); }
+.xeplr-factory-fd-result { font-size: 12px; padding: 8px 10px; border-radius: 8px; }
+.xeplr-factory-fd-result.is-ok { color: var(--xf-good); background: color-mix(in srgb, var(--xf-good) 10%, transparent); }
+.xeplr-factory-fd-result.is-error { color: var(--xf-danger); background: color-mix(in srgb, var(--xf-danger) 10%, transparent); }
+
+/* one event */
+.xeplr-factory-fd-events { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.xeplr-factory-fd-event {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 240px); gap: 6px 14px; align-items: center;
+  padding: 10px 12px; border: 1px solid var(--xf-border); border-radius: 10px;
+}
+.xeplr-factory-fd-event.is-on { border-color: color-mix(in srgb, var(--xf-accent) 40%, var(--xf-border)); }
+.xeplr-factory-fd-event.has-error { border-color: var(--xf-danger); }
+.xeplr-factory-fd-event-what { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.xeplr-factory-fd-event-name { font-weight: 600; }
+.xeplr-factory-fd-event-when { color: var(--xf-muted); font-size: 12px; line-height: 1.4; }
+.xeplr-factory-fd-contract { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-radius: 8px; background: var(--xf-plane); font-size: 12px; }
+.xeplr-factory-fd-contract dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; margin: 0; }
+.xeplr-factory-fd-contract dt { color: var(--xf-muted); font-weight: 600; }
+.xeplr-factory-fd-contract dd { margin: 0; }
+.xeplr-factory-fd-contract-desc { margin: 0; }
+.xeplr-factory-fd-contract-gone { margin: 0; color: var(--xf-danger); }
+
+/* navigation */
+.xeplr-factory-fd-choices { display: flex; flex-direction: column; gap: 8px; }
+.xeplr-factory-fd-choice { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1px solid var(--xf-border); border-radius: 10px; }
+.xeplr-factory-fd-choice.is-on { border-color: color-mix(in srgb, var(--xf-accent) 45%, var(--xf-border)); background: color-mix(in srgb, var(--xf-accent) 6%, transparent); }
+.xeplr-factory-fd-choice-pick { display: flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; }
+.xeplr-factory-fd-choice-pick input { accent-color: var(--xf-accent); margin: 0; }
+.xeplr-factory-fd-choice > select { margin-left: 24px; }
+.xeplr-factory-fd-decide { display: flex; flex-direction: column; gap: 8px; margin-left: 24px; }
+.xeplr-factory-fd-targets { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 8px 10px; border: 1px solid var(--xf-border); border-radius: 8px; }
+.xeplr-factory-fd-targets legend { padding: 0 4px; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--xf-muted); }
+.xeplr-factory-fd-target { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.xeplr-factory-fd-target input { accent-color: var(--xf-accent); margin: 0; }
+.xeplr-factory-fd-branches { display: flex; flex-direction: column; gap: 8px; }
+.xeplr-factory-fd-branches p { margin: 0; color: var(--xf-muted); }
+.xeplr-factory-fd-branches ul { margin: 0; padding-left: 18px; }
+.xeplr-factory-fd-branches button { align-self: flex-start; }

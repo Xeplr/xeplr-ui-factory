@@ -97,6 +97,9 @@ export function createFactoryApi({ fetch: doFetch, base = '' } = {}) {
       confirmConvert: (options && options.confirmConvert) || []
     })),
     listTables: () => call('GET', '/tables'),
+    // The app's registered functions a screen's events — and a flow's "let a
+    // function decide" — can pick: [{ name, event, description }], never code.
+    listFunctions: () => call('GET', '/functions'),
     // DELETE A FORM'S SCREEN. The design always goes; the table only when it
     // is empty and nothing else describes it — the answer says which
     // happened, and how many records kept it. Refused while another

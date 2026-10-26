@@ -82,3 +82,19 @@ export function missingFunctions(doc, registered) {
     return []
   })
 }
+
+/** The screen with one event set to a function — or cleared, given nothing. */
+export function setEvent(doc, key, name) {
+  if (!SCREEN_EVENT_KEYS.includes(key)) throw new Error(`"${key}" is not an event — one of: ${SCREEN_EVENT_KEYS.join(', ')}`)
+  const events = { ...((doc && doc.events) || {}) }
+  if (name) events[key] = name
+  else delete events[key]
+  const next = { ...doc, events }
+  if (!Object.keys(events).length) delete next.events
+  return next
+}
+
+/** The functions a picker offers one event: those registered for it, by name. */
+export function functionsFor(functions, event) {
+  return (functions || []).filter((f) => f && f.event === event).slice().sort((a, b) => a.name.localeCompare(b.name))
+}

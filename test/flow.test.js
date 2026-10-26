@@ -4,7 +4,8 @@
 import {
   createFlow, flowKey, addStep, moveStep, setStep, removeStep,
   addTransition, setTransition, removeTransition, firstStep, reachableSteps, layoutFlow,
-  validateFlow, describeWhen, FLOW_END, FLOW_OPERATORS
+  validateFlow, describeWhen, FLOW_END, FLOW_OPERATORS,
+  arrowTargets, navigationOf, setNavigation, setEvent, functionsFor
 } from '../src/model.js'
 import { createFlowsApi, asFlow } from '../src/flows.js'
 
@@ -130,6 +131,51 @@ console.log('\nthe calls a flow makes')
   check('...and one with no place on the canvas gets one', loaded.steps[0].layout.x === 40)
   const counted = asFlow({ id: 'w1', key: 'onboard', name: 'Onboard', status: 'published', steps: 3 })
   check('an answer that counts the steps is not mistaken for a list of them', counted.stepCount === 3 && counted.steps.length === 0)
+}
+
+console.log('\nletting a function decide')
+{
+  let flow = build()
+  flow = setNavigation(flow, 'employee_edit', { mode: 'decide', decide: 'routeByType', targets: ['contract_edit', 'payroll_edit'] })
+  const nav = navigationOf(flow.steps[0])
+  check('the step says a function decides, and among which steps', nav.mode === 'decide' && nav.decide === 'routeByType' && nav.targets.join() === 'contract_edit,payroll_edit')
+  check('...and that is a valid flow', validateFlow(flow, { screens: SCREENS }).ok, JSON.stringify(validateFlow(flow, { screens: SCREENS }).errors))
+  check('both steps it may choose are reachable', reachableSteps(flow).has('contract_edit') && reachableSteps(flow).has('payroll_edit'))
+  check('with no targets, it may go to any step', arrowTargets(flow, { decide: 'x' }).length === 3)
+  const noFn = setNavigation(build(), 'employee_edit', { mode: 'decide', decide: 'not a name', targets: [] })
+  check('a function name that could never be registered is refused', validateFlow(noFn, { screens: SCREENS }).errors.some((e) => /decide must be the name/.test(e.path + ' ' + e.message)))
+  const ghost = setNavigation(build(), 'employee_edit', { mode: 'decide', decide: 'routeByType', targets: ['ghost'] })
+  check('a step it may choose that is not in the flow is refused', validateFlow(ghost, { screens: SCREENS }).errors.some((e) => /may choose "ghost"/.test(e.message)))
+  const removed = removeStep(flow, 'payroll_edit')
+  check('removing a step drops it from what a function may choose', removed.steps[0].transitions[0].targets.join() === 'contract_edit')
+  check('the first step is still the first, though a function points nowhere in particular', firstStep(setNavigation(build(), 'payroll_edit', { mode: 'decide', decide: 'x', targets: [] })).stepKey === 'employee_edit')
+}
+
+console.log('\nthe navigation panel\'s three choices')
+{
+  let flow = build()
+  check('a fresh step goes on to the next screen', navigationOf(flow.steps[0]).mode === 'screen' && navigationOf(flow.steps[0]).target === 'contract_edit')
+  flow = setNavigation(flow, 'contract_edit', { mode: 'end' })
+  check('finishing the journey is an arrow to the end', navigationOf(flow.steps[1]).mode === 'end' && flow.steps[1].transitions[0].target === FLOW_END)
+  flow = setNavigation(flow, 'contract_edit', { mode: 'screen', target: 'payroll_edit' })
+  check('going to a specific screen', navigationOf(flow.steps[1]).target === 'payroll_edit')
+  const branched = addTransition(build(), 'employee_edit', 'payroll_edit', { field: 'type', op: '=', value: 'staff' })
+  check('arrows that test fields are reported as branches, not flattened', navigationOf(branched.steps[0]).mode === 'branches')
+  check('a step with no arrows has nothing chosen', navigationOf({ transitions: [] }).mode === 'none')
+}
+
+console.log('\na screen\'s events, set from the designer')
+{
+  const doc = { id: 'employee_edit', nodes: [] }
+  const one = setEvent(doc, 'beforeSave', 'checkSalaryBand')
+  check('an event is set by name', one.events.beforeSave === 'checkSalaryBand')
+  check('...without touching the original', doc.events === undefined)
+  check('clearing the last one leaves no events at all', setEvent(one, 'beforeSave', '').events === undefined)
+  let threw = false
+  try { setEvent(doc, 'onSaved', 'x') } catch (e) { threw = /not an event/.test(e.message) }
+  check('an event that does not exist is refused', threw)
+  const fns = [{ name: 'zeta', event: 'beforeSave' }, { name: 'alpha', event: 'beforeSave' }, { name: 'route', event: 'decide' }]
+  check('a picker offers an event only its own functions, by name', functionsFor(fns, 'beforeSave').map((f) => f.name).join() === 'alpha,zeta')
 }
 
 const failed = results.filter(([, ok]) => !ok)

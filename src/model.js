@@ -13,7 +13,7 @@ export {
 } from './document.js'
 export { validateDocument, assertValidDocument } from './validateDocument.js'
 // A screen's events: functions picked by name, run on the server.
-export { SCREEN_EVENTS, SCREEN_EVENT_KEYS, DECIDE_EVENT, FUNCTION_NAME, screenFunctions, missingFunctions } from './events.js'
+export { SCREEN_EVENTS, SCREEN_EVENT_KEYS, DECIDE_EVENT, FUNCTION_NAME, screenFunctions, missingFunctions, setEvent, functionsFor } from './events.js'
 export { formSchema, initialValues, parseInput, validateValues, fieldError, sameId, optionValue, chooseable, saveState, recordValues, displayValue, fileLabel, toDbValue, fromDbValue, listColumns, listSource } from './values.js'
 export { screenFromSpec, screensFromSpec, entityNames, SPEC_HEIGHTS, ROW_GAP } from './generate.js'
 export { scaffoldEntity } from './scaffold.js'
@@ -33,5 +33,6 @@ export { createFlowsApi } from './flows.js'
 export {
   FLOW_KIND, FLOW_VERSION, FLOW_END, FLOW_OPERATORS, VALUELESS_OPERATORS,
   createFlow, flowKey, addStep, uniqueStepKey, moveStep, setStep, removeStep,
-  addTransition, setTransition, removeTransition, firstStep, reachableSteps, layoutFlow, validateFlow, describeWhen
+  addTransition, setTransition, removeTransition, firstStep, reachableSteps, layoutFlow, validateFlow, describeWhen,
+  arrowTargets, navigationOf, setNavigation
 } from './flow.js'

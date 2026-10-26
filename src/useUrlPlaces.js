@@ -46,3 +46,15 @@ export function useUrlSelection(urlKey) {
   }, [setValue])
   return [value, select]
 }
+
+/**
+ * [tab, setTab] — which tab of a panel is open (the flow designer's Form
+ * design / Events & navigation). Switching tabs is a switch, so it replaces
+ * the history entry. Absent from the URL is the first tab.
+ */
+export function useUrlTab(urlKey, first) {
+  const keys = factoryUrlKeys(urlKey)
+  const [value, setValue] = useUrlState(keys ? keys.tab : 'tab', { inUrl: Boolean(keys), replace: true })
+  const setTab = useCallback((next) => setValue(next === first ? null : next), [setValue, first])
+  return [value || first, setTab]
+}

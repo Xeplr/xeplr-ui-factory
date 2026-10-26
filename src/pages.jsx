@@ -3,7 +3,10 @@ import { useFactoryBuilder } from './useFactoryBuilder.js'
 import { useFactoryScreen } from './useFactoryScreen.js'
 import { useFlowRun } from './useFlowRun.js'
 import { useFlowBuilder } from './useFlowBuilder.js'
-import { BuilderSample, ScreenSample, ScreenModal, FlowRunnerSample, FlowBuilderSample } from './designs/index.js'
+import { useScreenEvents } from './useScreenEvents.js'
+import { useFunctionCatalog } from './useFunctionCatalog.js'
+import { useUrlTab } from './useUrlPlaces.js'
+import { BuilderSample, ScreenSample, ScreenModal, FlowRunnerSample, FlowBuilderSample, FlowDesignerSample } from './designs/index.js'
 
 /**
  * The builder, ready-made. Saves itself — there is no Save button.
@@ -209,4 +212,60 @@ const EMPTY_SCREEN = {
 export function FlowBuilder(props) {
   const ctrl = useFlowBuilder(props)
   return <FlowBuilderSample ctrl={ctrl} className={props.className} style={props.style} />
+}
+
+/**
+ * The FLOW designer as a list — the screens of a journey down the left; for
+ * the one picked, its form (Form design), the app's functions that run around
+ * its records (Events) and where it goes next (Navigation). The design is
+ * FlowDesignerSample; its controllers are useFlowBuilder, useScreenEvents and
+ * useFunctionCatalog, for a custom design to use directly.
+ *
+ * @prop flow, name, screens, loadScreen, onSave, onPublish, onChange  as FlowBuilder
+ * @prop listFunctions  async () → [{ name, event, description }] — the app's registered functions
+ * @prop loadDraft      async (screenId) → { document } — a step's screen, to set its events
+ * @prop saveDraft      async (document) → void
+ * @prop publishScreen  async (document) → { version } — makes a screen's events take effect
+ * @prop builderProps   what FactoryBuilder needs for the Form design tab (createFactoryApi's builderProps)
+ * @prop urlKey         keep the selected step and tab in the URL (<urlKey>Selected, <urlKey>Tab)
+ */
+export function FlowDesigner(props) {
+  const ctrl = useFlowBuilder(props)
+  const catalog = useFunctionCatalog({ listFunctions: props.listFunctions })
+  // The step open on the right: the one picked, else the first — a journey
+  // opened with nothing in the URL shows its start, not a blank page.
+  const step = ctrl.selectedStep || ctrl.flow.steps[0] || null
+  const events = useScreenEvents({
+    screen: step ? step.screen : null,
+    loadDraft: props.loadDraft,
+    saveDraft: props.saveDraft,
+    publish: props.publishScreen,
+    functions: catalog.functions
+  })
+  const [tab, setTab] = useUrlTab(props.urlKey, 'settings')
+  return (
+    <FlowDesignerSample
+      ctrl={ctrl}
+      step={step}
+      events={events}
+      catalog={catalog}
+      tab={tab}
+      onTab={setTab}
+      className={props.className}
+      style={props.style}
+      renderFormDesign={() => (events.document ? (
+        <FactoryBuilder
+          key={events.document.id}
+          {...(props.builderProps || {})}
+          document={events.document}
+          // One draft, two editors: the builder's changes become the
+          // document Events sets functions on (useScreenEvents.adopt).
+          onChange={events.adopt}
+          screens={(props.screens || []).map((s) => ({ id: s.id, name: s.name }))}
+        />
+      ) : (
+        <div className="xeplr-factory-hint">{events.error || 'Opening the screen…'}</div>
+      ))}
+    />
+  )
 }

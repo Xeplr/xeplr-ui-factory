@@ -346,6 +346,48 @@ to one of these); the screen only names it:
 - **Checked twice.** Here, that each name could be a function and each event exists. On the server, at publish and when it runs, that the function is registered *for that event* — a missing one refuses with its name (`missingFunctions(doc, registry)`).
 - `SCREEN_EVENTS` carries each event's contract (`when`, `gets`, `returns`) — what the designer shows beside each picker.
 
+## The flow designer, as a list — `<FlowDesigner>`
+
+Your screens as a journey: the steps down the left; for the one picked, its
+**Form design** (the screen's builder), the **events** the app's functions run
+on, and **where it goes next**. The selected step and tab live in the URL
+(`<urlKey>Selected`, `<urlKey>Tab`).
+
+```jsx
+const factory = createFactoryApi({ fetch: authFetch, base: '/api' })
+const flows = createFlowsApi({ fetch: authFetch, base: '/api/workflow' })
+
+<FlowDesigner
+  flow={flow} screens={screens} loadScreen={factory.loadScreen}
+  onSave={flows.saveFlow} onPublish={flows.publishFlow}
+  listFunctions={factory.listFunctions}
+  loadDraft={factory.loadDraft} saveDraft={factory.saveDraft} publishScreen={factory.publish}
+  builderProps={factory.builderProps}
+  urlKey="flow"
+/>
+```
+
+- **Events are the screen's.** Picking a function saves it to that screen's
+  draft; it runs once the screen is **published** (a button on the card), and
+  in every journey that shows the screen. Each picker offers only the functions
+  the app registered for that event, with what each is handed and returns —
+  the code itself is never in the designer.
+- **Navigation is the flow's:** go to a screen, **let a function decide** (a
+  registered `decide` function, and the steps it may choose), or finish the
+  journey. A step whose arrows test its fields shows them, and can be replaced
+  with one of the three.
+- **Nothing runs in the browser.** Before load, Before save, After save,
+  Before delete and On error run on the server; On load / On change / On exit
+  are not offered, because nothing would run them.
+- Approvals (another person's turn, with an assignee and a timeout) are not
+  part of this designer.
+
+Controllers, for a design of your own: `useFlowBuilder` (the flow, plus
+`navigationOf` / `setNavigation`), `useScreenEvents` (one screen's events,
+`adopt` to share its draft with a builder), `useFunctionCatalog` (the app's
+functions, `forEvent`). Model: `navigationOf`, `setNavigation`, `arrowTargets`,
+`setEvent`, `functionsFor`.
+
 ## Masters — the lists the rest of the app points at
 
 Departments, statuses, countries, categories. Mark a form as a master in its

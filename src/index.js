@@ -19,12 +19,16 @@ export { describeScreen, screenStub, loadScreens, keyFromName, editScreenOf, mas
 export { masterSpec, createMaster, possibleParents, singularOf, MASTER_LABEL, MASTER_ORDER, childSpec, createChildTable } from './masters.js'
 export { useFlowRun } from './useFlowRun.js'
 export { useFlowBuilder, FLOW_AUTOSAVE_DELAY } from './useFlowBuilder.js'
+// A screen's events, set from outside its builder, and the app's functions to pick from.
+export { useScreenEvents } from './useScreenEvents.js'
+export { useFunctionCatalog } from './useFunctionCatalog.js'
+export { useUrlTab } from './useUrlPlaces.js'
 
 // Designs
-export { BuilderSample, ScreenSample, ListView, ScreenModal, FlowRunnerSample, FlowBuilderSample, ScreenEditorSample, ControlView, VIEWS, Palette, DRAG_TYPE, PropertyPanel, EDITORS } from './designs/index.js'
+export { BuilderSample, ScreenSample, ListView, ScreenModal, FlowRunnerSample, FlowBuilderSample, FlowDesignerSample, FLOW_DESIGNER_TABS, ScreenEditorSample, ControlView, VIEWS, Palette, DRAG_TYPE, PropertyPanel, EDITORS } from './designs/index.js'
 
 // Front-end hooks — extend FactoryHooks, override what you need, call super
 export { FactoryHooks } from './hooks.js'
 
 // Ready-made
-export { FactoryBuilder, FactoryScreen, FlowRunner, FlowBuilder } from './pages.jsx'
+export { FactoryBuilder, FactoryScreen, FlowRunner, FlowBuilder, FlowDesigner } from './pages.jsx'
