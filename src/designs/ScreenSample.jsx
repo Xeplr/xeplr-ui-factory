@@ -30,7 +30,12 @@ const STATUS = {
 
 /** What the background save is doing, in words. */
 function SaveStatus({ ctrl }) {
-  const text = ctrl.status === 'error' ? `Not saved — ${ctrl.saveError}` : STATUS[ctrl.status]
+  // A screen with no table of its own (a review in a workflow) saves nothing,
+  // so "Unsaved changes" and "Saved" would describe something that is not
+  // happening. What still matters there is a field left wrong.
+  const keeps = Boolean(ctrl.document && ctrl.document.source)
+  const quiet = !keeps && (ctrl.status === 'pending' || ctrl.status === 'saved' || ctrl.status === 'saving')
+  const text = quiet ? '' : ctrl.status === 'error' ? `Not saved — ${ctrl.saveError}` : STATUS[ctrl.status]
   return (
     <span className={`xeplr-factory-footer-status xeplr-factory-footer-status--${ctrl.status}`} role="status" aria-live="polite">
       {text}
