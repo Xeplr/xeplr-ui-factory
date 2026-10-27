@@ -636,3 +636,12 @@
 .xeplr-factory-fd-branches p { margin: 0; color: var(--xf-muted); }
 .xeplr-factory-fd-branches ul { margin: 0; padding-left: 18px; }
 .xeplr-factory-fd-branches button { align-self: flex-start; }
+
+/* A table of rows the workflow handed the screen, a tick per row. */
+.xeplr-factory-table-wrap { overflow: auto; max-height: 100%; border: 1px solid var(--xf-border); border-radius: 6px; }
+.xeplr-factory-table { width: 100%; border-collapse: collapse; font-size: max(11px, calc(12 * var(--xf-u))); }
+.xeplr-factory-table th, .xeplr-factory-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--xf-border); white-space: nowrap; }
+.xeplr-factory-table th { position: sticky; top: 0; background: var(--xeplr-bg-secondary, #fff); color: var(--xf-muted); font-weight: 600; }
+.xeplr-factory-table td.is-number { text-align: right; font-variant-numeric: tabular-nums; }
+.xeplr-factory-table tr.is-ticked td { background: var(--xeplr-accent-soft, rgba(47, 91, 211, 0.07)); }
+.xeplr-factory-table-tick { width: 28px; }

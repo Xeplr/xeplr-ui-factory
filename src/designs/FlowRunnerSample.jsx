@@ -1,7 +1,8 @@
 import { useRef } from 'react'
 import ScreenSample from './ScreenSample.jsx'
 
-// A flow, running: the screen the run is parked on, and one button forward.
+// A flow, running: the screen the run is parked on, and the way forward — one
+// Next, or the step's own buttons (Approve / Send back), each saying which.
 //
 // Presentation only — everything comes from useFlowRun and useFactoryScreen.
 // "Next" saves the screen into its own table (one AJAX call, only if anything
@@ -49,8 +50,11 @@ export default function FlowRunnerSample({ run, screen, className, style, title,
           // not two that both look like the way on.
           // The id comes from the save that Next just made when there was one:
           // a new record's id has not reached the ref yet (that is a render away).
-          done: (r) => run.submit(values.current, r && r.record && r.record[screen.recordKey] != null ? r.record[screen.recordKey] : record.current),
-          doneLabel: run.sending ? 'Saving…' : 'Next'
+          done: (r, action) => run.submit(values.current, r && r.record && r.record[screen.recordKey] != null ? r.record[screen.recordKey] : record.current, action),
+          doneLabel: run.sending ? 'Saving…' : 'Next',
+          // The step's own buttons, when it has them: each is a way on.
+          doneButtons: run.buttons && run.buttons.length ? run.buttons : null,
+          sending: run.sending
         }}
       />
       <FlowValues screen={screen} values={values} record={record} />

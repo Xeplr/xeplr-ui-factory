@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CONTROLS, CHOICE_TYPES } from './controls.js'
 import { inputNodes, nodesForSteps, steppers, stepsOf, stepOf, resolveStep, reachableStep, nextOpenStep } from './document.js'
 import { validateDocument } from './validateDocument.js'
-import { initialValues, parseInput, saveState, fieldError, optionValue, recordValues, listSource } from './values.js'
+import { initialValues, parseInput, saveState, fieldError, optionValue, recordValues, listSource, resolveBinding } from './values.js'
 import { hookMethod } from './hooks.js'
 import { useUrlSteps } from './useUrlPlaces.js'
 
@@ -338,6 +338,13 @@ export function useFactoryScreen({
     return out
   }, [doc.id])
 
+  // A table's rows: its binding to this screen's inputs (`{params.lines}`),
+  // filled by whoever opened it — a workflow step's values.
+  const rowsFor = useCallback((node) => {
+    const rows = resolveBinding(node && node.props ? node.props.rows : undefined, params || {}, previous)
+    return Array.isArray(rows) ? rows : []
+  }, [params, previous])
+
   const optionsFor = useCallback((node) => {
     if (node.props.data?.source === 'static') return { loading: false, items: node.props.data.options, error: null }
     return options[node.id] || { loading: false, items: [], error: null }
@@ -396,7 +403,9 @@ export function useFactoryScreen({
     if (!subsOk) { setStatus('invalid'); return { ok: false } }
     const customSave = hooksRef.current && typeof hooksRef.current.save === 'function'
     const writing = changes.current
-    if (!l.onSave && !customSave) { savedChanges.current = writing; setDirty(false); setStatus('saved'); return { ok: true } }
+    // Nothing to save to: no save given, or a screen with no table of its own
+    // (a review screen in a workflow, whose values go only to the run).
+    if ((!l.onSave || !l.source) && !customSave) { savedChanges.current = writing; setDirty(false); setStatus('saved'); return { ok: true } }
 
     setStatus('saving')
     setSaveError(null)
@@ -782,6 +791,7 @@ export function useFactoryScreen({
     setValue,
     touch,
     optionsFor,
+    rowsFor,
     done: onDone || null,
     steps: stepControl,
     visibleNodes,

@@ -573,6 +573,21 @@ run is only what the arrows need and the id of the row that was written
 that exists, arrows that point somewhere, one "otherwise" at the end, and
 nothing unreachable.
 
+### A review screen inside a workflow
+
+A screen can also be one step of an ordinary Xeplr Workflow: the run parks on it until a person answers. The workflow step says what it is handed, who answers it and with which buttons:
+
+```json
+{ "actionName": "screen-show", "kind": "wait",
+  "values": { "screen": "unmatched_review", "values": { "lines": "{steps.match.output.rows}" },
+              "assignTo": "Accounts", "buttons": [{ "key": "approve", "label": "Approve" }, { "key": "send_back", "label": "Send back" }] } }
+```
+
+- **A `table` shows what it was handed** (`rows: '{params.lines}'`, a screen input), with a tick per row; the ticked rows are the field's value (`selected`).
+- **The step's buttons replace Next** in `FlowRunner` (the first is the main one). The one pressed is sent as `action` and becomes the step's `output.action`, so its arrows branch on it.
+- **A screen with no table of its own saves nothing**: a button goes straight to the run.
+- `createFlowsApi(...).waiting()` lists every screen waiting for one of the signed-in person's roles (`GET /flows/waiting`).
+
 ### A flow and a stepper
 
 Both walk someone through something, and they answer different questions:
@@ -602,6 +617,7 @@ Both walk someone through something, and they answer different questions:
 | `stepper` | — | a journey across the top; every other control says which step it is on |
 | `label` | — | text with a heading, subheading or text preset |
 | `list` | — | saved records, with New / Edit / Delete |
+| `table` | array of the rows ticked | `minItems`, `maxItems`; `required` = at least one. Rows the screen is **handed** (`rows: '{params.lines}'`), not a table it reads; `columns` (`ref, amount`) or every key of the first row; `selectable` (a tick per row, on by default). Adds no column — see below |
 | `subform` | — | another form drawn inside this one (palette: **Form**), saving into its own table — see below |
 
 A screen is a **sheet**, centred in the space it is given and shown at its

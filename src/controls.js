@@ -576,6 +576,59 @@ CONTROLS.list = {
   ]
 }
 
+// A TABLE OF ROWS THE WORKFLOW HANDS THE SCREEN — the unmatched bank lines
+// a person reviews — with a tick per row. Its value is the rows ticked, under
+// its name (default `selected`), so the step's output.selected is what the
+// person chose. The rows come from a binding to the screen's inputs
+// (`rows: '{params.lines}'`), filled by the workflow step's `values`.
+//
+// Not a list: a list reads a database table; this shows what the run already
+// has, and saves nothing of its own (no column: columnForField ignores it).
+CONTROLS.table = {
+  type: 'table',
+  label: 'Table',
+  group: 'Data',
+  input: true,
+  valueType: 'array',
+  defaultSize: { w: 0.92, h: 0.42 },
+  defaults: { label: 'Rows', rows: '{params.rows}', selectable: true, columns: '' },
+  props: ['name', 'label', 'required', 'rows', 'columns', 'selectable', 'validation', 'style'],
+  validation: ['minItems', 'maxItems'],
+  styles: ['fontFamily', 'fontSize', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'],
+  properties: [
+    FIELD_BASICS(),
+    {
+      key: 'table',
+      title: 'Rows',
+      fields: [
+        { path: 'props.rows', label: 'Rows from', type: 'text',
+          help: 'One of this screen\'s inputs, e.g. {params.lines}. The workflow step fills it.' },
+        { path: 'props.columns', label: 'Columns', type: 'text',
+          help: 'Which, in order, e.g. ref, amount, date. Blank: every column of the first row.' },
+        { path: 'props.selectable', label: 'A tick per row', type: 'checkbox',
+          help: 'The ticked rows are what this field gives the workflow.' }
+      ]
+    },
+    {
+      key: 'validation',
+      title: 'Validation',
+      fields: [
+        { path: 'props.validation.minItems', label: 'Tick at least', type: 'number' },
+        { path: 'props.validation.maxItems', label: 'Tick at most', type: 'number' }
+      ]
+    },
+    ...styleGroups(['fontFamily', 'fontSize', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'])
+  ]
+}
+
+/** The columns a table shows: its own list, else every key of the first row. */
+export function tableColumns(p, rows) {
+  const listed = String((p && p.columns) || '').split(',').map((c) => c.trim()).filter(Boolean)
+  if (listed.length) return listed
+  const first = (rows || []).find((r) => r && typeof r === 'object')
+  return first ? Object.keys(first) : []
+}
+
 // A FORM INSIDE THIS ONE — Access's subform. Another published form, drawn
 // inline with its own fields, saving into ITS OWN table: this employee's bank
 // details. One record of it belongs to each record of this one, through

@@ -16,7 +16,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
  * @param runId      an existing run to continue — omit to start one
  * @param startRun   async (flowKey) → { runId, status, stepKey, screen }
  * @param loadRun    async (runId) → { runId, status, stepKey, screen, values, given, previous }
- * @param submitRun  async (runId, values, recordId) → { status, stepKey, screen }
+ * @param submitRun  async (runId, values, recordId, action) → { status, stepKey, screen }
+ *                   (action: the button pressed, when the step has buttons)
  * @param loadScreen async (key) → the screen document
  * @param onStep     (step) → void — told each time the run moves, for the address bar
  * @param onFinish   (run) → void — the journey is over
@@ -25,7 +26,7 @@ export function useFlowRun({ flowKey, runId, startRun, loadRun, submitRun, loadS
   // `given` is what the flow called this screen with — the step's own input,
   // resolved by the engine (see @xeplr/workflow's screen-show). A field bound
   // to {params.x} is filled from it.
-  const [state, setState] = useState({ loading: true, error: null, runId: runId || null, status: null, stepKey: null, screen: null, document: null, values: null, given: null, previous: null })
+  const [state, setState] = useState({ loading: true, error: null, runId: runId || null, status: null, stepKey: null, screen: null, document: null, values: null, given: null, previous: null, buttons: null })
   const [sending, setSending] = useState(false)
   const live = useRef({})
   live.current = { startRun, loadRun, submitRun, loadScreen, onStep, onFinish, flowKey }
@@ -45,7 +46,9 @@ export function useFlowRun({ flowKey, runId, startRun, loadRun, submitRun, loadS
       runId: run.runId, status: run.status || 'running', stepKey: run.stepKey, screen: run.screen,
       // previous: what the screens before this one saved, by screen key —
       // what {previous.<screen>.values.<field>} defaults fill from.
-      document: doc, values: run.values || null, given: run.given || null, previous: run.previous || null
+      document: doc, values: run.values || null, given: run.given || null, previous: run.previous || null,
+      // The step's buttons ([{ key, label }]); none is one Next.
+      buttons: Array.isArray(run.buttons) && run.buttons.length ? run.buttons : null
     })
     if (live.current.onStep) live.current.onStep(run)
   }, [])
@@ -73,11 +76,11 @@ export function useFlowRun({ flowKey, runId, startRun, loadRun, submitRun, loadS
    * next; `recordId` is the row the screen just saved, so later steps and
    * their arrows can refer to it.
    */
-  const submit = useCallback(async (values, recordId) => {
+  const submit = useCallback(async (values, recordId, action) => {
     if (!live.current.submitRun) throw new Error('No submitRun was provided')
     setSending(true)
     try {
-      const next = await live.current.submitRun(state.runId, values || {}, recordId)
+      const next = await live.current.submitRun(state.runId, values || {}, recordId, action)
       await open({ runId: state.runId, ...next })
     } catch (err) {
       setState((s) => ({ ...s, error: err.message || 'That could not be sent' }))

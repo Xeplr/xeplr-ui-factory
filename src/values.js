@@ -101,10 +101,10 @@ export function initialValues(doc, provided = {}, controls = CONTROLS, previous 
       if (resolved !== undefined) out[name] = resolved
       else if (!isBinding(node.props.default)) out[name] = node.props.default
       else if (node.type === 'checkbox') out[name] = false
-      else if (node.type === 'multiselect') out[name] = []
+      else if (node.type === 'multiselect' || node.type === 'table') out[name] = []
     }
     else if (node.type === 'checkbox') out[name] = false
-    else if (node.type === 'multiselect') out[name] = []
+    else if (node.type === 'multiselect' || node.type === 'table') out[name] = []
   })
   return out
 }
@@ -117,6 +117,7 @@ export function initialValues(doc, provided = {}, controls = CONTROLS, previous 
 export function parseInput(node, raw) {
   if (node.type === 'checkbox') return Boolean(raw)
   if (node.type === 'multiselect') return Array.isArray(raw) ? raw : fromDbValue(node, raw) || []
+  if (node.type === 'table') return Array.isArray(raw) ? raw : []
   if (raw === undefined || raw === null || raw === '') return undefined
   if (node.type === 'number') {
     const n = typeof raw === 'number' ? raw : Number(String(raw).trim())
@@ -156,6 +157,14 @@ export function fieldError(node, value, loadedOptions) {
 
   if (node.type === 'checkbox') {
     return p.required && value !== true ? `${label} must be ticked` : null
+  }
+  // A TABLE'S VALUE is the rows ticked: required is at least one.
+  if (node.type === 'table') {
+    const ticked = Array.isArray(value) ? value : []
+    if (!ticked.length) return p.required ? `${label}: tick at least one row` : null
+    if (v.minItems != null && ticked.length < v.minItems) return `${label}: tick at least ${v.minItems}`
+    if (v.maxItems != null && ticked.length > v.maxItems) return `${label}: tick at most ${v.maxItems}`
+    return null
   }
   if (node.type === 'multiselect') {
     const chosen = Array.isArray(value) ? value : []
@@ -277,7 +286,7 @@ export function recordValues(doc, record, controls = CONTROLS) {
     const v = record ? record[name] : undefined
     if (v !== undefined && v !== null) out[name] = fromDbValue(node, v)
     else if (node.type === 'checkbox') out[name] = false
-    else if (node.type === 'multiselect') out[name] = []
+    else if (node.type === 'multiselect' || node.type === 'table') out[name] = []
   })
   return out
 }

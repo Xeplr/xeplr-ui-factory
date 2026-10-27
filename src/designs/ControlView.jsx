@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { LABEL_PRESETS } from '../controls.js'
+import { tableColumns, LABEL_PRESETS } from '../controls.js'
 import { stepsOf } from '../document.js'
 import ListView from './ListView.jsx'
 import { fieldStyle, labelStyle, boxStyle } from './styles.js'
@@ -13,7 +13,7 @@ import { fieldStyle, labelStyle, boxStyle } from './styles.js'
 
 const ids = (node) => `xeplr-factory-${node.id}`
 
-export default function ControlView({ node, mode = 'live', value, error, options, onChange, onBlur, disabled, list, upload, stepper, subform }) {
+export default function ControlView({ node, mode = 'live', value, error, options, onChange, onBlur, disabled, list, upload, stepper, subform, rows }) {
   const View = VIEWS[node.type]
   if (!View) {
     return <div className="xeplr-factory-unknown">Unknown control “{node.type}”</div>
@@ -34,6 +34,7 @@ export default function ControlView({ node, mode = 'live', value, error, options
       upload={upload}
       stepper={stepper}
       subform={subform}
+      rows={rows}
     />
   )
 }
@@ -459,6 +460,65 @@ function SubformView({ p, node, design, subform }) {
   )
 }
 
+// Rows the workflow handed the screen, a tick per row. The value is the rows
+// ticked. In the designer: three placeholder rows, so it reads as a table.
+function TableView({ node, p, design, value, error, onChange, disabled, rows }) {
+  const shown = design ? [{ ref: 'A1', amount: 500 }, { ref: 'A2', amount: 20 }, { ref: 'A3', amount: 75 }] : (rows || [])
+  const columns = tableColumns(p, shown)
+  const chosen = Array.isArray(value) ? value : []
+  const selectable = p.selectable !== false
+  const ticked = (row) => chosen.some((c) => c === row || JSON.stringify(c) === JSON.stringify(row))
+  const toggle = (row, on) => {
+    const rest = chosen.filter((c) => !(c === row || JSON.stringify(c) === JSON.stringify(row)))
+    onChange(on ? [...rest, row] : rest)
+  }
+  const all = shown.length > 0 && shown.every(ticked)
+  const text = boxStyle(p.style)
+  return (
+    <Field node={node} p={p} error={error}>
+      <div className="xeplr-factory-table-wrap" role="group" aria-labelledby={`${ids(node)}-label`}>
+        {shown.length === 0 ? (
+          <div className="xeplr-factory-hint">Nothing to show.</div>
+        ) : (
+          <table className="xeplr-factory-table" style={{ fontSize: text.fontSize, color: text.color }}>
+            <thead>
+              <tr>
+                {selectable && (
+                  <th className="xeplr-factory-table-tick">
+                    <input type="checkbox" aria-label="Tick every row" checked={all} disabled={disabled}
+                      onChange={(e) => onChange(e.target.checked ? shown.slice() : [])} />
+                  </th>
+                )}
+                {columns.map((c) => <th key={c}>{c}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {shown.map((row, i) => (
+                <tr key={i} className={selectable && ticked(row) ? 'is-ticked' : undefined}>
+                  {selectable && (
+                    <td className="xeplr-factory-table-tick">
+                      <input type="checkbox" aria-label={'Row ' + (i + 1)} checked={ticked(row)} disabled={disabled}
+                        onChange={(e) => toggle(row, e.target.checked)} />
+                    </td>
+                  )}
+                  {columns.map((c) => {
+                    const v = row ? row[c] : null
+                    return <td key={c} className={typeof v === 'number' ? 'is-number' : undefined}>{v === null || v === undefined ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v)}</td>
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+      {!design && selectable && shown.length > 0 && (
+        <div className="xeplr-factory-hint">{chosen.length} of {shown.length} ticked</div>
+      )}
+      {design && <div className="xeplr-factory-hint">Rows from {p.rows || '— set "Rows from"'}</div>}
+    </Field>
+  )
+}
+
 function ListControl({ node, design, list }) {
   return <ListView node={node} design={design} {...(list || {})} />
 }
@@ -478,5 +538,6 @@ export const VIEWS = {
   stepper: StepperView,
   label: LabelView,
   list: ListControl,
+  table: TableView,
   subform: SubformView
 }

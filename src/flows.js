@@ -101,7 +101,9 @@ export function createFlowsApi({ fetch: doFetch, base = '' } = {}) {
     startRun: async (key) => one(await call('POST', `/${enc(key)}/runs`)),
     loadRun: async (runId) => one(await call('GET', `/runs/${enc(runId)}`)),
     /** What the person filled in. Answers with the next screen, or that it is done. */
-    submitRun: async (runId, values, recordId) => one(await call('POST', `/runs/${enc(runId)}/submit`, { values, recordId })),
+    submitRun: async (runId, values, recordId, action) => one(await call('POST', `/runs/${enc(runId)}/submit`, action ? { values, recordId, action } : { values, recordId })),
+    /** Every screen waiting for one of the signed-in person's roles, in any workflow. */
+    waiting: () => call('GET', '/waiting'),
     /** Journeys of this flow that are still going — "in progress". */
     myRuns: (key) => call('GET', `/${enc(key)}/runs?mine=1`)
   }
