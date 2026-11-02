@@ -6,6 +6,9 @@
 // shrinks to keep the layout's proportions.
 
 const u = (n) => `calc(${n} * var(--xf-u))`
+// A floor the stylesheet can raise: on a phone an input under 16px makes iOS
+// zoom the page on focus, so factory.css sets --xf-min-font on inputs there.
+const font = (n) => `max(var(--xf-min-font, 0px), ${u(n)})`
 
 /** Wrapper-level: the font the whole control uses. */
 export function fieldStyle(style) {
@@ -27,7 +30,7 @@ export function labelStyle(style) {
 export function boxStyle(style) {
   const s = style || {}
   return clean({
-    fontSize: s.fontSize != null ? u(s.fontSize) : undefined,
+    fontSize: s.fontSize != null ? font(s.fontSize) : undefined,
     fontWeight: s.fontWeight,
     fontStyle: s.fontStyle,
     textAlign: s.textAlign,

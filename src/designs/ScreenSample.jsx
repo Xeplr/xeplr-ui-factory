@@ -1,5 +1,5 @@
 import ControlView from './ControlView.jsx'
-import { contentBottom, inputNodes, MARGIN } from '../document.js'
+import { contentBottom, inputNodes, readingOrder, MARGIN } from '../document.js'
 import { screenStyle } from './styles.js'
 import { CHOICE_TYPES } from '../controls.js'
 
@@ -10,6 +10,12 @@ import { CHOICE_TYPES } from '../controls.js'
 // in container-query units (cqw = 1% of the screen's width) times the aspect.
 // The screen is never wider than the width it was designed at, so what was
 // designed at 800px is shown at 800px, and only a narrower screen scales it.
+//
+// ON A PHONE IT STACKS. Positions are handed to CSS as variables (--xf-x, …),
+// not as left/top, so factory.css can drop them below 640px and lay the fields
+// out one per row in reading order (--xf-order) — full width, at real sizes.
+// Scaled down instead, an 800px design on a 360px phone is text in boxes too
+// small to tap. The desktop layout does not change.
 //
 // SAVE IS A BUTTON, AND AN AJAX CALL — never a form submit. The <form> below
 // exists for semantics only: its submit is swallowed, so Enter in a field
@@ -164,6 +170,9 @@ export default function ScreenSample({ ctrl, className, style, renderPopup, rend
   // filled in, not as tall as every step stacked up.
   const shown = ctrl.visibleNodes && ctrl.visibleNodes.length ? ctrl.visibleNodes : doc.nodes
   const pageHeight = (contentBottom(doc, shown) + MARGIN) * aspect * 100
+  // Where each control comes when the screen stacks (phones): read top to
+  // bottom, left to right across a row — the order the design is read in.
+  const order = new Map(readingOrder(shown).map((n, i) => [n.id, i]))
   const fieldNodes = inputNodes(doc)
   // A screen with no fields of its own (a list screen) has nothing to save —
   // and no sheet: its list is the card (factory.css, --bare).
@@ -182,7 +191,7 @@ export default function ScreenSample({ ctrl, className, style, renderPopup, rend
     >
       <Page
         className="xeplr-factory-page"
-        style={{ height: `${pageHeight}cqw` }}
+        style={{ '--xf-page-h': `${pageHeight}cqw` }}
         // Never a submit: Enter posts nothing and saves nothing. Save is a button.
         {...(ctrl.embedded ? { role: 'group' } : { onSubmit: (e) => e.preventDefault(), noValidate: true })}
         aria-label={doc.name}
@@ -192,10 +201,11 @@ export default function ScreenSample({ ctrl, className, style, renderPopup, rend
             key={node.id}
             className={`xeplr-factory-node xeplr-factory-node--${node.type}`}
             style={{
-              left: `${node.x * 100}%`,
-              top: `${node.y * aspect * 100}cqw`,
-              width: `${node.w * 100}%`,
-              height: `${node.h * aspect * 100}cqw`
+              '--xf-x': `${node.x * 100}%`,
+              '--xf-y': `${node.y * aspect * 100}cqw`,
+              '--xf-w': `${node.w * 100}%`,
+              '--xf-h': `${node.h * aspect * 100}cqw`,
+              '--xf-order': order.get(node.id)
             }}
           >
             <ControlView

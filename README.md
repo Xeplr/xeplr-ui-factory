@@ -117,6 +117,21 @@ If `onSave` throws an error with `fields: [{ field, message }]` (what `createFac
 
 Values arrive typed: numbers as numbers, checkboxes as booleans, dates as `"YYYY-MM-DD"`, a date and time as `"YYYY-MM-DDTHH:MM"`, a dropdown or radio group as the option's own `id` (a table's numeric id stays a number), a multi-select as an **array** of ids, and a file as the stored file's **path**.
 
+### On a phone
+
+Below **640px wide** (the viewport, not the box the screen sits in) a screen stops being a scaled-down canvas and **stacks**: every control takes the full width, one per row, in reading order — top to bottom, left to right across a row, the same order `inputNodes` reads. Nothing to set and nothing to design twice: the positions you placed are simply not used there.
+
+- Controls are drawn at their real size, not shrunk. Inputs are at least **16px** (smaller makes iOS zoom the page when a field is focused) and **44px** tall; tick boxes, radio buttons and Remove are thumb-sized.
+- Error messages sit under their field and wrap, rather than being cut off at the screen's edge.
+- The footer wraps: what the save is doing on its own line, the buttons under it sharing the width.
+- A popup (a list's Edit / New) fills the screen.
+- A list keeps its table, which scrolls sideways inside its card; its row buttons stay pinned at the right edge (that part is `@xeplr/ui-table`, 1.1.3 or later).
+- An identifier still to be numbered takes no space.
+
+Above 640px nothing changes: a screen is shown at its design width, scaled down only when its box is narrower. A screen in a narrow side panel on a desktop keeps its designed layout. The builder and the flow designer are not for phones and are left as they are.
+
+How: `ScreenSample` hands each control's position to CSS as variables (`--xf-x`, `--xf-y`, `--xf-w`, `--xf-h`) and its reading-order place as `--xf-order`; `factory.css` uses the positions on a desktop and the order on a phone. A design of your own can do the same.
+
 ### Where each value is kept
 
 A record is columns in a real table, never JSON — so the two types that are not
@@ -878,6 +893,13 @@ npm test
 ```
 
 `test/urlState.test.js` covers the URL state: the key format, and the three controllers reading their places back from a real `MemoryRouter` and being clicked through in memory, rendered with `react-dom/server`.
+
+```sh
+npx playwright install chromium-headless-shell   # once
+npm run test:phone
+```
+
+`test/phone.check.js` opens the dev app (`dev/`) in a real browser at 360, 390 and 430px wide and holds every screen to the phone rules: the page never scrolls sideways; fields are one per row, full width, in reading order, none overlapping; inputs are 16px or larger and 44px tall; the footer's buttons are 44px and on screen; a list's row buttons are on screen without scrolling the table; a popup fills the screen. At 1280px it checks that the designed layout is untouched. It is not part of `npm test` — it needs a browser and starts a dev server — so run it before releasing anything that changes how a screen is drawn. The list checks use the `@xeplr/ui-table` installed here.
 
 ## License
 

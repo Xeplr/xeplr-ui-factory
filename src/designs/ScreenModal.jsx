@@ -29,7 +29,8 @@ export default function ScreenModal({ title, width, onClose, children }) {
         aria-modal="true"
         aria-label={title}
         tabIndex={-1}
-        style={{ width: width ? `min(${width + 48}px, 96vw)` : undefined }}
+        // A variable, not a width: on a phone factory.css makes it the full screen.
+        style={width ? { '--xf-modal-w': `min(${width + 48}px, 96vw)` } : undefined}
       >
         <header className="xeplr-factory-modal-head">
           <span className="xeplr-factory-modal-title">{title}</span>
