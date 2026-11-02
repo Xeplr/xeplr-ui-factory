@@ -65,8 +65,11 @@
    its own card, and a sheet around it is a second frame with a block of empty
    paper under the rows. */
 .xeplr-factory-screen--bare { background: none; border: none; }
-.xeplr-factory-page { position: relative; width: 100%; margin: 0; }
-.xeplr-factory-node { position: absolute; box-sizing: border-box; }
+.xeplr-factory-page { position: relative; width: 100%; margin: 0; height: var(--xf-page-h); }
+.xeplr-factory-node {
+  position: absolute; box-sizing: border-box;
+  left: var(--xf-x); top: var(--xf-y); width: var(--xf-w); height: var(--xf-h);
+}
 
 .xeplr-factory-invalid {
   border: 1px solid var(--xeplr-danger, #c2372e); border-radius: 8px; padding: 12px 16px;
@@ -433,6 +436,7 @@
   background: var(--xeplr-bg-overlay, rgba(20, 20, 18, .45));
 }
 .xeplr-factory-modal {
+  width: var(--xf-modal-w);
   max-width: 96vw; background: var(--xf-surface); color: var(--xf-ink);
   border-radius: 10px; box-shadow: 0 12px 40px rgba(0, 0, 0, .25); outline: none;
 }
@@ -645,3 +649,57 @@
 .xeplr-factory-table td.is-number { text-align: right; font-variant-numeric: tabular-nums; }
 .xeplr-factory-table tr.is-ticked td { background: var(--xeplr-accent-soft, rgba(47, 91, 211, 0.07)); }
 .xeplr-factory-table-tick { width: 28px; }
+
+/* ── on a phone: one column ────────────────────────────────────────────────
+   Below 640px a screen stops being a scaled-down canvas. An 800px design
+   shrunk to a 360px phone is 14px text squeezed into boxes under half their
+   size, side-by-side fields too narrow to read and targets too small to tap.
+   So here every control takes the full width, one per row, in reading order
+   (--xf-order, from ScreenSample), at its real size: --xf-u is a pixel again
+   and the positions (--xf-x, …) are simply not used. A phone, not a narrow
+   panel: the viewport decides, so a screen in a side panel on a desktop keeps
+   its designed layout. Designers (builder, flow designer) are not for phones
+   and are left as they are. */
+@media (max-width: 640px) {
+  .xeplr-factory-screen { --xf-u: 1px; }
+  .xeplr-factory-page {
+    display: flex; flex-direction: column; gap: 18px;
+    height: auto; padding: 16px; box-sizing: border-box;
+  }
+  .xeplr-factory-node { position: static; width: auto; height: auto; order: var(--xf-order); }
+  /* An identifier still to be numbered draws nothing: no gap for it either. */
+  .xeplr-factory-node:empty { display: none; }
+
+  .xeplr-factory-field { height: auto; }
+  /* 16px or more, or iOS zooms the page when a field is focused; 44px tall,
+     the smallest target a thumb hits reliably. */
+  .xeplr-factory-input { --xf-min-font: 16px; font-size: max(16px, 1em); flex: none; min-height: 44px; }
+  .xeplr-factory-textarea { min-height: 112px; }
+  .xeplr-factory-file-input { min-height: 0; }
+  /* In the flow now: a message may push the next field down, and wraps
+     rather than being cut off at the edge of a narrow screen. */
+  .xeplr-factory-error { position: static; white-space: normal; }
+  .xeplr-factory-check, .xeplr-factory-choice { min-height: 40px; }
+  .xeplr-factory-check input { width: 22px; height: 22px; }
+  .xeplr-factory-choice input { width: 20px; height: 20px; }
+  .xeplr-factory-choices { overflow: visible; }
+  .xeplr-factory-file-clear { min-height: 40px; padding-inline: 14px; }
+  .xeplr-factory-text { height: auto; overflow: visible; }
+  .xeplr-factory-stepper { height: auto; }
+  .xeplr-factory-list { max-height: none; }
+  .xeplr-factory-table-wrap { max-height: 60vh; }
+  .xeplr-factory-subform { height: auto; overflow: visible; }
+
+  /* The footer wraps: what the save is doing on a line of its own, the
+     buttons under it, sharing the width. */
+  .xeplr-factory-footer { flex-wrap: wrap; padding: 12px 16px; }
+  .xeplr-factory-footer-mid { flex-basis: 100%; order: -1; align-items: flex-start; text-align: left; }
+  .xeplr-factory-footer button { flex: 1; min-height: 44px; }
+  .xeplr-factory-list-new { min-height: 36px; }
+
+  /* A popup is the whole screen. */
+  .xeplr-factory-modal-backdrop { padding: 0; }
+  .xeplr-factory-modal { width: 100%; max-width: none; min-height: 100%; border-radius: 0; }
+  .xeplr-factory-modal-body { padding: 0; }
+  .xeplr-factory-modal-close { min-width: 44px; min-height: 44px; }
+}

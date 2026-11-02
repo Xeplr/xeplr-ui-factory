@@ -19,7 +19,8 @@
   ],
   "scripts": {
     "dev": "vite",
-    "test": "for f in test/*.test.js; do node \"$f\" || exit 1; done"
+    "test": "for f in test/*.test.js; do node \"$f\" || exit 1; done",
+    "test:phone": "node test/phone.check.js"
   },
   "keywords": [
     "form-builder",
@@ -56,7 +57,8 @@
     "@vitejs/plugin-react": "^5.2.0",
     "@xeplr/schema-handler": "^1.0.5",
     "@xeplr/ui-canvas": "^1.0.1",
-    "@xeplr/ui-table": "^1.0.6",
+    "@xeplr/ui-table": "^1.1.3",
+    "playwright": "^1.64.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.18.4",
