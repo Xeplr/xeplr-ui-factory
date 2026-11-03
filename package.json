@@ -1,7 +1,7 @@
 {
   "name": "@xeplr/ui-factory",
   "version": "1.8.3",
-  "description": "Design data-entry screens on @xeplr/ui-canvas, save them as JSON, run them as auto-saving forms with lists of saved records — built for Claude to draft and people to refine",
+  "description": "Design data-entry screens on @xeplr/ui-canvas, save them as JSON, run them as auto-saving forms with lists of saved records \u2014 built for Claude to draft and people to refine",
   "type": "module",
   "main": "src/index.js",
   "exports": {
@@ -50,6 +50,7 @@
     "@xeplr/ui-canvas": "^1.0.2",
     "@xeplr/ui-table": "^1.0.6",
     "react": "^18.0.0 || ^19.0.0",
+    "react-dom": "^18.0.0 || ^19.0.0",
     "react-router-dom": "^6.0.0 || ^7.0.0"
   },
   "devDependencies": {
@@ -65,6 +66,7 @@
     "vite": "^7.3.1"
   },
   "dependencies": {
+    "@xeplr/rules": "^1.0.8",
     "@xeplr/ui-utils": "^1.1.2"
   }
 }

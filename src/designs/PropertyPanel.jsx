@@ -4,6 +4,7 @@ import { FIELD_PRESETS, presetFor } from '../presets.js'
 import { slugify, inputNodes, paramsText, screenParams } from '../document.js'
 import { isBinding, previousBinding } from '../values.js'
 import { FONT_FAMILIES, STYLE_KEYS, SCREEN_STYLE_KEYS, LIST_ACTIONS, FILE_KINDS } from '../controls.js'
+import { BUTTON_VARIANTS, COLUMN_DISPLAYS, BADGE_TONES, CONDITION_OPERATORS, NOTE_INPUT, optionValues } from '../buttons.js'
 
 // The selected control's properties, GENERATED from its entry in controls.js:
 // each field there names a path and an editor type, and this file owns only
@@ -59,7 +60,7 @@ function FieldType({ node, controls, hint, onConvert, onKeepPlain }) {
   )
 }
 
-export default function PropertyPanel({ doc, node, control, controls, errors, tables, screens, forms, lockedNames, onChange, onConvert, hint, onScreenChange, onRemove, onMakeChildTable, selectionCount }) {
+export default function PropertyPanel({ doc, node, control, controls, errors, tables, functions, screens, forms, lockedNames, onChange, onConvert, hint, onScreenChange, onRemove, onMakeChildTable, selectionCount }) {
   if (selectionCount > 1) {
     return (
       <aside className="xeplr-factory-panel">
@@ -103,13 +104,14 @@ export default function PropertyPanel({ doc, node, control, controls, errors, ta
             const value = field.path === 'props.default' && field.type !== 'fillFrom' && isBinding(raw) ? undefined : raw
             return (
               <div key={field.path + ':' + field.type} className={`xeplr-factory-prop${errs.length ? ' has-error' : ''}`}>
-                {field.type !== 'toggle' && field.type !== 'toggleValue' && field.type !== 'columns' && field.type !== 'actions' && <label className="xeplr-factory-prop-label" htmlFor={id}>{field.label}</label>}
+                {!SELF_LABELLED.includes(field.type) && <label className="xeplr-factory-prop-label" htmlFor={id}>{field.label}</label>}
                 <Editor
                   id={id}
                   field={field}
                   value={value}
                   onChange={(v) => onChange(field.path, v)}
                   tables={tables}
+                  functions={functions}
                   screens={screens}
                   forms={forms}
                   node={node}
@@ -494,7 +496,10 @@ function TableEditor({ id, value, onChange, tables }) {
  * are this screen's own — or, for a list screen, those of the screen it edits
  * in. Nothing ticked means all of them.
  */
-function ColumnsEditor({ value, onChange, doc, node, screens }) {
+function ColumnsEditor({ value, onChange, doc, node, screens, functions }) {
+  // A list fed by a function has no form describing its rows: its columns
+  // are written out, each saying what it shows and how.
+  if (node && node.props && node.props.rowsFrom) return <FedColumnsEditor value={value} onChange={onChange} functions={functions} />
   const editDoc = node && node.props.editScreen ? (screens || []).find((s) => s.id === node.props.editScreen)?.document : null
 
   // A LIST OF ANOTHER TABLE IS NOT DESCRIBED BY THIS SCREEN. Pointing a list
@@ -549,6 +554,9 @@ function ScreenEditor({ id, value, onChange, screens, doc }) {
     return (
       <select id={id} className="xeplr-factory-prop-input" value={value ?? ''} onChange={(e) => onChange(e.target.value || undefined)}>
         <option value="">— open rows in this screen's fields</option>
+        {/* A screen not in the list (not loaded, another app's) is still the
+            setting — shown by its id, not as if it had been cleared. */}
+        {value && !others.some((s) => s.id === value) && <option value={value}>{value}</option>}
         {others.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
       </select>
     )
@@ -778,6 +786,327 @@ function uniqueStepKey(steps, base) {
   return `${base}_${n}`
 }
 
+/** Editors that draw their own label (a toggle's is beside it; a list of rows has a heading per row). */
+const SELF_LABELLED = ['toggle', 'toggleValue', 'columns', 'actions', 'filters', 'buttons']
+
+/**
+ * One of the app's registered functions, for one purpose (`field.event`):
+ * picked from those registered for it. A name that is no longer registered
+ * stays shown, marked — not silently blanked.
+ */
+function FunctionEditor({ id, field, value, onChange, functions }) {
+  const pick = functions && functions.forEvent ? functions.forEvent(field.event) : []
+  if (!functions || (!pick.length && !functions.loading)) {
+    return (
+      <>
+        <input id={id} className="xeplr-factory-prop-input" value={value || ''} placeholder="functionName" onChange={(e) => onChange(e.target.value.trim() || undefined)} />
+        {functions && !functions.loading && <div className="xeplr-factory-prop-help">No function is registered for “{field.event}” — the app registers one with @xeplr/actions.</div>}
+      </>
+    )
+  }
+  const known = !value || pick.some((f) => f.name === value)
+  const chosen = pick.find((f) => f.name === value)
+  return (
+    <>
+      <select id={id} className="xeplr-factory-prop-input" value={value || ''} onChange={(e) => onChange(e.target.value || undefined)}>
+        <option value="">— none —</option>
+        {!known && <option value={value}>{value} (not registered)</option>}
+        {pick.map((f) => <option key={f.name} value={f.name}>{f.name}</option>)}
+      </select>
+      {chosen && chosen.description && <div className="xeplr-factory-prop-help">{chosen.description}</div>}
+    </>
+  )
+}
+
+/** A list's filter chips: key (what the function is asked for) and the chip's text. */
+function FiltersEditor({ value, onChange }) {
+  const chips = Array.isArray(value) ? value : []
+  const set = (next) => onChange(next.length ? next : undefined)
+  const edit = (i, patch) => set(chips.map((c, j) => (j === i ? { ...c, ...patch } : c)))
+  return (
+    <div className="xeplr-factory-rows-editor">
+      <div className="xeplr-factory-prop-label">Filter chips</div>
+      {chips.map((c, i) => (
+        <div key={i} className="xeplr-factory-rows-editor-row">
+          <input className="xeplr-factory-prop-input" aria-label={`Chip ${i + 1} text`} placeholder="Packed" value={c.label || ''}
+                 onChange={(e) => edit(i, { label: e.target.value, ...(c.key && c.key !== slugify(c.label || '', '-') ? {} : { key: slugify(e.target.value, '-') }) })} />
+          <input className="xeplr-factory-prop-input xeplr-factory-prop-input--key" aria-label={`Chip ${i + 1} key`} placeholder="packed" value={c.key || ''}
+                 onChange={(e) => edit(i, { key: e.target.value.trim() })} />
+          <RowTools i={i} count={chips.length} onMove={(to) => set(move(chips, i, to))} onRemove={() => set(chips.filter((_, j) => j !== i))} />
+        </div>
+      ))}
+      <button type="button" className="xeplr-factory-secondary" onClick={() => set([...chips, { key: chips.length ? `chip-${chips.length + 1}` : 'all', label: chips.length ? '' : 'All' }])}>+ Chip</button>
+    </div>
+  )
+}
+
+/** Each column of a list fed by a function: what it sorts by, what it shows, how. */
+function FedColumnsEditor({ value, onChange, functions }) {
+  const cols = Array.isArray(value) ? value : []
+  const set = (next) => onChange(next.length ? next : undefined)
+  const edit = (i, patch) => set(cols.map((c, j) => {
+    if (j !== i) return c
+    const next = { ...c, ...patch }
+    Object.keys(next).forEach((k) => { if (next[k] === undefined || next[k] === '') delete next[k] })
+    return next
+  }))
+  const details = functions && functions.forEvent ? functions.forEvent('rowDetails') : []
+  return (
+    <div className="xeplr-factory-rows-editor">
+      <div className="xeplr-factory-prop-label">Columns</div>
+      {cols.map((c, i) => (
+        <fieldset key={i} className="xeplr-factory-rows-editor-card">
+          <legend>{c.label || `Column ${i + 1}`}</legend>
+          <RowTools i={i} count={cols.length} onMove={(to) => set(move(cols, i, to))} onRemove={() => set(cols.filter((_, j) => j !== i))} />
+          <MiniField label="Heading"><input className="xeplr-factory-prop-input" value={c.label || ''} onChange={(e) => edit(i, { label: e.target.value })} /></MiniField>
+          <MiniField label="Sorts by (field)"><input className="xeplr-factory-prop-input" value={c.field || ''} placeholder="placedAt" onChange={(e) => edit(i, { field: e.target.value.trim() })} /></MiniField>
+          <MiniField label="Shows (field)" help="Blank → the value itself"><input className="xeplr-factory-prop-input" value={c.text || ''} placeholder="placedText" onChange={(e) => edit(i, { text: e.target.value.trim() })} /></MiniField>
+          <MiniField label="Second line (field)"><input className="xeplr-factory-prop-input" value={c.sub || ''} onChange={(e) => edit(i, { sub: e.target.value.trim() })} /></MiniField>
+          <MiniField label="Drawn as">
+            <select className="xeplr-factory-prop-input" value={c.display || 'text'} onChange={(e) => edit(i, { display: e.target.value === 'text' ? undefined : e.target.value, ...(e.target.value !== 'images' ? { more: undefined } : {}), ...(e.target.value !== 'activity' ? { details: undefined } : {}) })}>
+              {COLUMN_DISPLAYS.map((d) => <option key={d} value={d}>{DISPLAY_LABELS[d]}</option>)}
+            </select>
+          </MiniField>
+          {c.display === 'images' && <MiniField label="How many more (field)"><input className="xeplr-factory-prop-input" value={c.more || ''} onChange={(e) => edit(i, { more: e.target.value.trim() })} /></MiniField>}
+          {c.display === 'activity' && (
+            <MiniField label="Hover box from">
+              <select className="xeplr-factory-prop-input" value={c.details || ''} onChange={(e) => edit(i, { details: e.target.value || undefined })}>
+                <option value="">— none —</option>
+                {c.details && !details.some((f) => f.name === c.details) && <option value={c.details}>{c.details} (not registered)</option>}
+                {details.map((f) => <option key={f.name} value={f.name}>{f.name}</option>)}
+              </select>
+            </MiniField>
+          )}
+          <MiniField label="Badges" help="field:Text:tone, … — shown where the field is true. Tones: accent, success, warning, danger, muted">
+            <input className="xeplr-factory-prop-input" value={badgesText(c.badges)} placeholder="isNew:New, cancelled:Cancelled:danger"
+                   onChange={(e) => edit(i, { badges: parseBadges(e.target.value) })} />
+          </MiniField>
+          <label className="xeplr-factory-toggle">
+            <input type="checkbox" checked={c.sortable !== false} onChange={(e) => edit(i, { sortable: e.target.checked ? undefined : false })} />
+            <span>Sortable</span>
+          </label>
+        </fieldset>
+      ))}
+      <button type="button" className="xeplr-factory-secondary" onClick={() => set([...cols, { field: `column${cols.length + 1}`, label: `Column ${cols.length + 1}` }])}>+ Column</button>
+    </div>
+  )
+}
+
+const DISPLAY_LABELS = { text: 'Text', images: 'Pictures', activity: 'Latest activity (with hover box)' }
+
+function badgesText(badges) {
+  return (Array.isArray(badges) ? badges : []).map((b) => [b.field, b.label, b.tone].filter(Boolean).join(':')).join(', ')
+}
+
+function parseBadges(text) {
+  const list = String(text || '').split(',').map((part) => part.trim()).filter(Boolean).map((part) => {
+    const [field, label, tone] = part.split(':').map((x) => x.trim())
+    const b = { field, label: label || field }
+    if (tone && BADGE_TONES.includes(tone)) b.tone = tone
+    return b
+  })
+  return list.length ? list : undefined
+}
+
+/**
+ * A PANEL'S BUTTONS. Each is a function of the app and the values it is given:
+ * picking the function lists the parameters it takes — a dropdown where it
+ * names the values allowed. Then what to ask first, and when it shows or is
+ * greyed out.
+ */
+function ButtonsEditor({ value, onChange, functions }) {
+  const buttons = Array.isArray(value) ? value : []
+  const set = (next) => onChange(next)
+  const edit = (i, patch) => set(buttons.map((b, j) => {
+    if (j !== i) return b
+    const next = { ...b, ...patch }
+    Object.keys(next).forEach((k) => { if (next[k] === undefined) delete next[k] })
+    return next
+  }))
+  const pick = functions && functions.forEvent ? functions.forEvent('button') : []
+  const takenIds = (except) => new Set(buttons.filter((_, j) => j !== except).map((b) => b.id))
+  const add = () => {
+    const ids = takenIds(-1)
+    let n = buttons.length + 1
+    while (ids.has(`button-${n}`)) n += 1
+    set([...buttons, { id: `button-${n}`, label: `Button ${n}`, action: pick[0] ? pick[0].name : '' }])
+  }
+  return (
+    <div className="xeplr-factory-rows-editor">
+      <div className="xeplr-factory-prop-label">Buttons</div>
+      {!pick.length && functions && !functions.loading && (
+        <div className="xeplr-factory-prop-help">No function is registered for buttons — the app registers one with @xeplr/actions and event “button”.</div>
+      )}
+      {buttons.map((b, i) => {
+        const fn = pick.find((f) => f.name === b.action) || null
+        const schema = (fn && fn.inputSchema) || []
+        const takesNote = schema.some((f) => f.name === NOTE_INPUT)
+        return (
+          <fieldset key={i} className="xeplr-factory-rows-editor-card">
+            <legend>{b.label || `Button ${i + 1}`}</legend>
+            <RowTools i={i} count={buttons.length} onMove={(to) => set(move(buttons, i, to))} onRemove={() => set(buttons.filter((_, j) => j !== i))} />
+            <MiniField label="Label">
+              <input className="xeplr-factory-prop-input" value={b.label || ''} onChange={(e) => {
+                const label = e.target.value
+                const auto = !b.id || /^button-\d+$/.test(b.id) || b.id === slugify(b.label || '', '-')
+                const id = auto ? uniqueId(slugify(label, '-') || `button-${i + 1}`, takenIds(i)) : b.id
+                edit(i, { label, id })
+              }} />
+            </MiniField>
+            <MiniField label="Runs">
+              <select className="xeplr-factory-prop-input" value={b.action || ''} onChange={(e) => edit(i, { action: e.target.value, params: undefined })}>
+                <option value="">— choose a function —</option>
+                {b.action && !fn && <option value={b.action}>{b.action} (not registered)</option>}
+                {pick.map((f) => <option key={f.name} value={f.name}>{f.name}</option>)}
+              </select>
+            </MiniField>
+            {fn && fn.description && <div className="xeplr-factory-prop-help">{fn.description}</div>}
+            {schema.filter((f) => f.name !== NOTE_INPUT).map((f) => (
+              <MiniField key={f.name} label={(f.label || f.name) + (f.required && f.default === undefined ? ' *' : '')} help={f.description}>
+                <ParamInput field={f} value={b.params ? b.params[f.name] : undefined} onChange={(v) => {
+                  const params = { ...(b.params || {}) }
+                  if (v === undefined || v === '') delete params[f.name]; else params[f.name] = v
+                  edit(i, { params: Object.keys(params).length ? params : undefined })
+                }} />
+              </MiniField>
+            ))}
+            <label className="xeplr-factory-toggle">
+              <input type="checkbox" checked={Boolean(b.ask)} onChange={(e) => edit(i, { ask: e.target.checked ? { title: `${b.label || 'Continue'}?` } : undefined })} />
+              <span>Ask first</span>
+            </label>
+            {b.ask && (
+              <>
+                <MiniField label="Question"><input className="xeplr-factory-prop-input" value={b.ask.title || ''} onChange={(e) => edit(i, { ask: clean({ ...b.ask, title: e.target.value }) })} /></MiniField>
+                <MiniField label="Explanation"><input className="xeplr-factory-prop-input" value={b.ask.message || ''} onChange={(e) => edit(i, { ask: clean({ ...b.ask, message: e.target.value }) })} /></MiniField>
+                {takesNote
+                  ? <MiniField label="Note box label" help="Blank → no note box"><input className="xeplr-factory-prop-input" value={b.ask.note || ''} placeholder="Reason (optional)" onChange={(e) => edit(i, { ask: clean({ ...b.ask, note: e.target.value }) })} /></MiniField>
+                  : fn && <div className="xeplr-factory-prop-help">{fn.name} takes no note.</div>}
+              </>
+            )}
+            <ConditionsEditor label="Shows when" value={b.when} onChange={(v) => edit(i, { when: v })} />
+            <ConditionsEditor label="Greyed out when" value={b.disabledWhen} onChange={(v) => edit(i, { disabledWhen: v })} />
+            <MiniField label="Look">
+              <select className="xeplr-factory-prop-input" value={b.variant || 'default'} onChange={(e) => edit(i, { variant: e.target.value === 'default' ? undefined : e.target.value })}>
+                {BUTTON_VARIANTS.map((v) => <option key={v} value={v}>{VARIANT_LABELS[v]}</option>)}
+              </select>
+            </MiniField>
+          </fieldset>
+        )
+      })}
+      <button type="button" className="xeplr-factory-secondary" onClick={add}>+ Button</button>
+    </div>
+  )
+}
+
+const VARIANT_LABELS = { default: 'Ordinary', primary: 'Main', danger: 'Undo / remove' }
+
+/** One parameter's value: a dropdown when the function names the values allowed. */
+function ParamInput({ field, value, onChange }) {
+  const allowed = optionValues(field.options)
+  if (allowed.length) {
+    const labelOf = (v) => {
+      const o = (field.options || []).find((x) => x && typeof x === 'object' && x.value === v)
+      return o && o.label ? o.label : String(v)
+    }
+    return (
+      <select className="xeplr-factory-prop-input" value={value === undefined ? '' : String(value)} onChange={(e) => {
+        const hit = allowed.find((v) => String(v) === e.target.value)
+        onChange(hit === undefined ? undefined : hit)
+      }}>
+        <option value="">—</option>
+        {allowed.map((v) => <option key={String(v)} value={String(v)}>{labelOf(v)}</option>)}
+      </select>
+    )
+  }
+  if (field.type === 'boolean') {
+    return (
+      <select className="xeplr-factory-prop-input" value={value === undefined ? '' : String(value)} onChange={(e) => onChange(e.target.value === '' ? undefined : e.target.value === 'true')}>
+        <option value="">{field.default === undefined ? '—' : `Default (${field.default ? 'yes' : 'no'})`}</option>
+        <option value="true">Yes</option>
+        <option value="false">No</option>
+      </select>
+    )
+  }
+  if (field.type === 'number') {
+    return <input type="number" className="xeplr-factory-prop-input" value={value ?? ''} onChange={(e) => onChange(e.target.value === '' ? undefined : Number(e.target.value))} />
+  }
+  return <input className="xeplr-factory-prop-input" value={value ?? ''} onChange={(e) => onChange(e.target.value)} />
+}
+
+/** Conditions on the record: every one must match. */
+function ConditionsEditor({ label, value, onChange }) {
+  const rules = Array.isArray(value) ? value : []
+  const set = (next) => onChange(next.length ? next : undefined)
+  const edit = (i, patch) => set(rules.map((r, j) => {
+    if (j !== i) return r
+    const next = { ...r, ...patch }
+    const op = CONDITION_OPERATORS.find((o) => o.key === next.op)
+    if (op && op.noValue) { delete next.value; delete next.value2 }
+    if (op && !op.second) delete next.value2
+    return next
+  }))
+  return (
+    <div className="xeplr-factory-conditions">
+      <div className="xeplr-factory-prop-label">{label}{rules.length > 1 ? ' — all of these' : ''}</div>
+      {rules.map((r, i) => {
+        const op = CONDITION_OPERATORS.find((o) => o.key === r.op)
+        return (
+          <div key={i} className="xeplr-factory-rows-editor-row">
+            <input className="xeplr-factory-prop-input" aria-label="Field" placeholder="customStatus" value={r.field || ''} onChange={(e) => edit(i, { field: e.target.value.trim() })} />
+            <select className="xeplr-factory-prop-input" aria-label="Comparison" value={r.op || 'eq'} onChange={(e) => edit(i, { op: e.target.value })}>
+              {CONDITION_OPERATORS.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+            </select>
+            {!(op && op.noValue) && <input className="xeplr-factory-prop-input" aria-label="Value" value={r.value ?? ''} onChange={(e) => edit(i, { value: e.target.value })} />}
+            {op && op.second && <input className="xeplr-factory-prop-input" aria-label="And" value={r.value2 ?? ''} onChange={(e) => edit(i, { value2: e.target.value })} />}
+            <button type="button" className="xeplr-factory-link-danger" aria-label="Remove condition" onClick={() => set(rules.filter((_, j) => j !== i))}>×</button>
+          </div>
+        )
+      })}
+      <button type="button" className="xeplr-factory-link" onClick={() => set([...rules, { field: '', op: 'eq', value: '' }])}>+ Condition</button>
+    </div>
+  )
+}
+
+function MiniField({ label, help, children }) {
+  return (
+    <label className="xeplr-factory-mini">
+      <span className="xeplr-factory-mini-label">{label}</span>
+      {children}
+      {help && <span className="xeplr-factory-prop-help">{help}</span>}
+    </label>
+  )
+}
+
+function RowTools({ i, count, onMove, onRemove }) {
+  return (
+    <span className="xeplr-factory-rows-editor-tools">
+      <button type="button" className="xeplr-factory-link" aria-label="Move up" disabled={i === 0} onClick={() => onMove(i - 1)}>↑</button>
+      <button type="button" className="xeplr-factory-link" aria-label="Move down" disabled={i === count - 1} onClick={() => onMove(i + 1)}>↓</button>
+      <button type="button" className="xeplr-factory-link-danger" aria-label="Remove" onClick={onRemove}>×</button>
+    </span>
+  )
+}
+
+function move(list, from, to) {
+  const next = list.slice()
+  const [item] = next.splice(from, 1)
+  next.splice(to, 0, item)
+  return next
+}
+
+function uniqueId(base, taken) {
+  if (!taken.has(base)) return base
+  let n = 2
+  while (taken.has(`${base}-${n}`)) n += 1
+  return `${base}-${n}`
+}
+
+function clean(obj) {
+  const out = {}
+  Object.keys(obj).forEach((k) => { if (obj[k] !== undefined && obj[k] !== '') out[k] = obj[k] })
+  return out
+}
+
 export const EDITORS = {
   text: TextEditor,
   textarea: TextareaEditor,
@@ -798,5 +1127,8 @@ export const EDITORS = {
   columns: ColumnsEditor,
   listTable: ListTableEditor,
   actions: ActionsEditor,
-  dataSource: DataSourceEditor
+  dataSource: DataSourceEditor,
+  function: FunctionEditor,
+  filters: FiltersEditor,
+  buttons: ButtonsEditor
 }

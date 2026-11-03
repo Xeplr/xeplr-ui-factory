@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useFunctionCatalog } from './useFunctionCatalog.js'
 import { CONTROLS, controlGroups } from './controls.js'
 import {
   createScreen, renameScreen, setScreenProperty, addControl as addControlTo, moveNode, setNodeProperty, setNodeStep,
@@ -28,6 +29,9 @@ import { selectionPlace } from './urlState.js'
  * @param onSave      async (document) → void; called automatically, only with a valid document
  * @param autosaveDelay ms of quiet after the last edit before saving (default 800)
  * @param onChange    (document) → void; every edit, for hosts that autosave or preview
+ * @param listFunctions async () → [{ name, event, description, inputSchema }] — the app's
+ *                    registered functions, offered to a list's "Rows from", a column's
+ *                    hover box and each button (with the parameters it takes)
  * @param listTables  async () → [{ id, name }] | string[]; offered in a dropdown's
  *                    "from a table" picker. Omitted → table sources can still be typed.
  * @param screens     [{ id, name, document? }] — other screens, offered for a list's "Edit in";
@@ -57,7 +61,7 @@ function linkNameFor(doc) {
   return singular.replace(/_([a-z])/g, function (_, c) { return c.toUpperCase() }) + 'Id'
 }
 
-export function useFactoryBuilder({ document: given, name, onSave, onChange, onPublish, listTables, makeChildTable, screens, lockedNames, controls = CONTROLS, autosaveDelay = 800, urlKey } = {}) {
+export function useFactoryBuilder({ document: given, name, onSave, onChange, onPublish, listTables, listFunctions, makeChildTable, screens, lockedNames, controls = CONTROLS, autosaveDelay = 800, urlKey } = {}) {
   const [doc, setDoc] = useState(() => given || createScreen({ name }))
 
   // ── selection ─────────────────────────────────────────────────────────
@@ -138,6 +142,9 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
       .catch((err) => { if (!cancelled) setTables({ loading: false, items: [], error: err.message || 'Could not list tables' }) })
     return () => { cancelled = true }
   }, [hasListTables, tableRound])
+
+  // ── the app's functions, for what a list's rows and a button run ──────
+  const functions = useFunctionCatalog({ listFunctions })
 
   // ── edits ─────────────────────────────────────────────────────────────
   const rename = useCallback((value) => update((d) => renameScreen(d, value)), [update])
@@ -485,6 +492,7 @@ export function useFactoryBuilder({ document: given, name, onSave, onChange, onP
     removeSelected,
     duplicateSelected,
     tables,
+    functions,
     screens: screens || [],
     lockedNames: lockedNames || [],
     validation,

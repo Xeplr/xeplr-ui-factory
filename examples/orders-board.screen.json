@@ -1,0 +1,106 @@
+{
+  "kind": "xeplr-screen",
+  "version": 1,
+  "id": "orders_board",
+  "name": "Orders",
+  "units": "fraction",
+  "aspect": 1,
+  "width": 1100,
+  "nodes": [
+    {
+      "id": "list",
+      "type": "list",
+      "x": 0.04,
+      "y": 0.04,
+      "w": 0.96,
+      "h": 0.9,
+      "z": 1,
+      "props": {
+        "title": "Orders",
+        "pageSize": 10,
+        "actions": [],
+        "openIn": "page",
+        "rowsFrom": "orderList",
+        "editScreen": "order_actions",
+        "rowOpen": true,
+        "search": {
+          "placeholder": "Search order, customer or city"
+        },
+        "filters": [
+          {
+            "key": "all",
+            "label": "All"
+          },
+          {
+            "key": "ordered",
+            "label": "Ordered"
+          },
+          {
+            "key": "packed",
+            "label": "Packed"
+          },
+          {
+            "key": "shipped",
+            "label": "Shipped"
+          }
+        ],
+        "refreshEvery": 60,
+        "highlight": "isNew",
+        "grow": true,
+        "columns": [
+          {
+            "field": "orderNumber",
+            "label": "Order",
+            "text": "orderLabel",
+            "badges": [
+              {
+                "field": "isNew",
+                "label": "New"
+              },
+              {
+                "field": "cancelled",
+                "label": "Cancelled",
+                "tone": "danger"
+              }
+            ]
+          },
+          {
+            "field": "customerName",
+            "label": "Customer",
+            "sub": "city"
+          },
+          {
+            "field": "images",
+            "label": "Items",
+            "display": "images",
+            "more": "moreImages",
+            "sortable": false
+          },
+          {
+            "field": "customStatus",
+            "label": "Status",
+            "text": "statusLabel"
+          },
+          {
+            "field": "amount",
+            "label": "Amount",
+            "text": "amountText"
+          },
+          {
+            "field": "ageMs",
+            "label": "Aging",
+            "text": "agingText"
+          },
+          {
+            "field": "lastActivityAt",
+            "label": "Last activity",
+            "text": "lastActivityText",
+            "display": "activity",
+            "details": "orderActivity",
+            "sortable": false
+          }
+        ]
+      }
+    }
+  ]
+}

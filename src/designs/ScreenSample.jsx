@@ -183,6 +183,11 @@ export default function ScreenSample({ ctrl, className, style, renderPopup, rend
   // Nor a <form> of its own — one form inside another is not valid HTML.
   const Page = ctrl.embedded ? 'div' : 'form'
   const steppers = ctrl.steps.nodes
+  // A list that grows with its rows, or a panel of buttons (wrapping on a
+  // narrow screen) — its screen's one control: the page is as tall as it is,
+  // rather than it scrolling or spilling out of a fixed box.
+  const only = shown.length === 1 ? shown[0] : null
+  const grows = Boolean(only && ((only.type === 'list' && only.props && only.props.grow) || only.type === 'buttons'))
 
   return (
     <div
@@ -190,7 +195,7 @@ export default function ScreenSample({ ctrl, className, style, renderPopup, rend
       style={{ maxWidth: doc.width, '--xf-margin': `${MARGIN * 100}%`, ...screenStyle(doc), ...style }}
     >
       <Page
-        className="xeplr-factory-page"
+        className={'xeplr-factory-page' + (grows ? ' xeplr-factory-page--grows' : '')}
         style={{ '--xf-page-h': `${pageHeight}cqw` }}
         // Never a submit: Enter posts nothing and saves nothing. Save is a button.
         {...(ctrl.embedded ? { role: 'group' } : { onSubmit: (e) => e.preventDefault(), noValidate: true })}
@@ -232,6 +237,11 @@ export default function ScreenSample({ ctrl, className, style, renderPopup, rend
                 recordKey: ctrl.recordKey,
                 canDelete: ctrl.canDelete,
                 extraActions: ctrl.actionsFor ? ctrl.actionsFor(node) : [],
+                // Rows a function works out: what they are narrowed to, a
+                // cell's hover box, and a row opened at one part of it.
+                query: ctrl.listQuery,
+                rowDetails: ctrl.rowDetails,
+                onOpen: (rec, where) => ctrl.openEditor(node, rec, where),
                 // A list with an edit screen opens it in a popup; one on a form
                 // opens the row in the form's own fields.
                 // A list on the form itself swaps the record in the fields — so
@@ -243,6 +253,7 @@ export default function ScreenSample({ ctrl, className, style, renderPopup, rend
               } : undefined}
               // A form inside this one: the page draws it (renderSubform).
               subform={node.type === 'subform' ? { sub: ctrl.subformFor(node), render: renderSubform } : undefined}
+              buttons={node.type === 'buttons' && ctrl.buttonsFor ? ctrl.buttonsFor(node) : undefined}
             />
           </div>
         ))}

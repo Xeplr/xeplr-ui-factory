@@ -1,6 +1,7 @@
 import { XeplrTable } from '@xeplr/ui-table'
 import { displayValue, listColumns, listSource } from '../values.js'
 import { boxStyle, fieldStyle } from './styles.js'
+import FedList from './FedList.jsx'
 
 // A list of the saved records, in @xeplr/ui-table.
 //
@@ -9,8 +10,12 @@ import { boxStyle, fieldStyle } from './styles.js'
 // Edit and New open the list's edit screen in a popup (`editScreen`), or, for a
 // list on a form, load the row into the form's own fields. Delete removes it.
 
-export default function ListView({ node, doc, design, list, onEdit, onDelete, onNew, currentId, recordKey = 'id', canDelete, fieldNodes, optionsFor, extraActions = [] }) {
+export default function ListView({ node, doc, design, list, onEdit, onDelete, onNew, currentId, recordKey = 'id', canDelete, fieldNodes, optionsFor, extraActions = [], query, rowDetails, onOpen }) {
   const p = node.props || {}
+  // Rows a function works out: their own view — search, chips, the server's text.
+  if (!design && p.rowsFrom && list) {
+    return <FedList node={node} list={list} query={query || { q: '', filter: '', setQ: () => {}, setFilter: () => {} }} onOpen={onOpen || onEdit} rowDetails={rowDetails} recordKey={recordKey} extraActions={extraActions} />
+  }
   // The rows are passed in because a list of ANOTHER table has no other
   // description of itself — see listColumns.
   const columns = listColumns(doc, node, undefined, (list && list.rows) || [])

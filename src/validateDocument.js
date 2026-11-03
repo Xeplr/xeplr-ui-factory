@@ -16,6 +16,7 @@ import { DOCUMENT_KIND, DOCUMENT_VERSION } from './document.js'
 import { RESERVED_COLUMNS, MAX_IDENTIFIER } from './tableSchema.js'
 import { FIELD_PRESETS, INPUT_TYPES, presetFor } from './presets.js'
 import { isBinding } from './values.js'
+import { BUTTON_VARIANTS, COLUMN_DISPLAYS, BADGE_TONES, CONDITION_OPERATORS } from './buttons.js'
 
 const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 const TABLE_NAME = /^[A-Za-z_][A-Za-z0-9_.$-]*$/
@@ -108,6 +109,8 @@ export function validateDocument(doc, controls = CONTROLS) {
 
   const ids = new Map()
   const names = new Map()
+  // A press names its button by id, so an id is unique on the whole screen.
+  const buttonIds = new Map()
 
   doc.nodes.forEach((node, i) => {
     const at = `nodes[${i}]`
@@ -175,6 +178,7 @@ export function validateDocument(doc, controls = CONTROLS) {
     if (node.type === 'stepper') checkSteps(props, at, err)
     checkStep(node, doc, at, err)
     if (node.type === 'list') checkList(props, doc, at, err)
+    if (node.type === 'buttons') checkButtons(props, at, err, buttonIds)
     if (node.type === 'subform') checkSubform(props, doc, at, err)
     if (node.type === 'label') {
       if (typeof props.text !== 'string') err(`${at}.props.text`, 'must be a string')
@@ -401,7 +405,16 @@ function checkList(props, doc, at, err) {
   }
   if (props.title !== undefined && typeof props.title !== 'string') err(`${at}.props.title`, 'must be a string')
   if (props.source !== undefined && !(nonEmptyString(props.source) && TABLE_NAME.test(props.source))) err(`${at}.props.source`, 'must name the table to list records from')
-  if (props.source === undefined && doc.source === undefined) err(`${at}.props.source`, 'is required when the screen has no "source" — which table should the list read?')
+  // ROWS A FUNCTION WORKS OUT need no table — but everything that only a
+  // function can answer (a search, chips and their counts, a hover box)
+  // needs the function.
+  const fed = props.rowsFrom !== undefined
+  if (fed && !(nonEmptyString(props.rowsFrom) && FUNCTION_NAME.test(props.rowsFrom))) err(`${at}.props.rowsFrom`, 'must be the name of a registered function (event "listRows"), e.g. "orderList"')
+  if (!fed && props.source === undefined && doc.source === undefined) err(`${at}.props.source`, 'is required when the screen has no "source" — which table should the list read? (or "rowsFrom": a function that works the rows out)')
+  checkFedList(props, fed, at, err)
+  if (props.grow !== undefined && typeof props.grow !== 'boolean') err(`${at}.props.grow`, 'must be true or false')
+  // The page grows with it, so nothing can be placed beside or under it.
+  if (props.grow && doc.nodes.length !== 1) err(`${at}.props.grow`, 'only for a list that is the screen\'s one control — the page grows with it, so nothing else has a place')
   if (props.editScreen !== undefined && !(nonEmptyString(props.editScreen) && SCREEN_ID.test(props.editScreen))) err(`${at}.props.editScreen`, 'must be the id of the screen that edits a record, e.g. "employee_edit"')
 
   // THE LINK BACK, for a sub-table on a form: this material's
@@ -429,10 +442,141 @@ function checkList(props, doc, at, err) {
       else if (seen.has(c.field)) err(`${p}.field`, `"${c.field}" appears twice`)
       else seen.add(c.field)
       if (!nonEmptyString(c.label)) err(`${p}.label`, 'must be a non-empty string — the column heading')
-      const extra = Object.keys(c).filter((k) => k !== 'field' && k !== 'label')
-      if (extra.length) err(p, `only "field" and "label" are used — remove: ${extra.join(', ')}`)
+      const allowed = fed ? FED_COLUMN_KEYS : ['field', 'label']
+      const extra = Object.keys(c).filter((k) => !allowed.includes(k))
+      if (extra.length) err(p, fed ? `has keys a column does not use — remove: ${extra.join(', ')}` : `only "field" and "label" are used — remove: ${extra.join(', ')} (the rest need "rowsFrom")`)
+      if (fed) checkFedColumn(c, p, err)
     })
   }
+}
+
+// What a column of a function-fed list may say: the value it sorts by
+// (`field`), the text shown for it (`text`, else the value), a second line,
+// how it is drawn, badges after it, how many more pictures, and the function
+// its hover box lists from.
+const FED_COLUMN_KEYS = ['field', 'label', 'text', 'sub', 'display', 'badges', 'more', 'details', 'sortable']
+
+/** The settings only a function-fed list has. */
+function checkFedList(props, fed, at, err) {
+  const need = (key, what) => { if (props[key] !== undefined && !fed) err(`${at}.props.${key}`, `${what} needs "rowsFrom" — a table's records have no function to ask`) }
+  need('search', 'a search box')
+  need('filters', 'filter chips')
+  need('refreshEvery', 'refreshing')
+  if (props.search !== undefined) {
+    const sp = props.search
+    if (!sp || typeof sp !== 'object' || Array.isArray(sp)) err(`${at}.props.search`, 'must be { placeholder } — the hint in the search box')
+    else if (sp.placeholder !== undefined && typeof sp.placeholder !== 'string') err(`${at}.props.search.placeholder`, 'must be a string')
+  }
+  if (props.filters !== undefined) {
+    if (!Array.isArray(props.filters)) err(`${at}.props.filters`, 'must be an array of { key, label }')
+    else {
+      const keys = new Set()
+      props.filters.forEach((f, j) => {
+        const p = `${at}.props.filters[${j}]`
+        if (!f || typeof f !== 'object') { err(p, 'must be { key, label }'); return }
+        if (!(nonEmptyString(f.key) && /^[A-Za-z0-9_-]+$/.test(f.key))) err(`${p}.key`, 'must be letters, digits, _ or - — what the function is asked for, e.g. "packed"')
+        else if (keys.has(f.key)) err(`${p}.key`, `"${f.key}" appears twice`)
+        else keys.add(f.key)
+        if (!nonEmptyString(f.label)) err(`${p}.label`, 'must be the chip\'s text, e.g. "Packed"')
+        const extra = Object.keys(f).filter((k) => k !== 'key' && k !== 'label')
+        if (extra.length) err(p, `only "key" and "label" are used — remove: ${extra.join(', ')}`)
+      })
+    }
+  }
+  if (props.refreshEvery !== undefined && !(Number.isInteger(props.refreshEvery) && props.refreshEvery >= 10 && props.refreshEvery <= 3600)) {
+    err(`${at}.props.refreshEvery`, 'must be a whole number of seconds from 10 to 3600')
+  }
+  if (props.rowOpen !== undefined && typeof props.rowOpen !== 'boolean') err(`${at}.props.rowOpen`, 'must be true or false')
+  if (props.rowOpen && !props.editScreen) err(`${at}.props.rowOpen`, 'needs "Edit in" (editScreen) — the screen a row opens in')
+  // A worked-out row is not a record of one table: nothing to delete it from,
+  // and Edit or New only with a screen to do it in.
+  if (fed && Array.isArray(props.actions)) {
+    if (props.actions.includes('delete')) err(`${at}.props.actions`, 'cannot include "delete" — rows from a function are not one table\'s records')
+    if ((props.actions.includes('edit') || props.actions.includes('new')) && !props.editScreen) err(`${at}.props.actions`, 'Edit and New need "Edit in" (editScreen) — the screen they open')
+  }
+  if (props.highlight !== undefined && !(nonEmptyString(props.highlight) && FIELD_NAME.test(props.highlight))) err(`${at}.props.highlight`, 'must be a field of the row, e.g. "isNew"')
+}
+
+function checkFedColumn(c, p, err) {
+  ;['text', 'sub', 'more'].forEach((k) => {
+    if (c[k] !== undefined && !(nonEmptyString(c[k]) && FIELD_NAME.test(c[k]))) err(`${p}.${k}`, 'must be a field of the row — letters, digits and _')
+  })
+  if (c.display !== undefined && !COLUMN_DISPLAYS.includes(c.display)) err(`${p}.display`, `must be one of: ${COLUMN_DISPLAYS.join(', ')}`)
+  if (c.more !== undefined && c.display !== 'images') err(`${p}.more`, 'only means something on an "images" column')
+  if (c.details !== undefined) {
+    if (!(nonEmptyString(c.details) && FUNCTION_NAME.test(c.details))) err(`${p}.details`, 'must be the name of a registered function (event "rowDetails")')
+    else if (c.display !== 'activity') err(`${p}.details`, 'is what an "activity" column\'s hover box lists — set display to "activity"')
+  }
+  if (c.sortable !== undefined && typeof c.sortable !== 'boolean') err(`${p}.sortable`, 'must be true or false')
+  if (c.badges !== undefined) {
+    if (!Array.isArray(c.badges)) { err(`${p}.badges`, 'must be an array of { field, label, tone? }'); return }
+    c.badges.forEach((b, k) => {
+      const bp = `${p}.badges[${k}]`
+      if (!b || typeof b !== 'object') { err(bp, 'must be { field, label, tone? }'); return }
+      if (!(nonEmptyString(b.field) && FIELD_NAME.test(b.field))) err(`${bp}.field`, 'must be a field of the row — the badge shows where it is true')
+      if (!nonEmptyString(b.label)) err(`${bp}.label`, 'must be the badge\'s text, e.g. "New"')
+      if (b.tone !== undefined && !BADGE_TONES.includes(b.tone)) err(`${bp}.tone`, `must be one of: ${BADGE_TONES.join(', ')}`)
+      const extra = Object.keys(b).filter((x) => !['field', 'label', 'tone'].includes(x))
+      if (extra.length) err(bp, `only "field", "label" and "tone" are used — remove: ${extra.join(', ')}`)
+    })
+  }
+}
+
+const BUTTON_KEYS = ['id', 'label', 'action', 'params', 'ask', 'when', 'disabledWhen', 'variant']
+const ASK_KEYS = ['title', 'message', 'note']
+
+/**
+ * A panel of buttons. Each names a function and the values it is given; the
+ * server checks the names against what is registered when the screen is
+ * published (functionProblems). Here: the shape.
+ */
+function checkButtons(props, at, err, ids) {
+  if (props.title !== undefined && typeof props.title !== 'string') err(`${at}.props.title`, 'must be a string')
+  if (!Array.isArray(props.buttons)) { err(`${at}.props.buttons`, 'must be an array of buttons — { id, label, action, params? }'); return }
+  props.buttons.forEach((b, j) => {
+    const p = `${at}.props.buttons[${j}]`
+    if (!b || typeof b !== 'object' || Array.isArray(b)) { err(p, 'must be { id, label, action, params? }'); return }
+    const extra = Object.keys(b).filter((k) => !BUTTON_KEYS.includes(k))
+    if (extra.length) err(p, `has keys a button does not use — remove: ${extra.join(', ')}`)
+    if (!(nonEmptyString(b.id) && /^[A-Za-z0-9_-]{1,60}$/.test(b.id))) err(`${p}.id`, 'must be letters, digits, _ or - — what a press names this button by, e.g. "packed"')
+    else if (ids.has(b.id)) err(`${p}.id`, `"${b.id}" is already the id of ${ids.get(b.id)} — every button on a screen needs its own`)
+    else ids.set(b.id, p)
+    if (!nonEmptyString(b.label)) err(`${p}.label`, 'must be the button\'s text, e.g. "Packed"')
+    if (!(nonEmptyString(b.action) && FUNCTION_NAME.test(b.action))) err(`${p}.action`, 'must be the name of a registered function (event "button"), e.g. "setOrderStatus"')
+    if (b.params !== undefined) {
+      if (!b.params || typeof b.params !== 'object' || Array.isArray(b.params)) err(`${p}.params`, 'must be { name: value } — what the function is given')
+      else Object.keys(b.params).forEach((k) => {
+        const v = b.params[k]
+        if (!(v === null || ['string', 'number', 'boolean'].includes(typeof v))) err(`${p}.params.${k}`, 'must be a plain value — text, a number, true or false')
+      })
+    }
+    if (b.ask !== undefined) {
+      if (!b.ask || typeof b.ask !== 'object' || Array.isArray(b.ask)) err(`${p}.ask`, 'must be { title?, message?, note? } — what the person is asked before it runs')
+      else {
+        const bad = Object.keys(b.ask).filter((k) => !ASK_KEYS.includes(k))
+        if (bad.length) err(`${p}.ask`, `only ${ASK_KEYS.map((k) => `"${k}"`).join(', ')} are used — remove: ${bad.join(', ')}`)
+        ASK_KEYS.forEach((k) => { if (b.ask[k] !== undefined && typeof b.ask[k] !== 'string') err(`${p}.ask.${k}`, 'must be a string') })
+      }
+    }
+    if (b.variant !== undefined && !BUTTON_VARIANTS.includes(b.variant)) err(`${p}.variant`, `must be one of: ${BUTTON_VARIANTS.join(', ')}`)
+    ;['when', 'disabledWhen'].forEach((k) => { if (b[k] !== undefined) checkRules(b[k], `${p}.${k}`, err) })
+  })
+}
+
+/** Conditions on the record: @xeplr/rules rules, every one of which must match. */
+function checkRules(rules, at, err) {
+  if (!Array.isArray(rules)) { err(at, 'must be an array of { field, op, value } — every one must match'); return }
+  rules.forEach((r, k) => {
+    const p = `${at}[${k}]`
+    if (!r || typeof r !== 'object') { err(p, 'must be { field, op, value }'); return }
+    if (!(nonEmptyString(r.field) && FIELD_NAME.test(r.field))) err(`${p}.field`, 'must be a field of the record, e.g. "customStatus"')
+    const op = CONDITION_OPERATORS.find((o) => o.key === r.op)
+    if (!op) { err(`${p}.op`, `must be one of: ${CONDITION_OPERATORS.map((o) => o.key).join(', ')}`); return }
+    if (!op.noValue && (r.value === undefined || r.value === null || r.value === '')) err(`${p}.value`, 'needs a value to compare with')
+    if (op.second && (r.value2 === undefined || r.value2 === null || r.value2 === '')) err(`${p}.value2`, 'needs the other end of the range')
+    const extra = Object.keys(r).filter((x) => !['field', 'op', 'value', 'value2'].includes(x))
+    if (extra.length) err(p, `only "field", "op", "value" and "value2" are used — remove: ${extra.join(', ')}`)
+  })
 }
 
 /**

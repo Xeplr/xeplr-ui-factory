@@ -83,6 +83,10 @@ export function createFactoryApi({ fetch: doFetch, base = '' } = {}) {
   }
   const one = (rows) => (Array.isArray(rows) ? rows[0] : rows)
   const enc = encodeURIComponent
+  const query = (params) => {
+    const pairs = Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '')
+    return pairs.length ? '?' + pairs.map(([k, v]) => `${enc(k)}=${enc(v)}`).join('&') : ''
+  }
 
   const api = {
     // screens
@@ -123,6 +127,16 @@ export function createFactoryApi({ fetch: doFetch, base = '' } = {}) {
     onDelete: ({ id, screen }) => call('POST', `/records/${enc(screen)}/delete`, { id }),
     fetchOptions: ({ table }) => call('GET', `/options/${enc(table)}`),
 
+    // ROWS A FUNCTION WORKS OUT, for a list with rowsFrom: { rows, counts }.
+    // Only what the person typed goes with it — the function is the screen's.
+    fetchRows: async ({ screen, node, q, filter }) => one(await call('GET', `/rows/${enc(screen)}${query({ node, q, filter })}`)),
+    // An activity cell's hover box for one row.
+    fetchRowDetails: ({ screen, node, column, id }) => call('GET', `/rows/${enc(screen)}/details${query({ node, column, id })}`),
+    // A button's press on one record → { button, message, output }. The
+    // server reads the button — its function and parameters — from the
+    // published screen; the request names it and carries the note.
+    pressButton: async ({ screen, button, id, note }) => one(await call('POST', `/buttons/${enc(screen)}/${enc(button)}`, note ? { id, note } : { id })),
+
     // A file field's upload. The answer's `path` is what the record stores;
     // the file itself is read back through the same route, with auth.
     uploadFile: async (file, { screen, field }) => {
@@ -132,11 +146,12 @@ export function createFactoryApi({ fetch: doFetch, base = '' } = {}) {
     },
     fileUrl: (path) => `${base}/factory/files/${String(path).split('/').map(enc).join('/')}`
   }
-  api.screenProps = { loadScreen: api.loadScreen, onSave: api.onSave, fetchRecords: api.fetchRecords, fetchRecord: api.fetchRecord, onDelete: api.onDelete, fetchOptions: api.fetchOptions, uploadFile: api.uploadFile, fileUrl: api.fileUrl }
+  api.screenProps = { loadScreen: api.loadScreen, onSave: api.onSave, fetchRecords: api.fetchRecords, fetchRecord: api.fetchRecord, onDelete: api.onDelete, fetchOptions: api.fetchOptions, uploadFile: api.uploadFile, fileUrl: api.fileUrl,
+    fetchRows: api.fetchRows, fetchRowDetails: api.fetchRowDetails, pressButton: api.pressButton }
   // makeChildTable: a list on a form can make the table it is about to point
   // at — rows belonging to this record — without leaving the designer. A
   // server act, which is why the builder is given it rather than doing it.
-  api.builderProps = { onSave: api.saveDraft, onPublish: api.publish, listTables: api.listTables, fetchOptions: api.fetchOptions, fetchRecords: api.fetchRecords, makeChildTable: function (spec) { return createChildTable(api, spec) },
+  api.builderProps = { onSave: api.saveDraft, onPublish: api.publish, listTables: api.listTables, listFunctions: api.listFunctions, fetchOptions: api.fetchOptions, fetchRecords: api.fetchRecords, makeChildTable: function (spec) { return createChildTable(api, spec) },
     // The builder designs a child table in place, which needs the same calls
     // this api already makes — handed over rather than rebuilt.
     screenApi: api }

@@ -570,7 +570,12 @@ console.log('\nthe stylesheet')
     // (ScreenModal) and a child table's designer (BuilderSample) are both
     // "something over the page, with a head and a body". Two sets of classes
     // for that is two dialogs that drift apart.
-    'xeplr-factory-modal-backdrop', 'xeplr-factory-modal', 'xeplr-factory-modal-head', 'xeplr-factory-modal-body'
+    'xeplr-factory-modal-backdrop', 'xeplr-factory-modal', 'xeplr-factory-modal-head', 'xeplr-factory-modal-body',
+    // …and a button's "ask first" (ButtonsView) is that same surface.
+    'xeplr-factory-modal-title', 'xeplr-factory-modal-close',
+    // ONE LIST, TWO VIEWS: a table's records (ListView) and rows a function
+    // works out (FedList) are the same card, with the same title and states.
+    'xeplr-factory-list', 'xeplr-factory-list-title', 'xeplr-factory-list-empty', 'xeplr-factory-error-inline'
   ]
   const clashes = [...used.entries()].filter(([c, fs2]) => fs2.size > 1 && !SHARED.includes(c)).map(([c]) => c)
   check('no class is used by two components that did not agree to share it', clashes.length === 0, clashes.join(', '))
