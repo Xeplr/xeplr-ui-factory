@@ -1,7 +1,7 @@
 {
   "name": "@xeplr/ui-factory",
-  "version": "1.8.3",
-  "description": "Design data-entry screens on @xeplr/ui-canvas, save them as JSON, run them as auto-saving forms with lists of saved records \u2014 built for Claude to draft and people to refine",
+  "version": "1.8.4",
+  "description": "Design data-entry screens on @xeplr/ui-canvas, save them as JSON, run them as auto-saving forms with lists of saved records — built for Claude to draft and people to refine",
   "type": "module",
   "main": "src/index.js",
   "exports": {
