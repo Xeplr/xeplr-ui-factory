@@ -372,6 +372,10 @@ button.xeplr-factory-activity-item:hover, button.xeplr-factory-activity-item:foc
 .xeplr-factory-button--danger { color: var(--xf-danger); border-color: color-mix(in srgb, var(--xf-danger) 55%, var(--xf-border)); }
 .xeplr-factory-button--danger:hover:not(:disabled) { background: color-mix(in srgb, var(--xf-danger) 10%, transparent); }
 .xeplr-factory-buttons--design .xeplr-factory-button { cursor: inherit; }
+/* The current choice (pressedWhen): filled, and never faded — greyed out is
+   "unavailable", which the current status is not. */
+.xeplr-factory-button--pressed,
+.xeplr-factory-button--pressed:disabled { color: var(--xf-accent-ink); background: var(--xf-accent); border-color: var(--xf-accent); opacity: 1; }
 .xeplr-factory-buttons-note {
   display: inline-flex; align-items: center; gap: 6px; font-size: .9em; padding: 4px 6px 4px 10px; border-radius: 6px;
   color: var(--xf-good); background: color-mix(in srgb, var(--xf-good) 10%, transparent);

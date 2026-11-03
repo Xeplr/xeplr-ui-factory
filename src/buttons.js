@@ -7,6 +7,7 @@
 //
 //   { id: 'packed', label: 'Packed', action: 'setOrderStatus', params: { status: 'packed' },
 //     ask: { title: 'Change status to Packed', note: 'Reason (optional)' },
+//     pressedWhen:  [{ field: 'customStatus', op: 'eq', value: 'packed' }],
 //     disabledWhen: [{ field: 'customStatus', op: 'eq', value: 'packed' }] }
 //
 // The function lives in the app, registered with @xeplr/actions and an
@@ -63,6 +64,16 @@ export function buttonShown(button, record) {
 /** Whether a shown button is greyed out for this record. No disabledWhen: never. */
 export function buttonDisabled(button, record) {
   const rules = button && button.disabledWhen
+  return Array.isArray(rules) && rules.length > 0 && conditionMet(rules, record)
+}
+
+/**
+ * Whether a button is drawn as the CURRENT choice — the status an order is
+ * at, filled in. Usually also its disabledWhen: choosing it again changes
+ * nothing. No pressedWhen: never.
+ */
+export function buttonPressed(button, record) {
+  const rules = button && button.pressedWhen
   return Array.isArray(rules) && rules.length > 0 && conditionMet(rules, record)
 }
 
