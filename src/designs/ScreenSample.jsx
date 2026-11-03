@@ -183,9 +183,11 @@ export default function ScreenSample({ ctrl, className, style, renderPopup, rend
   // Nor a <form> of its own — one form inside another is not valid HTML.
   const Page = ctrl.embedded ? 'div' : 'form'
   const steppers = ctrl.steps.nodes
-  // A list that grows with its rows (its screen's one control): the page is
-  // as tall as the list, rather than the list scrolling in a fixed box.
-  const grows = shown.length === 1 && shown[0].type === 'list' && Boolean(shown[0].props && shown[0].props.grow)
+  // A list that grows with its rows, or a panel of buttons (wrapping on a
+  // narrow screen) — its screen's one control: the page is as tall as it is,
+  // rather than it scrolling or spilling out of a fixed box.
+  const only = shown.length === 1 ? shown[0] : null
+  const grows = Boolean(only && ((only.type === 'list' && only.props && only.props.grow) || only.type === 'buttons'))
 
   return (
     <div

@@ -70,8 +70,9 @@
   position: absolute; box-sizing: border-box;
   left: var(--xf-x); top: var(--xf-y); width: var(--xf-w); height: var(--xf-h);
 }
-/* A list that grows with its rows (props.grow — its screen's one control):
-   in the flow, where it was placed across, as tall as it needs. */
+/* A list that grows with its rows (props.grow), or a panel of buttons — its
+   screen's one control: in the flow, where it was placed across, as tall as
+   it needs. */
 .xeplr-factory-page--grows { height: auto; }
 .xeplr-factory-page--grows > .xeplr-factory-node { position: static; margin: var(--xf-y) 0 0 var(--xf-x); height: auto; }
 .xeplr-factory-page--grows .xeplr-factory-list { max-height: none; }
