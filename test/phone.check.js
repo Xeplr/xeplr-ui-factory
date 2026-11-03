@@ -182,6 +182,7 @@ try {
     const said = await page.locator('.dev-order .xeplr-factory-buttons-note').first().textContent().catch(() => '')
     check(`buttons: the press says what it did`, /GA1025: Packed/.test(said), said)
     check(`buttons: its button is greyed out now`, await packed.isDisabled())
+    check(`buttons: …and drawn as the current choice`, (await packed.getAttribute('aria-pressed')) === 'true' && (await packed.evaluate((el) => getComputedStyle(el).opacity)) === '1')
     const first = await page.$eval('tbody tr td:nth-child(4)', (el) => el.textContent.trim())
     check(`buttons: the list behind it shows the change`, first === 'Packed', first)
     const cod = page.locator('.dev-order .xeplr-factory-button', { hasText: 'Confirm COD' })

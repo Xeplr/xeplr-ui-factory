@@ -985,6 +985,7 @@ function ButtonsEditor({ value, onChange, functions }) {
             )}
             <ConditionsEditor label="Shows when" value={b.when} onChange={(v) => edit(i, { when: v })} />
             <ConditionsEditor label="Greyed out when" value={b.disabledWhen} onChange={(v) => edit(i, { disabledWhen: v })} />
+            <ConditionsEditor label="Shown as the current choice when" value={b.pressedWhen} onChange={(v) => edit(i, { pressedWhen: v })} />
             <MiniField label="Look">
               <select className="xeplr-factory-prop-input" value={b.variant || 'default'} onChange={(e) => edit(i, { variant: e.target.value === 'default' ? undefined : e.target.value })}>
                 {BUTTON_VARIANTS.map((v) => <option key={v} value={v}>{VARIANT_LABELS[v]}</option>)}

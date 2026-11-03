@@ -522,7 +522,7 @@ function checkFedColumn(c, p, err) {
   }
 }
 
-const BUTTON_KEYS = ['id', 'label', 'action', 'params', 'ask', 'when', 'disabledWhen', 'variant']
+const BUTTON_KEYS = ['id', 'label', 'action', 'params', 'ask', 'when', 'disabledWhen', 'pressedWhen', 'variant']
 const ASK_KEYS = ['title', 'message', 'note']
 
 /**
@@ -559,7 +559,7 @@ function checkButtons(props, at, err, ids) {
       }
     }
     if (b.variant !== undefined && !BUTTON_VARIANTS.includes(b.variant)) err(`${p}.variant`, `must be one of: ${BUTTON_VARIANTS.join(', ')}`)
-    ;['when', 'disabledWhen'].forEach((k) => { if (b[k] !== undefined) checkRules(b[k], `${p}.${k}`, err) })
+    ;['when', 'disabledWhen', 'pressedWhen'].forEach((k) => { if (b[k] !== undefined) checkRules(b[k], `${p}.${k}`, err) })
   })
 }
 

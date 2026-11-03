@@ -37,7 +37,8 @@ export default function ButtonsView({ node, design, panel }) {
         <button
           key={b.id}
           type="button"
-          className={`xeplr-factory-button xeplr-factory-button--${b.variant || 'default'}`}
+          className={`xeplr-factory-button xeplr-factory-button--${b.variant || 'default'}${b.pressed ? ' xeplr-factory-button--pressed' : ''}`}
+          aria-pressed={b.pressedWhen ? Boolean(b.pressed) : undefined}
           disabled={b.disabled || Boolean(panel.pressing)}
           aria-busy={panel.pressing === b.id}
           onClick={() => run(b)}

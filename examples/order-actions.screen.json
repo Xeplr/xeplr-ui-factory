@@ -28,6 +28,13 @@
               "title": "Change status to “Packed”?",
               "note": "Reason (optional)"
             },
+            "pressedWhen": [
+              {
+                "field": "customStatus",
+                "op": "eq",
+                "value": "packed"
+              }
+            ],
             "disabledWhen": [
               {
                 "field": "customStatus",
@@ -47,6 +54,13 @@
               "title": "Change status to “Shipped”?",
               "note": "Reason (optional)"
             },
+            "pressedWhen": [
+              {
+                "field": "customStatus",
+                "op": "eq",
+                "value": "shipped"
+              }
+            ],
             "disabledWhen": [
               {
                 "field": "customStatus",
@@ -66,6 +80,13 @@
               "title": "Change status to “Delivered”?",
               "note": "Reason (optional)"
             },
+            "pressedWhen": [
+              {
+                "field": "customStatus",
+                "op": "eq",
+                "value": "delivered"
+              }
+            ],
             "disabledWhen": [
               {
                 "field": "customStatus",

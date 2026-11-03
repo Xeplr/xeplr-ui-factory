@@ -433,6 +433,7 @@ actions.register({
 | `ask` | asked first: `title`, `message`, and `note` — the label of a note box, whose text reaches the function as `note` (it must take one) |
 | `when` | shown only when every rule matches the record |
 | `disabledWhen` | greyed out when every rule matches |
+| `pressedWhen` | drawn as the **current choice** (filled, `aria-pressed`) when every rule matches — the status an order is at. Give it the same rules as `disabledWhen` when choosing it again would change nothing |
 | `variant` | `default`, `primary`, `danger` |
 
 Rules are [`@xeplr/rules`](https://www.npmjs.com/package/@xeplr/rules) rules — `{ field, op, value }`, with `eq`, `neq`, `isEmpty`, `contains`, `gt`, … — read from **the record the screen is about**: the `record` handed to `<FactoryScreen>`, with the form's own changes on top.

@@ -5,7 +5,7 @@
 // Plain script: prints its checks, exits non-zero on failure. No framework.
 import {
   validateDocument, createScreen, addControl, setNodeProperty,
-  conditionMet, buttonShown, buttonDisabled, buttonById, buttonInput, screenButtons,
+  conditionMet, buttonShown, buttonDisabled, buttonPressed, buttonById, buttonInput, screenButtons,
   nodeFunctions, paramProblems, functionProblems, CONTROLS, webOnlyMenus, routesIn
 } from '../src/model.js'
 
@@ -80,6 +80,8 @@ console.log('\nwhen a button shows, and when it is greyed out')
   check('Confirm COD shows until it is confirmed', buttonShown(COD, { paymentMethod: 'COD' }) && !buttonShown(COD, { paymentMethod: 'COD Confirmed' }))
   check('the current status\'s button is disabled', buttonDisabled(PACKED, { customStatus: 'packed' }) && !buttonDisabled(PACKED, { customStatus: 'shipped' }))
   check('a button with no disabledWhen is never disabled', !buttonDisabled(COD, { paymentMethod: 'COD Confirmed' }))
+  check('the current choice is drawn pressed', buttonPressed({ pressedWhen: [{ field: 'customStatus', op: 'eq', value: 'packed' }] }, { customStatus: 'packed' }) && !buttonPressed(PACKED, { customStatus: 'packed' }))
+  check('pressedWhen is checked like the others', /pressedWhen\[0\]\.op must be one of/.test(errs(panel([{ ...PACKED, pressedWhen: [{ field: 'a', op: 'is' }] }]))))
   check('a missing field reads as blank', conditionMet([{ field: 'customStatus', op: 'isEmpty' }], {}))
 }
 

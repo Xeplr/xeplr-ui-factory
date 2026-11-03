@@ -5,7 +5,7 @@ import { validateDocument } from './validateDocument.js'
 import { initialValues, parseInput, saveState, fieldError, optionValue, recordValues, listSource, resolveBinding } from './values.js'
 import { hookMethod } from './hooks.js'
 import { useUrlSteps, useUrlListQuery } from './useUrlPlaces.js'
-import { buttonShown, buttonDisabled } from './buttons.js'
+import { buttonShown, buttonDisabled, buttonPressed } from './buttons.js'
 
 // A saved screen, running. No JSX — designs/ScreenSample.jsx draws it.
 //
@@ -838,7 +838,7 @@ export function useFactoryScreen({
     record: buttonRecord,
     buttons: ((node.props && node.props.buttons) || [])
       .filter((b) => buttonShown(b, buttonRecord))
-      .map((b) => ({ ...b, disabled: buttonDisabled(b, buttonRecord) || recordId === null || recordId === undefined })),
+      .map((b) => ({ ...b, pressed: buttonPressed(b, buttonRecord), disabled: buttonDisabled(b, buttonRecord) || recordId === null || recordId === undefined })),
     pressing,
     note: buttonNote,
     clearNote: () => setButtonNote(null),
