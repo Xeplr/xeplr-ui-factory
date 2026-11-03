@@ -183,6 +183,9 @@ export default function ScreenSample({ ctrl, className, style, renderPopup, rend
   // Nor a <form> of its own — one form inside another is not valid HTML.
   const Page = ctrl.embedded ? 'div' : 'form'
   const steppers = ctrl.steps.nodes
+  // A list that grows with its rows (its screen's one control): the page is
+  // as tall as the list, rather than the list scrolling in a fixed box.
+  const grows = shown.length === 1 && shown[0].type === 'list' && Boolean(shown[0].props && shown[0].props.grow)
 
   return (
     <div
@@ -190,7 +193,7 @@ export default function ScreenSample({ ctrl, className, style, renderPopup, rend
       style={{ maxWidth: doc.width, '--xf-margin': `${MARGIN * 100}%`, ...screenStyle(doc), ...style }}
     >
       <Page
-        className="xeplr-factory-page"
+        className={'xeplr-factory-page' + (grows ? ' xeplr-factory-page--grows' : '')}
         style={{ '--xf-page-h': `${pageHeight}cqw` }}
         // Never a submit: Enter posts nothing and saves nothing. Save is a button.
         {...(ctrl.embedded ? { role: 'group' } : { onSubmit: (e) => e.preventDefault(), noValidate: true })}

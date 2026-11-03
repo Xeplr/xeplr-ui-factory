@@ -454,7 +454,7 @@ filter chips and the count on each:
   "title": "Orders", "rowsFrom": "orderList", "actions": [], "editScreen": "order_actions", "openIn": "page", "rowOpen": true,
   "search": { "placeholder": "Search order, customer or city" },
   "filters": [{ "key": "all", "label": "All" }, { "key": "packed", "label": "Packed" }],
-  "refreshEvery": 60, "highlight": "isNew", "pageSize": 50,
+  "refreshEvery": 60, "highlight": "isNew", "pageSize": 50, "grow": true,
   "columns": [
     { "field": "orderNumber", "label": "Order", "text": "orderLabel", "badges": [{ "field": "isNew", "label": "New" }, { "field": "cancelled", "label": "Cancelled", "tone": "danger" }] },
     { "field": "customerName", "label": "Customer", "sub": "city" },
@@ -488,6 +488,7 @@ actions.register({ name: 'orderActivity', event: 'rowDetails', execute: async (c
 
 - **The search and the chip live in the URL** under the screen's `urlKey` (`<urlKey>Q`, `<urlKey>Filter`), so a refresh shows the same rows. The search waits for a pause in typing.
 - **`refreshEvery`** (seconds, 10–3600) asks again — for text that changes with time. **`reloadKey`** on `<FactoryScreen>` reloads every list when it changes (the host heard something happen).
+- **`grow`** (a list that is its screen's **one** control) lets the page grow with the rows on a desktop, instead of the list scrolling inside the box it was placed in — a full-page list like Orders. Phones always flow.
 - **`rowOpen`** makes a click anywhere on a row open it (the first cell is also a button, for the keyboard); **`highlight`** marks rows whose field is true.
 - **Rows that are worked out are not a table's records**: no Delete, and Edit / New only with an `editScreen`.
 - Routes: `GET /factory/rows/:screen` (`?node=&q=&filter=`) and `/factory/rows/:screen/details` (`?node=&column=&id=`) — see `@xeplr/factory`.

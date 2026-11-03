@@ -412,6 +412,9 @@ function checkList(props, doc, at, err) {
   if (fed && !(nonEmptyString(props.rowsFrom) && FUNCTION_NAME.test(props.rowsFrom))) err(`${at}.props.rowsFrom`, 'must be the name of a registered function (event "listRows"), e.g. "orderList"')
   if (!fed && props.source === undefined && doc.source === undefined) err(`${at}.props.source`, 'is required when the screen has no "source" — which table should the list read? (or "rowsFrom": a function that works the rows out)')
   checkFedList(props, fed, at, err)
+  if (props.grow !== undefined && typeof props.grow !== 'boolean') err(`${at}.props.grow`, 'must be true or false')
+  // The page grows with it, so nothing can be placed beside or under it.
+  if (props.grow && doc.nodes.length !== 1) err(`${at}.props.grow`, 'only for a list that is the screen\'s one control — the page grows with it, so nothing else has a place')
   if (props.editScreen !== undefined && !(nonEmptyString(props.editScreen) && SCREEN_ID.test(props.editScreen))) err(`${at}.props.editScreen`, 'must be the id of the screen that edits a record, e.g. "employee_edit"')
 
   // THE LINK BACK, for a sub-table on a form: this material's

@@ -46,6 +46,7 @@
         ],
         "refreshEvery": 60,
         "highlight": "isNew",
+        "grow": true,
         "columns": [
           {
             "field": "orderNumber",

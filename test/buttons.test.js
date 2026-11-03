@@ -141,6 +141,8 @@ console.log('\na list whose rows a function works out')
   check('worked-out rows cannot be deleted', /cannot include "delete"/.test(errs(fedList({ rowsFrom: 'orderList', actions: ['delete'] }))))
   check('Edit on worked-out rows needs a screen to open', /Edit and New need "Edit in"/.test(errs(fedList({ rowsFrom: 'orderList', actions: ['edit'] }))))
   check('a row that opens on click needs a screen to open', /rowOpen needs "Edit in"/.test(errs(fedList({ rowsFrom: 'orderList', actions: [], rowOpen: true }))))
+  check('a list may grow with its rows when it is the screen\'s one control', validateDocument(fedList({ rowsFrom: 'orderList', actions: [], grow: true })).ok)
+  check('…and not beside anything else', (() => { const d = fedList({ rowsFrom: 'orderList', actions: [], grow: true }); return /only for a list that is the screen's one control/.test(errs(addControl(d, 'label').document)) })())
   check('refreshing more often than every 10 seconds is refused', /from 10 to 3600/.test(errs(fedList({ rowsFrom: 'orderList', actions: [], refreshEvery: 2 }))))
 }
 

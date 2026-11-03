@@ -548,7 +548,7 @@ CONTROLS.list = {
   // rowsFrom: rows a registered function works out (event "listRows") —
   // with its search box, filter chips and their counts — instead of one
   // table's records. See buttons.js.
-  props: ['title', 'source', 'belongsTo', 'editScreen', 'openIn', 'columns', 'pageSize', 'actions', 'rowsFrom', 'search', 'filters', 'refreshEvery', 'rowOpen', 'highlight', 'style'],
+  props: ['title', 'source', 'belongsTo', 'editScreen', 'openIn', 'columns', 'pageSize', 'actions', 'rowsFrom', 'search', 'filters', 'refreshEvery', 'rowOpen', 'highlight', 'grow', 'style'],
   validation: [],
   styles: ['fontFamily', 'fontSize', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'],
   properties: [
@@ -583,7 +583,9 @@ CONTROLS.list = {
         { path: 'props.filters', label: 'Filter chips', type: 'filters', help: 'The first is where the list starts. The function counts each.' },
         { path: 'props.refreshEvery', label: 'Refresh every (seconds)', type: 'number', help: 'For rows whose text changes with time, like "2h ago". Blank → never.' },
         { path: 'props.rowOpen', label: 'A click on a row opens it', type: 'toggle' },
-        { path: 'props.highlight', label: 'Mark rows where', type: 'text', help: 'A field of the row; a row where it is true is marked — "isNew".' }
+        { path: 'props.highlight', label: 'Mark rows where', type: 'text', help: 'A field of the row; a row where it is true is marked — "isNew".' },
+        { path: 'props.grow', label: 'As tall as its rows', type: 'toggle',
+          help: 'The page grows with the list instead of the list scrolling in its box. Only for a list that is the screen\'s one control.' }
       ]
     },
     { key: 'columns', title: 'Columns', fields: [{ path: 'props.columns', label: 'Columns', type: 'columns' }] },
