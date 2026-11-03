@@ -4,7 +4,8 @@ import { inputNodes, nodesForSteps, steppers, stepsOf, stepOf, resolveStep, reac
 import { validateDocument } from './validateDocument.js'
 import { initialValues, parseInput, saveState, fieldError, optionValue, recordValues, listSource, resolveBinding } from './values.js'
 import { hookMethod } from './hooks.js'
-import { useUrlSteps } from './useUrlPlaces.js'
+import { useUrlSteps, useUrlListQuery } from './useUrlPlaces.js'
+import { buttonShown, buttonDisabled } from './buttons.js'
 
 // A saved screen, running. No JSX — designs/ScreenSample.jsx draws it.
 //
@@ -58,6 +59,11 @@ import { useUrlSteps } from './useUrlPlaces.js'
  * @param onDirtyChange (dirty) → void — whether there are unsaved changes, as that changes
  * @param controls      the control registry (default: the built-ins)
  * @param hooks         a FactoryHooks (or an object with some of its methods) — get / save / delete / actions
+ * @param fetchRows     async ({ screen, node, q, filter }) → { rows, counts } — a list whose rows a function works out (rowsFrom)
+ * @param fetchRowDetails async ({ screen, node, column, id }) → [{ text, sub?, at?, open? }] — an activity cell's hover box
+ * @param pressButton   async ({ screen, button, id, note }) → { message } — a button's press, run on the server
+ * @param onButtonDone  ({ button, result, record }) → void — after a press: the host reloads what it shows
+ * @param reloadKey     anything — when it changes, every list reloads (the host heard something changed)
  * @param urlKey        where the open step of each stepper lives in the URL (`<urlKey>Steps`),
  *                      so a refresh or a shared link lands on the same step. Omitted → in memory.
  */
@@ -72,9 +78,13 @@ import { useUrlSteps } from './useUrlPlaces.js'
  *   whose default is `{previous.department_edit.values.name}` is filled from
  *   here — empty when that screen was not on this run's path.
  */
+/** How long typing in a list's search pauses before it asks. */
+const SEARCH_PAUSE_MS = 250
+
 export function useFactoryScreen({
   document: doc, record, recordKey = 'id', onSave, fetchOptions, fetchRecords, fetchRecord, onDelete, onChange, screens, loadScreen, hooks, uploadFile, fileUrl,
   onOpenRecord, onDone, onDirtyChange, params, urlKey, previous,
+  fetchRows, fetchRowDetails, pressButton, onButtonDone, reloadKey,
   link, onReady,
   controls = CONTROLS
 } = {}) {
@@ -591,20 +601,47 @@ export function useFactoryScreen({
   }, [doc, record]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── lists ─────────────────────────────────────────────────────────────
-  const [lists, setLists] = useState({})   // node id → { loading, rows, error }
+  const [lists, setLists] = useState({})   // node id → { loading, rows, error, counts }
   const fetchRecordsRef = useRef(fetchRecords); fetchRecordsRef.current = fetchRecords
+  const fetchRowsRef = useRef(fetchRows); fetchRowsRef.current = fetchRows
   const listNodes = useMemo(() => (check.ok ? doc.nodes.filter((n) => n.type === 'list') : []), [doc, check.ok])
+  // WHAT A FUNCTION-FED LIST IS NARROWED TO — the search typed and the chip
+  // chosen. In the URL under the host's urlKey, so a refresh lands on the same
+  // rows. The search waits for a pause in typing before it asks.
+  const [listQ, setListQ] = useUrlListQuery(urlKey, 'q')
+  const [listFilter, setListFilter] = useUrlListQuery(urlKey, 'filter')
+  const [askedQ, setAskedQ] = useState(listQ)
+  useEffect(() => {
+    if (askedQ === listQ) return undefined
+    const t = setTimeout(() => setAskedQ(listQ), SEARCH_PAUSE_MS)
+    return () => clearTimeout(t)
+  }, [listQ, askedQ])
+  // A list whose text changes with time ("2h ago") asks again every so often.
+  const refreshEvery = useMemo(() => Math.min(...listNodes.map((n) => n.props.refreshEvery || Infinity)), [listNodes])
+  useEffect(() => {
+    if (!Number.isFinite(refreshEvery)) return undefined
+    const t = setInterval(() => setListVersion((v) => v + 1), refreshEvery * 1000)
+    return () => clearInterval(t)
+  }, [refreshEvery])
   useEffect(() => {
     if (!listNodes.length) return undefined
     let cancelled = false
     listNodes.forEach((node) => {
       const src = listSource(doc, node)
-      setLists((l) => ({ ...l, [node.id]: { rows: l[node.id]?.rows || [], loading: true, error: null } }))
+      const fed = Boolean(node.props.rowsFrom)
+      setLists((l) => ({ ...l, [node.id]: { rows: l[node.id]?.rows || [], counts: l[node.id]?.counts || {}, loading: true, error: null } }))
       const run = Promise.resolve().then(() => hook('get')({
         many: true, id: null, screen: doc.id, source: src, node, document: doc,
         steps: live.current.steps,
+        query: fed ? { q: askedQ, filter: listFilter } : undefined,
         defaults: {
           get: () => {
+            // ROWS A FUNCTION WORKS OUT: the server runs the list's rowsFrom
+            // with the search and the chip, and answers { rows, counts }.
+            if (fed) {
+              if (!fetchRowsRef.current) throw new Error(`No fetchRows was provided — the list's rows come from "${node.props.rowsFrom}"`)
+              return fetchRowsRef.current({ screen: doc.id, node: node.id, q: askedQ, filter: listFilter || undefined })
+            }
             if (!fetchRecordsRef.current) throw new Error(`No fetchRecords was provided to list "${src}"`)
             // A SUB-TABLE IS THIS RECORD'S. `belongsTo` names the column on
             // those rows that points back here, and the id is this record's
@@ -620,11 +657,26 @@ export function useFactoryScreen({
         }
       }))
       run
-        .then((rows) => { if (!cancelled) setLists((l) => ({ ...l, [node.id]: { rows: Array.isArray(rows) ? rows : [], loading: false, error: null } })) })
-        .catch((err) => { if (!cancelled) setLists((l) => ({ ...l, [node.id]: { rows: l[node.id]?.rows || [], loading: false, error: err.message || 'Could not load records' } })) })
+        .then((out) => {
+          if (cancelled) return
+          const rows = Array.isArray(out) ? out : out && Array.isArray(out.rows) ? out.rows : []
+          const counts = out && !Array.isArray(out) && out.counts ? out.counts : {}
+          setLists((l) => ({ ...l, [node.id]: { rows, counts, loading: false, error: null } }))
+        })
+        .catch((err) => { if (!cancelled) setLists((l) => ({ ...l, [node.id]: { rows: l[node.id]?.rows || [], counts: l[node.id]?.counts || {}, loading: false, error: err.message || 'Could not load records' } })) })
     })
     return () => { cancelled = true }
-  }, [listNodes, listVersion, doc])
+  }, [listNodes, listVersion, doc, askedQ, listFilter, reloadKey]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** What a function-fed list is narrowed to, and how to change it. */
+  const listQuery = useMemo(() => ({ q: listQ, filter: listFilter, setQ: setListQ, setFilter: setListFilter }), [listQ, listFilter, setListQ, setListFilter])
+
+  /** An activity cell's hover box: the column's function, for one row. */
+  const fetchRowDetailsRef = useRef(fetchRowDetails); fetchRowDetailsRef.current = fetchRowDetails
+  const rowDetails = useCallback((node, column, id) => {
+    if (!fetchRowDetailsRef.current) return Promise.reject(new Error('No fetchRowDetails was provided'))
+    return Promise.resolve(fetchRowDetailsRef.current({ screen: doc.id, node: node.id, column: column.field, id }))
+  }, [doc])
 
   const listFor = useCallback((node) => lists[node.id] || { rows: [], loading: false, error: null }, [lists])
 
@@ -674,7 +726,9 @@ export function useFactoryScreen({
    * open: the factory has no router, so it asks.
    */
   const openRecordRef = useRef(onOpenRecord); openRecordRef.current = onOpenRecord
-  const openEditor = useCallback(async (node, rec) => {
+  // `where`: a page opened at one part of the record — what a hover box's
+  // entry points at ({ task: 'tk_3' }), handed to onOpenRecord as params.
+  const openEditor = useCallback(async (node, rec, where) => {
     const screenId = node.props.editScreen
 
     // WHAT THE CHILD IS CALLED WITH. A sub-table's row belongs to THIS
@@ -687,7 +741,8 @@ export function useFactoryScreen({
     if (node.props.openIn === 'page') {
       if (!openRecordRef.current) throw new Error('This list opens records on a page, but no onOpenRecord was provided to go there')
       const id = rec ? rec[live.current.recordKey] : null
-      return openRecordRef.current({ screen: screenId, id, record: rec || null, source: listSource(doc, node), node, params: given })
+      const at = where && typeof where === 'object' ? where : null
+      return openRecordRef.current({ screen: screenId, id, record: rec || null, source: listSource(doc, node), node, params: given || at ? { ...(given || {}), ...(at || {}) } : given })
     }
     const base = { node, screenId, record: rec || null, document: null, loading: true, error: null, params: given }
     setPopup(base)
@@ -769,6 +824,43 @@ export function useFactoryScreen({
     return saved
   }, [])
 
+  // ── buttons ───────────────────────────────────────────────────────────
+  // A button acts on the record this screen is about: the one the host
+  // handed in, with whatever the form has changed on top. Whether each shows
+  // and is greyed out is read from it; the press runs on the server, which
+  // checks the same again on the saved record.
+  const pressRef = useRef(pressButton); pressRef.current = pressButton
+  const buttonDoneRef = useRef(onButtonDone); buttonDoneRef.current = onButtonDone
+  const [pressing, setPressing] = useState(null)        // button id on the wire
+  const [buttonNote, setButtonNote] = useState(null)    // { kind: 'done' | 'error', text, button }
+  const buttonRecord = useMemo(() => ({ ...(record || {}), ...values, [recordKey]: recordId }), [record, values, recordKey, recordId])
+  const buttonsFor = useCallback((node) => ({
+    record: buttonRecord,
+    buttons: ((node.props && node.props.buttons) || [])
+      .filter((b) => buttonShown(b, buttonRecord))
+      .map((b) => ({ ...b, disabled: buttonDisabled(b, buttonRecord) || recordId === null || recordId === undefined })),
+    pressing,
+    note: buttonNote,
+    clearNote: () => setButtonNote(null),
+    press: async (b, typed) => {
+      if (!pressRef.current) { setButtonNote({ kind: 'error', text: 'No pressButton was provided', button: b.id }); return false }
+      setPressing(b.id)
+      setButtonNote(null)
+      try {
+        const result = await pressRef.current({ screen: doc.id, button: b.id, id: recordId, note: typed })
+        setButtonNote({ kind: 'done', text: (result && result.message) || `${b.label} — done`, button: b.id })
+        setListVersion((v) => v + 1)
+        if (buttonDoneRef.current) buttonDoneRef.current({ button: b, result, record: buttonRecord })
+        return true
+      } catch (err) {
+        setButtonNote({ kind: 'error', text: err.message || `Could not ${b.label}`, button: b.id })
+        return false
+      } finally {
+        setPressing(null)
+      }
+    }
+  }), [buttonRecord, pressing, buttonNote, doc, recordId])
+
   return {
     document: doc,
     documentErrors: linkError ? [...check.errors, linkError] : check.errors,
@@ -805,6 +897,9 @@ export function useFactoryScreen({
     openRecord,
     newRecord,
     listFor,
+    listQuery,
+    rowDetails,
+    buttonsFor,
     deleteRecord,
     recordKey,
     canDelete: Boolean(onDelete) || Boolean(hooks && typeof hooks.delete === 'function'),

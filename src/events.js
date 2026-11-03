@@ -13,6 +13,8 @@
 // What each is called with, and what it may return, is the contract a
 // developer writes to. `@xeplr/factory` runs them; the designer lists them.
 
+import { nodeFunctions, paramProblems } from './buttons.js'
+
 export const SCREEN_EVENTS = [
   {
     key: 'beforeLoad',
@@ -81,6 +83,25 @@ export function missingFunctions(doc, registered) {
     if (f.event !== event) return [{ event, name, problem: `"${name}" is written for ${f.event ? `"${f.event}"` : 'a workflow step'}, not "${event}"` }]
     return []
   })
+}
+
+/**
+ * EVERYTHING THAT STOPS A SCREEN RUNNING ITS FUNCTIONS — its events, and the
+ * functions its controls name (a list's rows, a column's hover box, each
+ * button), plus each button's parameters against what its function takes.
+ * `registered` is the registry's list ([{ name, event, inputSchema }]).
+ * What publishing refuses on. Empty when the screen can run.
+ */
+export function functionProblems(doc, registered) {
+  const byName = new Map((registered || []).map((f) => [f.name, f]))
+  const fromNodes = nodeFunctions(doc).flatMap(({ event, name, at, button }) => {
+    const f = byName.get(name)
+    if (!f) return [{ event, name, at, problem: `"${name}" is not a registered function` }]
+    if (f.event !== event) return [{ event, name, at, problem: `"${name}" is written for ${f.event ? `"${f.event}"` : 'a workflow step'}, not "${event}"` }]
+    if (!button) return []
+    return paramProblems(button, f.inputSchema).map((p) => ({ event, name, at, problem: `button "${button.label || button.id}": "${name}" ${p}` }))
+  })
+  return [...missingFunctions(doc, registered), ...fromNodes]
 }
 
 /** The screen with one event set to a function — or cleared, given nothing. */

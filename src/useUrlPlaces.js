@@ -58,3 +58,16 @@ export function useUrlTab(urlKey, first) {
   const setTab = useCallback((next) => setValue(next === first ? null : next), [setValue, first])
   return [value || first, setTab]
 }
+
+/**
+ * [value, setValue] — a list's search, or the filter chip it is on: what the
+ * person narrowed the list to, so a refresh or a shared link shows the same
+ * rows. One of each per screen. Typing and switching chips replace the
+ * history entry rather than adding one per letter.
+ */
+export function useUrlListQuery(urlKey, which) {
+  const keys = factoryUrlKeys(urlKey)
+  const [value, setValue] = useUrlState(keys ? keys[which] : which, { inUrl: Boolean(keys), replace: true })
+  const set = useCallback((next) => setValue(next === undefined || next === null || next === '' ? null : String(next)), [setValue])
+  return [value || '', set]
+}

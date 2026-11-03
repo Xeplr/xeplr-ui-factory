@@ -78,6 +78,39 @@ console.log('\ncontrols and schema')
   check('no command prints usage', /usage:/.test(run([]).stderr))
 }
 
+console.log('\npages: web-only pages are said out loud, never refused')
+{
+  const ui = path.join(dir, 'ui')
+  const { mkdirSync } = await import('node:fs')
+  mkdirSync(path.join(ui, 'src'), { recursive: true })
+  writeFileSync(path.join(ui, 'src', 'App.jsx'), `
+    <Routes>
+      <Route path="/" element={<Navigate to="/orders" replace />} />
+      <Route path="/orders" element={<OrdersPage />} />
+      <Route path="/orders/:orderId" element={<OrdersPage />} />
+      <Route path="/home" element={<Home />} />
+      <Route path="*" element={<Navigate to="/auth/login" replace />} />
+    </Routes>`)
+  const none = run(['pages', ui])
+  check('no pages.json: a warning, exit 0', none.status === 0 && /no pages\.json/.test(none.stderr))
+  writeFileSync(path.join(ui, 'pages.json'), JSON.stringify({
+    routes: ['src/App.jsx'],
+    documents: [{ path: '/orders', menu: 'Orders', screen: 'orders_board' }],
+    webOnly: [{ path: '/orders/:orderId', menu: 'Orders', reason: 'Tasks and comments are hand-written.' }, { path: '/gone', reason: 'old' }]
+  }))
+  const r = run(['pages', ui])
+  check('a web-only page is warned about, with its reason', r.status === 0 && /\/orders\/:orderId is web only — it will not be in a phone app\. Tasks and comments/.test(r.stderr))
+  check('a route nobody listed is warned about', /\/home is not in pages\.json/.test(r.stderr))
+  check('a listed page no route declares any more is warned about', /\/gone is in pages\.json but no route declares it/.test(r.stderr))
+  check('redirects and the catch-all are not pages', !/"\/" is not|\* is not/.test(r.stderr) && !/^warning: \/ is not/m.test(r.stderr))
+  check('--strict makes warnings fail', run(['pages', ui, '--strict']).status === 1)
+  writeFileSync(path.join(ui, 'pages.json'), JSON.stringify({ documents: [{ path: '/orders' }, { path: '/orders/:orderId' }, { path: '/home' }] }))
+  const clean = run(['pages', ui])
+  check('everything listed, nothing web only: quiet', clean.status === 0 && /every page is listed/.test(clean.stdout) && clean.stderr === '')
+  writeFileSync(path.join(ui, 'pages.json'), JSON.stringify({ webOnly: [{ path: '/home' }] }))
+  check('a web-only page with no reason is called out', /webOnly\[0\]\.reason is required/.test(run(['pages', ui]).stderr))
+}
+
 const failed = results.filter(([, ok]) => !ok)
 console.log(`\n${results.length - failed.length}/${results.length} passed`)
 process.exit(failed.length ? 1 : 0)

@@ -25,7 +25,9 @@ A request for "a form for employees" is an **entity**. Every entity is the same 
 | the request says… | change |
 |---|---|
 | a field, a label, a rule, a dropdown, the layout, a colour | the screen JSON (then validate) |
-| "show / hide / filter rows on screen", "an extra button on each row", "fill in X before saving" (convenience) | front-end hooks in `EditEmployee.jsx` |
+| "a button that does something to a record" — set a status, confirm, approve | a **Buttons** control naming a function (event `button`) and its parameters; the function in `employee.functions.js` — one function, many buttons with different parameters |
+| "a list whose rows are worked out", "a search box", "filter chips with counts" | a list with `rowsFrom` naming a function (event `listRows`) that returns `{ rows, counts }` — the text it shows is the function's |
+| "show / hide / filter rows on screen", "fill in X before saving" (browser convenience — web only) | front-end hooks in `EditEmployee.jsx` |
 | "must", "only if", "check against…", "email when…", "only managers see…" | a server function in `employee.functions.js`, named in the screen's `events` |
 | "store as…", "convert…", "comma-separated / array", "work out X from Y" (data shape) | server model in `employee.model.js` |
 | a query in your own server code | `factory.table('employees')` — this company, active rows, the model applied |
@@ -228,6 +230,23 @@ For an entity, `screens` makes the list for you. By hand: a `list` shows the sav
 
 A list needs a table: set the screen's `source` or the list's own.
 
+## Buttons
+
+A button is **a registered function and its parameters** — never code. Several buttons that do the same thing with different values (eight statuses) are one function:
+
+```json
+{ "type": "buttons", "props": { "buttons": [
+  { "id": "packed", "label": "Packed", "action": "setOrderStatus", "params": { "status": "packed" },
+    "ask": { "note": "Reason (optional)" }, "disabledWhen": [{ "field": "customStatus", "op": "eq", "value": "packed" }] }
+] } }
+```
+
+Register the function with `event: 'button'` and an `inputSchema` (with `options` for the values allowed, and a `note` input if a button asks for one). `when` / `disabledWhen` are `@xeplr/rules` rules on the record. Publishing refuses parameters the function does not take. See the README's "Buttons".
+
+## When the document cannot say it
+
+Say so — "this needs a new control" — rather than writing a page by hand around it. If a hand-written page is agreed, list it in the app's `ui/pages.json` under `webOnly` with the reason: it will not be in a phone app, and `npx xeplr-factory pages` says so on every commit.
+
 ## Dropdowns
 
 A dropdown **always saves an `id` and shows a `name`.**
@@ -312,6 +331,7 @@ npx xeplr-factory generate <spec.json|-> [-o <screen.json>]   # spec → documen
 npx xeplr-factory validate <screen.json|->                    # exit 1 with every problem listed
 npx xeplr-factory controls                                     # controls, props, validation rules
 npx xeplr-factory schema <screen.json|->                       # the form's @xeplr/schema-handler schema
+npx xeplr-factory pages [<ui dir>] [--strict]                  # warn about web-only pages and routes ui/pages.json does not list
 ```
 
 The `schema` output is what the app's server checks a submission against: `applySchema(formSchema(document), body)`.

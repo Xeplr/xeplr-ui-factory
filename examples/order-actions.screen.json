@@ -1,0 +1,137 @@
+{
+  "kind": "xeplr-screen",
+  "version": 1,
+  "id": "order_actions",
+  "name": "Order actions",
+  "units": "fraction",
+  "aspect": 1,
+  "width": 900,
+  "nodes": [
+    {
+      "id": "buttons",
+      "type": "buttons",
+      "x": 0.04,
+      "y": 0.04,
+      "w": 0.96,
+      "h": 0.1,
+      "z": 1,
+      "props": {
+        "buttons": [
+          {
+            "id": "packed",
+            "label": "Packed",
+            "action": "setOrderStatus",
+            "params": {
+              "status": "packed"
+            },
+            "ask": {
+              "title": "Change status to “Packed”?",
+              "note": "Reason (optional)"
+            },
+            "disabledWhen": [
+              {
+                "field": "customStatus",
+                "op": "eq",
+                "value": "packed"
+              }
+            ]
+          },
+          {
+            "id": "shipped",
+            "label": "Shipped",
+            "action": "setOrderStatus",
+            "params": {
+              "status": "shipped"
+            },
+            "ask": {
+              "title": "Change status to “Shipped”?",
+              "note": "Reason (optional)"
+            },
+            "disabledWhen": [
+              {
+                "field": "customStatus",
+                "op": "eq",
+                "value": "shipped"
+              }
+            ]
+          },
+          {
+            "id": "delivered",
+            "label": "Delivered",
+            "action": "setOrderStatus",
+            "params": {
+              "status": "delivered"
+            },
+            "ask": {
+              "title": "Change status to “Delivered”?",
+              "note": "Reason (optional)"
+            },
+            "disabledWhen": [
+              {
+                "field": "customStatus",
+                "op": "eq",
+                "value": "delivered"
+              }
+            ]
+          }
+        ],
+        "title": "Status"
+      }
+    },
+    {
+      "id": "buttons2",
+      "type": "buttons",
+      "x": 0.04,
+      "y": 0.165,
+      "w": 0.96,
+      "h": 0.1,
+      "z": 2,
+      "props": {
+        "buttons": [
+          {
+            "id": "cod-confirm",
+            "label": "Confirm COD",
+            "action": "confirmCod",
+            "params": {
+              "undo": false
+            },
+            "ask": {
+              "title": "Confirm cash on delivery?",
+              "message": "The customer said yes on the phone. Shopify is not changed.",
+              "note": "Note (optional)"
+            },
+            "when": [
+              {
+                "field": "paymentMethod",
+                "op": "eq",
+                "value": "COD"
+              }
+            ],
+            "variant": "primary"
+          },
+          {
+            "id": "cod-undo",
+            "label": "Undo COD confirmation",
+            "action": "confirmCod",
+            "params": {
+              "undo": true
+            },
+            "ask": {
+              "note": "Note (optional)"
+            },
+            "when": [
+              {
+                "field": "paymentMethod",
+                "op": "eq",
+                "value": "COD Confirmed"
+              }
+            ],
+            "variant": "danger"
+          }
+        ],
+        "title": "Payment"
+      }
+    }
+  ],
+  "source": "orders"
+}

@@ -232,6 +232,11 @@ export default function ScreenSample({ ctrl, className, style, renderPopup, rend
                 recordKey: ctrl.recordKey,
                 canDelete: ctrl.canDelete,
                 extraActions: ctrl.actionsFor ? ctrl.actionsFor(node) : [],
+                // Rows a function works out: what they are narrowed to, a
+                // cell's hover box, and a row opened at one part of it.
+                query: ctrl.listQuery,
+                rowDetails: ctrl.rowDetails,
+                onOpen: (rec, where) => ctrl.openEditor(node, rec, where),
                 // A list with an edit screen opens it in a popup; one on a form
                 // opens the row in the form's own fields.
                 // A list on the form itself swaps the record in the fields — so
@@ -243,6 +248,7 @@ export default function ScreenSample({ ctrl, className, style, renderPopup, rend
               } : undefined}
               // A form inside this one: the page draws it (renderSubform).
               subform={node.type === 'subform' ? { sub: ctrl.subformFor(node), render: renderSubform } : undefined}
+              buttons={node.type === 'buttons' && ctrl.buttonsFor ? ctrl.buttonsFor(node) : undefined}
             />
           </div>
         ))}

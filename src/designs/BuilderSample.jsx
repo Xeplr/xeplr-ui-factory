@@ -273,6 +273,7 @@ export default function BuilderSample({ ctrl, renderPreview, className, style, s
             selectionCount={ctrl.selected.size}
             errors={ctrl.selectedNode ? ctrl.errorsByNode[ctrl.selectedNode.id] : ctrl.errorsByNode._document}
             tables={ctrl.tables}
+            functions={ctrl.functions}
             screens={ctrl.screens}
             forms={forms}
             lockedNames={ctrl.lockedNames}

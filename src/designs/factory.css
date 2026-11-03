@@ -288,6 +288,104 @@
 .xeplr-factory-list .xeplr-table-row.xeplr-factory-row-open td,
 .xeplr-factory-list tr.xeplr-factory-row-open td { background: color-mix(in srgb, var(--xf-accent) 10%, transparent); }
 
+/* ── a list whose rows a function works out ────────────────────────────────
+   Search and chips over the rows; every cell is text the server wrote. */
+.xeplr-factory-list--fed { overflow: hidden; }
+.xeplr-factory-list--fed .xeplr-table-container { border: none; border-radius: 0; background: transparent; }
+.xeplr-factory-list-tools {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 14px;
+  border-bottom: 1px solid var(--xf-border);
+}
+.xeplr-factory-list-tools .xeplr-factory-list-title { flex: 0 1 auto; }
+.xeplr-factory-list-search { flex: 1 1 220px; max-width: 360px; min-width: 0; }
+.xeplr-factory-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.xeplr-factory-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font: inherit; font-size: .9em; padding: 4px 10px; border-radius: 999px; cursor: pointer; white-space: nowrap;
+  color: var(--xf-ink); background: transparent; border: 1px solid var(--xf-border);
+}
+.xeplr-factory-chip:hover { background: var(--xf-hover); }
+.xeplr-factory-chip.is-on { color: var(--xf-accent-ink); background: var(--xf-accent); border-color: var(--xf-accent); }
+.xeplr-factory-chip:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--xf-accent) 35%, transparent); }
+.xeplr-factory-chip-count { font-size: .85em; opacity: .75; font-variant-numeric: tabular-nums; }
+.xeplr-factory-fed-table.is-openable tbody tr { cursor: pointer; }
+.xeplr-factory-list tr.xeplr-factory-row-marked td { background: color-mix(in srgb, var(--xf-accent) 6%, transparent); }
+.xeplr-factory-list tr.xeplr-factory-row-marked td:first-child { box-shadow: inset 3px 0 0 var(--xf-accent); }
+.xeplr-factory-cell { display: inline-flex; flex-wrap: wrap; align-items: baseline; column-gap: 6px; row-gap: 2px; min-width: 0; }
+.xeplr-factory-cell-open { font: inherit; color: inherit; background: none; border: none; padding: 0; text-align: left; cursor: pointer; }
+.xeplr-factory-cell-open .xeplr-factory-cell-main { font-weight: 600; color: var(--xf-accent); }
+.xeplr-factory-cell-open:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--xf-accent) 35%, transparent); border-radius: 4px; }
+.xeplr-factory-cell-sub { flex-basis: 100%; font-size: .88em; color: var(--xf-muted); }
+.xeplr-factory-badge {
+  font-size: .75em; font-weight: 600; padding: 1px 7px; border-radius: 999px; white-space: nowrap;
+  color: var(--xf-accent); background: color-mix(in srgb, var(--xf-accent) 14%, transparent);
+}
+.xeplr-factory-badge--success { color: var(--xf-good); background: color-mix(in srgb, var(--xf-good) 14%, transparent); }
+.xeplr-factory-badge--warning { color: var(--xf-warn); background: color-mix(in srgb, var(--xf-warn) 16%, transparent); }
+.xeplr-factory-badge--danger { color: var(--xf-danger); background: color-mix(in srgb, var(--xf-danger) 14%, transparent); }
+.xeplr-factory-badge--muted { color: var(--xf-muted); background: var(--xf-hover); }
+.xeplr-factory-thumbs { display: inline-flex; align-items: center; gap: 4px; }
+.xeplr-factory-thumbs img { width: 36px; height: 36px; object-fit: cover; border-radius: 6px; border: 1px solid var(--xf-border); background: var(--xf-plane); }
+.xeplr-factory-thumbs small { color: var(--xf-muted); }
+.xeplr-factory-activity { max-width: 280px; white-space: normal; }
+.xeplr-factory-activity[tabindex]:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--xf-accent) 35%, transparent); border-radius: 4px; }
+/* At the page's root (a portal), so it reads the app's theme directly. */
+.xeplr-factory-activity-box {
+  position: fixed; z-index: 1200; box-sizing: border-box; overflow-y: auto; padding: 6px;
+  max-width: calc(100vw - 16px);
+  font-size: 13px; color: var(--xeplr-text-primary, #1a1a19);
+  background: var(--xeplr-bg-tertiary, #ffffff); border: 1px solid var(--xeplr-border-primary, #d9d8d0);
+  border-radius: 10px; box-shadow: 0 12px 32px rgba(0, 0, 0, .22);
+}
+.xeplr-factory-activity-box .xeplr-factory-hint { padding: 8px; }
+.xeplr-factory-activity-item {
+  display: flex; flex-direction: column; gap: 2px; width: 100%; box-sizing: border-box;
+  padding: 7px 8px; border-radius: 6px; font: inherit; color: inherit; text-align: left; background: none; border: none;
+}
+button.xeplr-factory-activity-item { cursor: pointer; }
+button.xeplr-factory-activity-item:hover, button.xeplr-factory-activity-item:focus-visible { outline: none; background: var(--xeplr-bg-hover, #f0f0ee); }
+.xeplr-factory-activity-sub { font-size: .9em; color: var(--xeplr-text-secondary, #6b6a63); }
+
+/* ── a panel of buttons ─────────────────────────────────────────────────── */
+.xeplr-factory-buttons {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; box-sizing: border-box;
+  font-size: max(10px, calc(var(--xf-font, 14) * var(--xf-u)));
+}
+.xeplr-factory-buttons-title { font-weight: 600; color: var(--xf-muted); margin-right: 4px; }
+.xeplr-factory-button {
+  font: inherit; font-weight: 600; font-size: .92em; padding: 6px 13px; border-radius: 6px; cursor: pointer; white-space: nowrap;
+  color: var(--xf-ink); background: var(--xf-surface); border: 1px solid var(--xf-border);
+  transition: background .12s, transform .08s, box-shadow .12s;
+}
+.xeplr-factory-button:hover:not(:disabled) { background: var(--xf-hover); }
+.xeplr-factory-button:active:not(:disabled) { transform: scale(.96); }
+.xeplr-factory-button:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--xf-accent) 35%, transparent); }
+.xeplr-factory-button:disabled { opacity: .5; cursor: default; }
+.xeplr-factory-button--primary { color: var(--xf-accent-ink); background: var(--xf-accent); border-color: var(--xf-accent); }
+.xeplr-factory-button--primary:hover:not(:disabled) { background: var(--xf-accent); filter: brightness(1.08); }
+.xeplr-factory-button--danger { color: var(--xf-danger); border-color: color-mix(in srgb, var(--xf-danger) 55%, var(--xf-border)); }
+.xeplr-factory-button--danger:hover:not(:disabled) { background: color-mix(in srgb, var(--xf-danger) 10%, transparent); }
+.xeplr-factory-buttons--design .xeplr-factory-button { cursor: inherit; }
+.xeplr-factory-buttons-note {
+  display: inline-flex; align-items: center; gap: 6px; font-size: .9em; padding: 4px 6px 4px 10px; border-radius: 6px;
+  color: var(--xf-good); background: color-mix(in srgb, var(--xf-good) 10%, transparent);
+}
+.xeplr-factory-buttons-note--error { color: var(--xf-danger); background: color-mix(in srgb, var(--xf-danger) 10%, transparent); }
+.xeplr-factory-buttons-note-close { font: inherit; font-size: 1.1em; line-height: 1; color: inherit; background: none; border: none; cursor: pointer; padding: 2px 4px; }
+.xeplr-factory-ask { --xf-modal-w: min(440px, 96vw); }
+.xeplr-factory-ask .xeplr-factory-modal-body { padding: 4px 18px 8px; display: flex; flex-direction: column; gap: 10px; }
+.xeplr-factory-ask-message { margin: 0; color: var(--xf-muted); }
+.xeplr-factory-ask-field { display: flex; flex-direction: column; gap: 4px; }
+.xeplr-factory-ask-label { font-weight: 600; font-size: .92em; }
+.xeplr-factory-ask-note, .xeplr-factory-list-search {
+  box-sizing: border-box; width: 100%; font: inherit; padding: 7px 10px; border-radius: 6px;
+  color: var(--xf-ink); background: var(--xf-field-bg); border: 1px solid var(--xf-field-border);
+}
+.xeplr-factory-ask-note { resize: vertical; min-height: 80px; }
+.xeplr-factory-ask-note:focus, .xeplr-factory-list-search:focus { outline: none; border-color: var(--xf-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--xf-accent) 25%, transparent); }
+.xeplr-factory-ask-error { margin: 0; color: var(--xf-danger); }
+.xeplr-factory-ask-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px 16px; }
+
 /* ── the builder ────────────────────────────────────────────────────────── */
 .xeplr-factory-builder {
   display: flex; flex-direction: column; height: 100%; min-height: 560px;
@@ -397,6 +495,27 @@
 .xeplr-factory-panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .xeplr-factory-panel-type { font-weight: 700; font-size: 14px; }
 .xeplr-factory-link-danger { background: none; border: none; color: var(--xf-danger); cursor: pointer; font: inherit; padding: 2px 4px; }
+.xeplr-factory-link { background: none; border: none; color: var(--xf-accent); cursor: pointer; font: inherit; padding: 2px 4px; }
+.xeplr-factory-link:disabled { color: var(--xf-muted); opacity: .5; cursor: default; }
+/* Lists of things edited in place: chips, columns, buttons, conditions. */
+.xeplr-factory-rows-editor { display: flex; flex-direction: column; gap: 8px; }
+.xeplr-factory-rows-editor > .xeplr-factory-secondary { align-self: flex-start; padding: 4px 10px; }
+.xeplr-factory-rows-editor-row { display: flex; align-items: center; gap: 4px; }
+.xeplr-factory-rows-editor-row .xeplr-factory-prop-input { flex: 1 1 0; min-width: 0; }
+.xeplr-factory-prop-input--key { flex: 0 1 38% !important; font-family: ui-monospace, monospace; font-size: 11px; }
+.xeplr-factory-rows-editor-card {
+  position: relative; display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 8px 10px 10px;
+  border: 1px solid var(--xf-border); border-radius: 8px;
+}
+.xeplr-factory-rows-editor-card > legend { font-weight: 600; font-size: 12px; padding: 0 4px; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xeplr-factory-rows-editor-card > .xeplr-factory-rows-editor-tools { position: absolute; top: -9px; right: 6px; background: var(--xf-surface); padding: 0 2px; }
+.xeplr-factory-mini { display: flex; flex-direction: column; gap: 2px; }
+.xeplr-factory-mini-label { font-size: 11px; font-weight: 600; color: var(--xf-muted); }
+.xeplr-factory-conditions { display: flex; flex-direction: column; gap: 4px; }
+.xeplr-factory-conditions > .xeplr-factory-link { align-self: flex-start; padding-left: 0; }
+/* The field on a line of its own (names are long); the comparison and value under it. */
+.xeplr-factory-conditions .xeplr-factory-rows-editor-row { flex-wrap: wrap; padding-bottom: 6px; border-bottom: 1px dashed var(--xf-border); }
+.xeplr-factory-conditions .xeplr-factory-rows-editor-row > input:first-child { flex: 1 1 100%; }
 .xeplr-factory-group { border: none; border-top: 1px solid var(--xf-border); margin: 0; padding: 10px 0 4px; }
 .xeplr-factory-group legend { padding: 0 4px 0 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--xf-muted); }
 .xeplr-factory-prop { margin-bottom: 10px; }
@@ -702,4 +821,18 @@
   .xeplr-factory-modal { width: 100%; max-width: none; min-height: 100%; border-radius: 0; }
   .xeplr-factory-modal-body { padding: 0; }
   .xeplr-factory-modal-close { min-width: 44px; min-height: 44px; }
+}
+
+/* Function-fed lists and buttons on a phone: the search takes the width, chips
+   scroll in a row, and every button is a thumb-sized target. */
+@media (max-width: 640px) {
+  .xeplr-factory-list-search, .xeplr-factory-ask-note { font-size: max(16px, 1em); min-height: 44px; }
+  .xeplr-factory-list-search { flex-basis: 100%; max-width: none; }
+  .xeplr-factory-ask-foot button { flex: 1; min-height: 44px; }
+  .xeplr-factory-chips { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; padding-bottom: 2px; }
+  .xeplr-factory-chip { min-height: 36px; }
+  .xeplr-factory-button { min-height: 44px; flex: 1 1 auto; }
+  .xeplr-factory-buttons-note { flex-basis: 100%; }
+  .xeplr-factory-ask .xeplr-factory-modal-body { padding: 4px 16px 8px; }
+  .xeplr-factory-ask { min-height: 0; align-self: flex-end; }
 }

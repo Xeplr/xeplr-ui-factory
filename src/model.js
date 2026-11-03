@@ -13,7 +13,14 @@ export {
 } from './document.js'
 export { validateDocument, assertValidDocument } from './validateDocument.js'
 // A screen's events: functions picked by name, run on the server.
-export { SCREEN_EVENTS, SCREEN_EVENT_KEYS, DECIDE_EVENT, FUNCTION_NAME, screenFunctions, missingFunctions, setEvent, functionsFor } from './events.js'
+export { SCREEN_EVENTS, SCREEN_EVENT_KEYS, DECIDE_EVENT, FUNCTION_NAME, screenFunctions, missingFunctions, functionProblems, setEvent, functionsFor } from './events.js'
+// Buttons and lists whose rows a function works out — names and values only.
+export {
+  BUTTON_EVENT, LIST_ROWS_EVENT, ROW_DETAILS_EVENT, BUTTON_VARIANTS, COLUMN_DISPLAYS, BADGE_TONES, NOTE_INPUT, CONDITION_OPERATORS,
+  conditionMet, buttonShown, buttonDisabled, screenButtons, buttonById, buttonInput, nodeFunctions, paramProblems, optionValues
+} from './buttons.js'
+// Which pages are drawn from documents and which are web only (ui/pages.json).
+export { checkInventory, routesIn, pageWarnings, webOnlyMenus } from './pagesInventory.js'
 export { formSchema, initialValues, parseInput, validateValues, fieldError, sameId, optionValue, chooseable, saveState, recordValues, displayValue, fileLabel, toDbValue, fromDbValue, listColumns, listSource } from './values.js'
 export { screenFromSpec, screensFromSpec, entityNames, SPEC_HEIGHTS, ROW_GAP } from './generate.js'
 export { scaffoldEntity } from './scaffold.js'

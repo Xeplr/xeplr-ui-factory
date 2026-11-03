@@ -545,7 +545,10 @@ CONTROLS.list = {
   // PAGE of the app's own (openIn: 'page', which calls onOpenRecord and lets
   // the app navigate). Without one, Edit opens the row in this screen's own
   // fields (a list on a form).
-  props: ['title', 'source', 'belongsTo', 'editScreen', 'openIn', 'columns', 'pageSize', 'actions', 'style'],
+  // rowsFrom: rows a registered function works out (event "listRows") —
+  // with its search box, filter chips and their counts — instead of one
+  // table's records. See buttons.js.
+  props: ['title', 'source', 'belongsTo', 'editScreen', 'openIn', 'columns', 'pageSize', 'actions', 'rowsFrom', 'search', 'filters', 'refreshEvery', 'rowOpen', 'highlight', 'style'],
   validation: [],
   styles: ['fontFamily', 'fontSize', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'],
   properties: [
@@ -568,6 +571,19 @@ CONTROLS.list = {
           { value: 'page', label: 'A page of its own' }
         ], help: 'A page asks the app to go there — see onOpenRecord' },
         { path: 'props.pageSize', label: 'Rows per page', type: 'number' }
+      ]
+    },
+    {
+      key: 'rows',
+      title: 'Rows from a function',
+      fields: [
+        { path: 'props.rowsFrom', label: 'Rows from', type: 'function', event: 'listRows',
+          help: 'A function of the app that works the rows out — instead of reading one table. Blank → the table above.' },
+        { path: 'props.search.placeholder', label: 'Search box hint', type: 'text', help: 'Blank → no search box. Needs "Rows from".' },
+        { path: 'props.filters', label: 'Filter chips', type: 'filters', help: 'The first is where the list starts. The function counts each.' },
+        { path: 'props.refreshEvery', label: 'Refresh every (seconds)', type: 'number', help: 'For rows whose text changes with time, like "2h ago". Blank → never.' },
+        { path: 'props.rowOpen', label: 'A click on a row opens it', type: 'toggle' },
+        { path: 'props.highlight', label: 'Mark rows where', type: 'text', help: 'A field of the row; a row where it is true is marked — "isNew".' }
       ]
     },
     { key: 'columns', title: 'Columns', fields: [{ path: 'props.columns', label: 'Columns', type: 'columns' }] },
@@ -661,6 +677,35 @@ CONTROLS.subform = {
       ]
     },
     ...styleGroups(['borderColor', 'borderWidth', 'borderRadius'])
+  ]
+}
+
+// A PANEL OF BUTTONS, each the name of a function the app registered (event
+// "button") and the parameters it is given — eight status buttons are one
+// function with eight `status` values. Whether one shows, and whether it is
+// greyed out, are conditions on the record the screen is about. The press
+// runs on the server, which reads the button from the PUBLISHED screen, so
+// nobody can send a function or parameters of their own. See buttons.js.
+CONTROLS.buttons = {
+  type: 'buttons',
+  label: 'Buttons',
+  group: 'Actions',
+  input: false,
+  defaultSize: { w: 0.92, h: 0.07 },
+  defaults: { buttons: [] },
+  props: ['title', 'buttons', 'style'],
+  validation: [],
+  styles: ['fontFamily', 'fontSize', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'],
+  properties: [
+    {
+      key: 'buttons',
+      title: 'Buttons',
+      fields: [
+        { path: 'props.title', label: 'Title', type: 'text', help: 'Shown before the buttons. Blank → none' },
+        { path: 'props.buttons', label: 'Buttons', type: 'buttons' }
+      ]
+    },
+    ...styleGroups(['fontFamily', 'fontSize', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'])
   ]
 }
 

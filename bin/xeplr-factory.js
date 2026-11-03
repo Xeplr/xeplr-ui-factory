@@ -12,6 +12,7 @@
 //   xeplr-factory validate screen.json                   check a document (exit 1 on problems)
 //   xeplr-factory controls                               the controls and their props
 //   xeplr-factory schema screen.json                     the form's @xeplr/schema-handler schema
+//   xeplr-factory pages [ui dir] [--strict]              warn about pages that are web only, or not listed in pages.json
 //
 // "-" as the file reads stdin.
 
@@ -23,6 +24,7 @@ import { scaffoldEntity } from '../src/scaffold.js'
 import { migrationFor, nextMigrationName } from '../src/tableSchema.js'
 import { validateDocument } from '../src/validateDocument.js'
 import { formSchema } from '../src/values.js'
+import { routesIn, pageWarnings } from '../src/pagesInventory.js'
 
 const USAGE = `usage:
   xeplr-factory screens <entity.json|-> [-o <dir>] [--force] [--no-pages]
@@ -30,7 +32,8 @@ const USAGE = `usage:
   xeplr-factory generate <spec.json|-> [-o <out.json>]
   xeplr-factory validate <screen.json|->
   xeplr-factory controls
-  xeplr-factory schema <screen.json|->`
+  xeplr-factory schema <screen.json|->
+  xeplr-factory pages [<ui dir>] [--strict]`
 
 function readJson(file) {
   const text = readFileSync(file === '-' ? 0 : file, 'utf8')
@@ -164,6 +167,29 @@ switch (cmd) {
     const { ok, errors } = validateDocument(doc)
     if (!ok) fail(`invalid document — run validate first (${errors.length} problems)`)
     out(formSchema(doc))
+    break
+  }
+
+  // WEB-ONLY PAGES, SAID OUT LOUD. Reads <ui dir>/pages.json and the routes
+  // files it names; prints a warning per page written by hand for the browser
+  // and per route nobody listed. Warnings only — exit 0 — unless --strict.
+  // Run by an app's pre-commit hook, so a hand-written page is never a secret.
+  case 'pages': {
+    const dir = path.resolve(args.find((a) => !a.startsWith('--')) || '.')
+    const file = path.join(dir, 'pages.json')
+    let inv = null
+    if (existsSync(file)) inv = readJson(file)
+    const routeFiles = (inv && Array.isArray(inv.routes) && inv.routes.length ? inv.routes : ['src/App.jsx']).map((f) => path.join(dir, f))
+    const routes = routeFiles.filter((f) => existsSync(f)).flatMap((f) => routesIn(readFileSync(f, 'utf8')))
+    const warnings = inv
+      ? pageWarnings(inv, routes)
+      : [{ kind: 'inventory', message: `no pages.json in ${dir} — none of its ${routes.length} routes says whether it works outside the browser` }]
+    routeFiles.filter((f) => !existsSync(f)).forEach((f) => warnings.push({ kind: 'inventory', message: `${path.relative(dir, f)} (in pages.json "routes") does not exist` }))
+    if (!warnings.length) { process.stdout.write('pages: every page is listed, none is web only\n'); break }
+    process.stderr.write(warnings.map((w) => `warning: ${w.message}`).join('\n') + '\n')
+    const web = warnings.filter((w) => w.kind === 'webOnly').length
+    process.stderr.write(`pages: ${web} web-only page${web === 1 ? '' : 's'}, ${warnings.length - web} other warning${warnings.length - web === 1 ? '' : 's'}\n`)
+    if (args.includes('--strict')) process.exit(1)
     break
   }
 

@@ -361,6 +361,162 @@ to one of these); the screen only names it:
 - **Checked twice.** Here, that each name could be a function and each event exists. On the server, at publish and when it runs, that the function is registered *for that event* — a missing one refuses with its name (`missingFunctions(doc, registry)`).
 - `SCREEN_EVENTS` carries each event's contract (`when`, `gets`, `returns`) — what the designer shows beside each picker.
 
+## Screens and buttons — the rules
+
+These are the rules every app's `CLAUDE.md` points to. They keep a screen
+drawable by **anything that reads a document** — the web today, a phone app
+next — and they hold whoever does the work.
+
+1. **A screen is a document.** To change a screen, change its document (the
+   `.screen.json`, or the builder) and run `npx xeplr-factory validate`. Never
+   hand-write a page for something a document can say.
+2. **A button is a function and its parameters.** The app registers the
+   function once on the server (`@xeplr/actions`, `event: 'button'`, an
+   `inputSchema` saying what it takes); the document names it and gives the
+   values. Eight status buttons are **one** function with eight `status`
+   values — not eight functions, and never code in the document.
+3. **Rows that are worked out come from a function too** (`rowsFrom`, event
+   `listRows`), and so does a cell's hover box (`details`, event
+   `rowDetails`). Formatting — times in the business zone, money, "2h ago" —
+   is the function's: the screen shows the text it wrote.
+4. **When the document cannot say it**, say so first — "this needs a new
+   control" — and add the control to this package, with its web view now
+   and a phone view to follow. Do not build around it.
+5. **If a page must be hand-written anyway, it is web only, out loud.** List
+   it in the app's `ui/pages.json` under `webOnly` with the reason.
+   `npx xeplr-factory pages` (the pre-commit hook) warns about every web-only
+   page and every route nobody listed, and the app's menu settings tag the
+   item "Web only". It is never refused — only never secret.
+6. **Checked on the server.** Publishing refuses a screen whose functions are
+   not registered, are registered for something else, or are given parameters
+   they do not take — saying which button and why (`functionProblems`).
+
+## Buttons — a function and its parameters
+
+A **Buttons** control (palette: Actions → Buttons) is a panel of buttons, each
+naming a function of the app and the values it is given:
+
+```json
+{ "type": "buttons", "props": { "title": "Status", "buttons": [
+  { "id": "packed", "label": "Packed", "action": "setOrderStatus", "params": { "status": "packed" },
+    "ask": { "title": "Change status to “Packed”?", "note": "Reason (optional)" },
+    "disabledWhen": [{ "field": "customStatus", "op": "eq", "value": "packed" }] },
+  { "id": "cod-confirm", "label": "Confirm COD", "action": "confirmCod", "params": { "undo": false },
+    "when": [{ "field": "paymentMethod", "op": "eq", "value": "COD" }], "variant": "primary" }
+] } }
+```
+
+The function, in the app's server code:
+
+```js
+actions.register({
+  name: 'setOrderStatus', event: 'button',
+  description: 'Sets the order status and posts who changed it',
+  inputSchema: [
+    { name: 'status', type: 'string', required: true, options: [{ value: 'packed', label: 'Packed' }, { value: 'shipped', label: 'Shipped' }] },
+    { name: 'note', type: 'string' }
+  ],
+  execute: async ({ input, system }) => {
+    // system: { record, id, user, tenant, knex, db, screen, screenKey, button, reject }
+    await system.db('orders').where('id', system.id).update({ customStatus: input.status })
+    return { message: 'Order ' + system.record.name + ' is now ' + input.status }
+  }
+})
+```
+
+| key | |
+|---|---|
+| `id` | what a press names the button by — unique on the screen |
+| `label` | the button's text |
+| `action` | the registered function (event `button`) |
+| `params` | the values it is given — plain values, checked against its `inputSchema` (`options` = the values allowed) at publish |
+| `ask` | asked first: `title`, `message`, and `note` — the label of a note box, whose text reaches the function as `note` (it must take one) |
+| `when` | shown only when every rule matches the record |
+| `disabledWhen` | greyed out when every rule matches |
+| `variant` | `default`, `primary`, `danger` |
+
+Rules are [`@xeplr/rules`](https://www.npmjs.com/package/@xeplr/rules) rules — `{ field, op, value }`, with `eq`, `neq`, `isEmpty`, `contains`, `gt`, … — read from **the record the screen is about**: the `record` handed to `<FactoryScreen>`, with the form's own changes on top.
+
+- **The press runs on the server** (`POST /factory/buttons/:screen/:button`). It reads the button — function and parameters — from the **published** screen, so a request cannot run another function or change the values; it sends the record's id and the note, nothing else.
+- **The record decides.** The server reads the record (this company, active rows) and checks `when` / `disabledWhen` again, so a hidden or greyed-out button cannot be pressed by sending the request — "does not apply to this record now" (409) when it changed underneath.
+- **What happens next is the host's.** The panel shows the function's `message`; `onButtonDone({ button, result, record })` lets the page reload what it shows. Lists on the same screen reload by themselves.
+- **In the builder**, picking a function lists the parameters it takes — a dropdown where it names the values allowed — so nobody types a status by hand. Functions come from `listFunctions` (`createFactoryApi`'s `builderProps` has it).
+
+## A list whose rows a function works out — `rowsFrom`
+
+A list reads one table's records. When the rows are **worked out** — an
+order's state from its tasks, "New" for the person looking, an urgency sort —
+a registered function answers instead (event `listRows`), with a search box,
+filter chips and the count on each:
+
+```json
+{ "type": "list", "props": {
+  "title": "Orders", "rowsFrom": "orderList", "actions": [], "editScreen": "order_actions", "openIn": "page", "rowOpen": true,
+  "search": { "placeholder": "Search order, customer or city" },
+  "filters": [{ "key": "all", "label": "All" }, { "key": "packed", "label": "Packed" }],
+  "refreshEvery": 60, "highlight": "isNew", "pageSize": 50,
+  "columns": [
+    { "field": "orderNumber", "label": "Order", "text": "orderLabel", "badges": [{ "field": "isNew", "label": "New" }, { "field": "cancelled", "label": "Cancelled", "tone": "danger" }] },
+    { "field": "customerName", "label": "Customer", "sub": "city" },
+    { "field": "images", "label": "Items", "display": "images", "more": "moreImages", "sortable": false },
+    { "field": "ageMs", "label": "Aging", "text": "agingText" },
+    { "field": "lastActivityAt", "label": "Last activity", "text": "lastActivityText", "display": "activity", "details": "orderActivity", "sortable": false }
+  ] } }
+```
+
+```js
+actions.register({ name: 'orderList', event: 'listRows', execute: async (ctx) => {
+  // ctx.query = { q, filter } — what was typed, and the chip (always one of the list's own)
+  // ctx.user, ctx.tenant, ctx.db(table), ctx.knex
+  return { rows: [...], counts: { all: 41, packed: 6 } }
+} })
+actions.register({ name: 'orderActivity', event: 'rowDetails', execute: async (ctx) =>
+  // ctx.id — the row; ctx.column
+  [{ text: 'Status set to Packed', sub: 'Asha', at: 'Today, 4:00 pm', open: { tab: 'comments' } }]
+})
+```
+
+| column key | |
+|---|---|
+| `field` | the value the column **sorts by** (a number, an ISO time) |
+| `text` | the field holding what is **shown** — written by the function, in the app's words and time zone. Blank → the value |
+| `sub` | a second line, smaller |
+| `badges` | `[{ field, label, tone }]` after the text, where `field` is true. Tones: `accent`, `success`, `warning`, `danger`, `muted` |
+| `display` | `text` (default), `images` (`[{ src, name }]`, plus `more`: how many others), `activity` (a line with a hover box) |
+| `details` | for `activity`: the function (event `rowDetails`) whose entries the hover box lists; an entry with `open` opens the row at that place (passed to `onOpenRecord` as `params`) |
+| `sortable` | `false` for a column whose header should not sort |
+
+- **The search and the chip live in the URL** under the screen's `urlKey` (`<urlKey>Q`, `<urlKey>Filter`), so a refresh shows the same rows. The search waits for a pause in typing.
+- **`refreshEvery`** (seconds, 10–3600) asks again — for text that changes with time. **`reloadKey`** on `<FactoryScreen>` reloads every list when it changes (the host heard something happen).
+- **`rowOpen`** makes a click anywhere on a row open it (the first cell is also a button, for the keyboard); **`highlight`** marks rows whose field is true.
+- **Rows that are worked out are not a table's records**: no Delete, and Edit / New only with an `editScreen`.
+- Routes: `GET /factory/rows/:screen` (`?node=&q=&filter=`) and `/factory/rows/:screen/details` (`?node=&column=&id=`) — see `@xeplr/factory`.
+
+## Web-only pages — `ui/pages.json`
+
+Each app keeps an inventory of its pages: drawn from documents, or
+hand-written for the browser (and so **not** in a phone app).
+
+```json
+{
+  "routes": ["src/App.jsx"],
+  "documents": [{ "path": "/orders", "menu": "Orders", "screen": "orders_board" }],
+  "webOnly": [{ "path": "/home", "menu": "Home", "reason": "The dashboard's cards are hand-written" }]
+}
+```
+
+```sh
+npx xeplr-factory pages ui            # warnings, exit 0
+npx xeplr-factory pages ui --strict   # warnings fail
+```
+
+It warns about every web-only page (with its reason), every `<Route path>`
+in the `routes` files that the inventory does not list, and every listed page
+no route declares any more. Redirects and `*` are not pages. Run it from the
+app's pre-commit hook; it never blocks a commit. `webOnlyMenus(inventory)`
+gives `{ menu key → reason }`, for a menu-settings screen to tag those items
+"Web only".
+
 ## The flow designer, as a list — `<FlowDesigner>`
 
 Your screens as a journey: the steps down the left; for the one picked, its
@@ -631,7 +787,8 @@ Both walk someone through something, and they answer different questions:
 | `file` | the stored file's path | `accept` (extensions), `maxSize` (MB) |
 | `stepper` | — | a journey across the top; every other control says which step it is on |
 | `label` | — | text with a heading, subheading or text preset |
-| `list` | — | saved records, with New / Edit / Delete |
+| `list` | — | saved records, with New / Edit / Delete — or rows a function works out (`rowsFrom`), with search, filter chips and counts; see above |
+| `buttons` | — | a panel of buttons, each a registered function and its parameters — see above (palette: **Actions → Buttons**) |
 | `table` | array of the rows ticked | `minItems`, `maxItems`; `required` = at least one. Rows the screen is **handed** (`rows: '{params.lines}'`), not a table it reads; `columns` (`ref, amount`) or every key of the first row; `selectable` (a tick per row, on by default). Adds no column — see below |
 | `subform` | — | another form drawn inside this one (palette: **Form**), saving into its own table — see below |
 
@@ -826,6 +983,7 @@ The control whose properties are open, the step a stepper is open at, and the fl
 | `useFactoryBuilder` / `<FactoryBuilder>` | `<urlKey>Steps` | the step each stepper is open at: `stepperId:index`, comma-separated, step 0 left out | replaces |
 | `useFactoryScreen` / `<FactoryScreen>`, `<FlowRunner>` | `<urlKey>Steps` | as above | replaces |
 | `useFlowBuilder` / `<FlowBuilder>` | `<urlKey>Selected` | the key of the selected flow step | as for a control |
+| `useFactoryScreen` / `<FactoryScreen>` | `<urlKey>Q`, `<urlKey>Filter` | a function-fed list's search and chip (the first chip is left out) | replaces |
 
 ```jsx
 <FactoryBuilder urlKey="form" document={doc} onSave={save} />    // ?formSelected=email&formSteps=stepper:1
@@ -854,7 +1012,7 @@ Buttons, steps and list actions all show hover, a visible press, and a keyboard-
 
 ```sh
 npm install
-npm run dev     # http://localhost:19006 — Screen · List / Edit and Designer · List / Edit for the example employee, records kept in localStorage
+npm run dev     # http://localhost:19006 — Screen · List / Edit / Orders and Designer · List / Edit / Orders / Buttons, records kept in localStorage
 ```
 
 ## Files
@@ -876,13 +1034,15 @@ src/
   useFactoryBuilder.js   ─ builder controller
   useFactoryScreen.js    ─ screen controller
   useFlowBuilder.js      ─ flow designer controller
+  buttons.js             ─ buttons and function-fed lists: conditions, what a press sends, functionProblems' checks (React-free)
+  pagesInventory.js      ─ ui/pages.json: routesIn, pageWarnings, webOnlyMenus (React-free)
   urlState.js            ─ the URL keys and values for selection and steps (React-free)
   useUrlPlaces.js        ─ useUrlSteps, useUrlSelection: those places, in the URL or in memory
   useScreenSource.js     ─ { screens, screenEditor } for @xeplr/ui-workflow's Screen step
-  designs/               ─ BuilderSample, ScreenSample, ScreenEditorSample, ControlView, ListView, Palette, PropertyPanel, styles.js, factory.css
+  designs/               ─ BuilderSample, ScreenSample, ScreenEditorSample, ControlView, ListView, FedList, ButtonsView, Palette, PropertyPanel, styles.js, factory.css
   pages.jsx              ─ FactoryBuilder, FactoryScreen
-bin/xeplr-factory.js     ─ screens / generate / validate / controls / schema
-examples/                ─ employee.entity.json and what `screens` makes of it
+bin/xeplr-factory.js     ─ screens / generate / validate / controls / schema / pages
+examples/                ─ employee.entity.json and what `screens` makes of it; orders-board and order-actions (a function-fed list, buttons)
 dev/                     ─ the stand-in app for `npm run dev` (not published)
 ```
 
@@ -892,6 +1052,8 @@ dev/                     ─ the stand-in app for `npm run dev` (not published)
 npm test
 ```
 
+`test/buttons.test.js` covers buttons and function-fed lists in the document: what the checker refuses, when a button shows or is greyed out, what a press sends (the document's parameters, never the request's), and `functionProblems` against a registry. `test/cli.test.js` includes `pages`.
+
 `test/urlState.test.js` covers the URL state: the key format, and the three controllers reading their places back from a real `MemoryRouter` and being clicked through in memory, rendered with `react-dom/server`.
 
 ```sh
@@ -899,7 +1061,7 @@ npx playwright install chromium-headless-shell   # once
 npm run test:phone
 ```
 
-`test/phone.check.js` opens the dev app (`dev/`) in a real browser at 360, 390 and 430px wide and holds every screen to the phone rules: the page never scrolls sideways; fields are one per row, full width, in reading order, none overlapping; inputs are 16px or larger and 44px tall; the footer's buttons are 44px and on screen; a list's row buttons are on screen without scrolling the table; a popup fills the screen. At 1280px it checks that the designed layout is untouched. It is not part of `npm test` — it needs a browser and starts a dev server — so run it before releasing anything that changes how a screen is drawn. The list checks use the `@xeplr/ui-table` installed here.
+`test/phone.check.js` opens the dev app (`dev/`) in a real browser at 360, 390 and 430px wide and holds every screen to the phone rules: the page never scrolls sideways; fields are one per row, full width, in reading order, none overlapping; inputs are 16px or larger and 44px tall; the footer's buttons are 44px and on screen; a list's row buttons are on screen without scrolling the table; a popup fills the screen. At 1280px it checks that the designed layout is untouched. On the Orders page it checks the function-fed list and buttons at phone sizes (16px / 44px search, chips on screen, an "ask first" that fills the screen) and, at 1280px, that they work: search and chips narrow the rows and the counts, the hover box lists entries, a row opens, a press with a note changes the order and greys its button out, and Confirm COD gives way to Undo. It is not part of `npm test` — it needs a browser and starts a dev server — so run it before releasing anything that changes how a screen is drawn. The list checks use the `@xeplr/ui-table` installed here.
 
 ## License
 

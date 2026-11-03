@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { tableColumns, LABEL_PRESETS } from '../controls.js'
 import { stepsOf } from '../document.js'
 import ListView from './ListView.jsx'
+import ButtonsView from './ButtonsView.jsx'
 import { fieldStyle, labelStyle, boxStyle } from './styles.js'
 
 // How each control LOOKS — the one renderer, used both on the builder's
@@ -13,7 +14,7 @@ import { fieldStyle, labelStyle, boxStyle } from './styles.js'
 
 const ids = (node) => `xeplr-factory-${node.id}`
 
-export default function ControlView({ node, mode = 'live', value, error, options, onChange, onBlur, disabled, list, upload, stepper, subform, rows }) {
+export default function ControlView({ node, mode = 'live', value, error, options, onChange, onBlur, disabled, list, upload, stepper, subform, rows, buttons }) {
   const View = VIEWS[node.type]
   if (!View) {
     return <div className="xeplr-factory-unknown">Unknown control “{node.type}”</div>
@@ -35,6 +36,7 @@ export default function ControlView({ node, mode = 'live', value, error, options
       stepper={stepper}
       subform={subform}
       rows={rows}
+      buttons={buttons}
     />
   )
 }
@@ -538,6 +540,7 @@ export const VIEWS = {
   stepper: StepperView,
   label: LabelView,
   list: ListControl,
+  buttons: ({ node, design, buttons }) => <ButtonsView node={node} design={design} panel={buttons} />,
   table: TableView,
   subform: SubformView
 }
