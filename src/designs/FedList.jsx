@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { XeplrTable } from '@xeplr/ui-table'
 import { boxStyle, fieldStyle } from './styles.js'
-import { DATE_PRESETS, customRange, isDay } from '../listRange.js'
+import { rangePresets, customRange, isDay } from '../listRange.js'
 
 // A LIST WHOSE ROWS A FUNCTION WORKS OUT (rowsFrom) — live, in @xeplr/ui-table.
 //
@@ -80,7 +80,7 @@ export default function FedList({ node, list, query, onOpen, rowDetails, recordK
     <div className="xeplr-factory-list xeplr-factory-list--fed" style={style}>
       {(range || kpis.length > 0) && (
         <div className="xeplr-factory-dash">
-          {range && <RangePicker label={p.dateRange.label} range={range} onChange={query.setDates} />}
+          {range && <RangePicker label={p.dateRange.label} presets={rangePresets(p.dateRange)} range={range} onChange={query.setDates} />}
           {kpis.length > 0 && (
             <div className="xeplr-factory-kpis" role="group" aria-label={p.title ? `${p.title} at a glance` : 'At a glance'}>
               {kpis.map((k) => {
@@ -159,7 +159,7 @@ export default function FedList({ node, list, query, onOpen, rowDetails, recordK
 }
 
 /** From–To: a preset, or two days typed. Whatever is chosen is kept as one value. */
-function RangePicker({ label, range, onChange }) {
+function RangePicker({ label, presets, range, onChange }) {
   const custom = !range.preset
   const [from, setFrom] = useState(range.from)
   const [to, setTo] = useState(range.to)
@@ -177,7 +177,7 @@ function RangePicker({ label, range, onChange }) {
         value={custom ? 'custom' : range.preset}
         onChange={(e) => onChange(e.target.value === 'custom' ? customRange(range.from, range.to) : e.target.value)}
       >
-        {DATE_PRESETS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        {presets.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         <option value="custom">Between…</option>
       </select>
       {(custom || range.from || range.to) && (

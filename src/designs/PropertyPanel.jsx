@@ -651,7 +651,10 @@ function DateRangeEditor({ id, field, value, onChange }) {
     <div className="xeplr-factory-prop-stack">
       <select id={id} className="xeplr-factory-prop-input" value={r ? (r.default || 'all') : ''} onChange={(e) => {
         const v = e.target.value
-        onChange(v === '' ? undefined : { ...(r || {}), default: v })
+        if (v === '') return onChange(undefined)
+        const next = { ...(r || {}), default: v }
+        if (Array.isArray(next.presets) && !next.presets.includes(v)) next.presets = (field.presets || []).map((p) => p.value).filter((p) => p === v || next.presets.includes(p))
+        onChange(next)
       }}>
         <option value="">— none —</option>
         {(field.presets || []).map((o) => <option key={o.value} value={o.value}>Starts at: {o.label}</option>)}
@@ -659,6 +662,27 @@ function DateRangeEditor({ id, field, value, onChange }) {
       {r && (
         <input className="xeplr-factory-prop-input" type="text" value={r.label || ''} placeholder='What the dates are, e.g. "Placed"'
                onChange={(e) => { const next = { ...r, label: e.target.value }; if (!next.label) delete next.label; onChange(next) }} />
+      )}
+      {r && (
+        <div className="xeplr-factory-checklist" role="group" aria-label="The picker offers">
+          {(field.presets || []).map((o) => {
+            const all = (field.presets || []).map((p) => p.value)
+            const on = Array.isArray(r.presets) ? r.presets.includes(o.value) : true
+            const isDefault = (r.default || 'all') === o.value
+            return (
+              <label key={o.value} className="xeplr-factory-toggle">
+                <input type="checkbox" checked={on} disabled={isDefault} onChange={() => {
+                  const now = Array.isArray(r.presets) ? r.presets : all
+                  const picked = all.filter((v) => (v === o.value ? !on : now.includes(v)))
+                  const next = { ...r, presets: picked }
+                  if (picked.length === all.length) delete next.presets
+                  onChange(next)
+                }} />
+                <span>Offer {o.label}{isDefault ? ' (starts here)' : ''}</span>
+              </label>
+            )
+          })}
+        </div>
       )}
     </div>
   )

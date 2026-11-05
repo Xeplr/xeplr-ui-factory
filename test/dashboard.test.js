@@ -7,7 +7,7 @@ import {
   validateDocument, createScreen, addControl, setNodeProperty,
   askFields, askFieldStart, askFieldValues, buttonInput, paramProblems
 } from '../src/model.js'
-import { resolveRange, customRange, isDay, DATE_PRESET_VALUES } from '../src/listRange.js'
+import { resolveRange, customRange, isDay, rangePresets, DATE_PRESET_VALUES } from '../src/listRange.js'
 
 const results = []
 const check = (name, cond, detail) => { results.push([name, cond]); console.log((cond ? '  ok   ' : '  FAIL ') + name + (!cond && detail ? ' — ' + detail : '')) }
@@ -35,7 +35,13 @@ console.log('a range, as days')
   check('…one end open', same(resolveRange('2026-10-01..', today), { from: '2026-10-01', to: '', preset: null }))
   check('backwards, or not a day: the list\'s own range instead', resolveRange('2026-10-15..2026-10-01', today, 'last7').preset === 'last7' && resolveRange('2026-02-30..', today, 'last7').preset === 'last7' && resolveRange('nonsense', today, 'last30').preset === 'last30')
   check('a real day', isDay('2026-02-28') && !isDay('2026-02-30') && !isDay('26-1-1'))
-  check('the presets', DATE_PRESET_VALUES.join() === 'today,yesterday,last7,last30,thisMonth,lastMonth,all')
+  check('the presets', DATE_PRESET_VALUES.join() === 'today,yesterday,last2,last3,last4,last5,last7,last30,thisMonth,lastMonth,all')
+check('last 2 days is today and yesterday', JSON.stringify(resolveRange('last2', '2026-11-05')) === JSON.stringify({ from: '2026-11-04', to: '2026-11-05', preset: 'last2' }))
+check('last 5 days', resolveRange('last5', '2026-11-05').from === '2026-11-01')
+check('a list offers its own presets, in its order', rangePresets({ presets: ['last3', 'today'] }).map((p) => p.value).join() === 'last3,today')
+check('none chosen: all of them', rangePresets({}).length === DATE_PRESET_VALUES.length && rangePresets(undefined).length === DATE_PRESET_VALUES.length)
+check('a preset the list does not offer (an old link) opens its default', resolveRange('last30', '2026-11-05', 'last7', ['today', 'last7']).preset === 'last7')
+check('...and two days typed are still kept', resolveRange('2026-10-01..2026-10-31', '2026-11-05', 'last7', ['today', 'last7']).from === '2026-10-01')
 }
 
 console.log('\nwhat a screen may say')
@@ -46,6 +52,10 @@ console.log('\nwhat a screen may say')
   check('an unknown tone is refused', /tone: must be one of/.test(errs(board({ kpis: [{ key: 'a', label: 'A', tone: 'pink' }] }))))
   check('an unknown default range is refused, naming the ones there are', /default: must be one of: today,/.test(errs(board({ dateRange: { default: 'fortnight' } }))))
   check('a key a range does not use is refused', /remove: field/.test(errs(board({ dateRange: { field: 'placedAt' } }))))
+  check('presets the picker offers: fine', errs(board({ dateRange: { default: 'last7', presets: ['today', 'yesterday', 'last2', 'last7'] } })) === '')
+  check('an unknown preset is refused', /unknown: fortnight/.test(errs(board({ dateRange: { presets: ['today', 'fortnight'] } }))))
+  check('an empty list of presets is refused', /presets/.test(errs(board({ dateRange: { presets: [] } }))))
+  check('a default the picker does not offer is refused', /not one of the presets/.test(errs(board({ dateRange: { default: 'last30', presets: ['today', 'last7'] } }))))
   const plain = addControl(createScreen({ id: 'staff', name: 'Staff', source: 'staff' }), 'list')
   check('a list of a table\'s records has no function to count: refused', /KPI cards needs "rowsFrom"/.test(errs(setNodeProperty(plain.document, plain.node.id, 'props.kpis', kpis))))
 }
