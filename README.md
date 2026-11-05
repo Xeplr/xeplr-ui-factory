@@ -434,7 +434,7 @@ actions.register({
 | `label` | the button's text |
 | `action` | the registered function (event `button`) |
 | `params` | the values it is given — plain values, checked against its `inputSchema` (`options` = the values allowed) at publish |
-| `ask` | asked first: `title`, `message`, and `note` — the label of a note box, whose text reaches the function as `note` (it must take one) |
+| `ask` | asked first: `title`, `message`, `note` — the label of a note box, whose text reaches the function as `note` (it must take one) — `fields` (values to type, below) and `file` (photos or documents, below) |
 | `when` | shown only when every rule matches the record |
 | `disabledWhen` | greyed out when every rule matches |
 | `pressedWhen` | drawn as the **current choice** (filled, `aria-pressed`) when every rule matches — the status an order is at. Give it the same rules as `disabledWhen` when choosing it again would change nothing |
@@ -446,6 +446,30 @@ Rules are [`@xeplr/rules`](https://www.npmjs.com/package/@xeplr/rules) rules —
 - **The record decides.** The server reads the record (this company, active rows) and checks `when` / `disabledWhen` again, so a hidden or greyed-out button cannot be pressed by sending the request — "does not apply to this record now" (409) when it changed underneath.
 - **What happens next is the host's.** The panel shows the function's `message`; `onButtonDone({ button, result, record })` lets the page reload what it shows. Lists on the same screen reload by themselves.
 - **In the builder**, picking a function lists the parameters it takes — a dropdown where it names the values allowed — so nobody types a status by hand. Functions come from `listFunctions` (`createFactoryApi`'s `builderProps` has it).
+
+### A button that asks for values — `ask.fields`
+
+Packed asks for the parcel's size, for the courier:
+
+```json
+{ "id": "packed", "label": "Packed", "action": "setOrderStatus", "params": { "status": "packed" },
+  "ask": { "title": "Change status to “Packed”?", "fields": [
+    { "name": "lengthIn", "label": "Length", "type": "number", "unit": "in", "required": true, "min": 0.1, "fill": "parcelLengthIn" },
+    { "name": "weightKg", "label": "Weight", "type": "number", "unit": "kg", "required": true, "min": 0.01, "fill": "parcelWeightKg" }
+  ] } }
+```
+
+| field key | |
+|---|---|
+| `name` | what the function receives it as — one of its `inputSchema` inputs, never one of the button's `params`, `note` or `files` |
+| `label`, `unit` | what the person sees: "Length", "in" |
+| `type` | `number` (a number keyboard on a phone; the value arrives as a number) or `text` |
+| `required`, `min`, `max` | checked in the dialog **and on the server**, by the same `askFieldValues` |
+| `fill` | a field of the record the dialog starts from — asked again, it shows what was given last time |
+
+- The press sends them as `values`; the server checks them against the **published** button and hands them to the function with its `params` — which always win, so a value typed cannot change what the screen says the button does.
+- Publishing refuses a field the function does not take, or takes as another type. A required input the button asks for is not "missing" from its `params`.
+- In the builder: **Asks for** under the button's Ask first, listing the function's inputs the button does not already give.
 
 ### A button that takes files — `ask.file`
 
@@ -517,9 +541,10 @@ filter chips and the count on each:
 
 ```js
 actions.register({ name: 'orderList', event: 'listRows', execute: async (ctx) => {
-  // ctx.query = { q, filter } — what was typed, and the chip (always one of the list's own)
+  // ctx.query = { q, filter, kpi, from, to } — what was typed, the chip (always one of the list's own),
+  //   the KPI card clicked (one of the list's own, or ''), and the date range's days ('YYYY-MM-DD', '' = open)
   // ctx.user, ctx.tenant, ctx.db(table), ctx.knex
-  return { rows: [...], counts: { all: 41, packed: 6 } }
+  return { rows: [...], counts: { all: 41, packed: 6 }, kpis: { ordered: 5, open: 12, delivered: 30, total: 47 } }
 } })
 actions.register({ name: 'orderActivity', event: 'rowDetails', execute: async (ctx) =>
   // ctx.id — the row; ctx.column
@@ -538,11 +563,18 @@ actions.register({ name: 'orderActivity', event: 'rowDetails', execute: async (c
 | `sortable` | `false` for a column whose header should not sort |
 
 - **The search and the chip live in the URL** under the screen's `urlKey` (`<urlKey>Q`, `<urlKey>Filter`), so a refresh shows the same rows. The search waits for a pause in typing.
+- **A dashboard over the rows** — `dateRange` and `kpis`:
+  ```json
+  "dateRange": { "label": "Placed", "default": "last30" },
+  "kpis": [{ "key": "ordered", "label": "Not started", "tone": "warning" }, { "key": "open", "label": "Open" },
+           { "key": "delivered", "label": "Delivered", "tone": "success" }, { "key": "total", "label": "Total orders", "tone": "muted" }]
+  ```
+  A From–To range (presets: `today`, `yesterday`, `last7`, `last30`, `thisMonth`, `lastMonth`, `all`, or two days typed) and a card per KPI showing the count the function returned in `kpis`. **Clicking a card shows its rows** (`ctx.query.kpi`); clicking it again lets go. The range and the card live in the URL (`<urlKey>Dates` — `last30` or `2026-10-01..2026-10-31` — and `<urlKey>Kpi`), and a preset is turned into days on the day it is asked, so "last 30 days" stays the last 30 days. What a card counts, and which date the range is about, are the function's to decide; every count should be for the range. On a phone the cards are two to a row. Both need `rowsFrom`.
 - **`refreshEvery`** (seconds, 10–3600) asks again — for text that changes with time. **`reloadKey`** on `<FactoryScreen>` reloads every list when it changes (the host heard something happen).
 - **`grow`** (a list that is its screen's **one** control) lets the page grow with the rows on a desktop, instead of the list scrolling inside the box it was placed in — a full-page list like Orders. Phones always flow.
 - **`rowOpen`** makes a click anywhere on a row open it (the first cell is also a button, for the keyboard); **`highlight`** marks rows whose field is true.
 - **Rows that are worked out are not a table's records**: no Delete, and Edit / New only with an `editScreen`.
-- Routes: `GET /factory/rows/:screen` (`?node=&q=&filter=`) and `/factory/rows/:screen/details` (`?node=&column=&id=`) — see `@xeplr/factory`.
+- Routes: `GET /factory/rows/:screen` (`?node=&q=&filter=&kpi=&from=&to=`) and `/factory/rows/:screen/details` (`?node=&column=&id=`) — see `@xeplr/factory`.
 
 ## Web-only pages — `ui/pages.json`
 
@@ -1086,7 +1118,8 @@ src/
   useFactoryBuilder.js   ─ builder controller
   useFactoryScreen.js    ─ screen controller
   useFlowBuilder.js      ─ flow designer controller
-  buttons.js             ─ buttons and function-fed lists: conditions, what a press sends, functionProblems' checks (React-free)
+  buttons.js             ─ buttons and function-fed lists: conditions, what a press sends, asked values (askFieldValues), functionProblems' checks (React-free)
+  listRange.js           ─ a list's date range: presets → days (resolveRange) (React-free)
   pagesInventory.js      ─ ui/pages.json: routesIn, pageWarnings, webOnlyMenus (React-free)
   urlState.js            ─ the URL keys and values for selection and steps (React-free)
   useUrlPlaces.js        ─ useUrlSteps, useUrlSelection: those places, in the URL or in memory
@@ -1105,7 +1138,7 @@ dev/                     ─ the stand-in app for `npm run dev` (not published)
 npm test
 ```
 
-`test/buttons.test.js` covers buttons and function-fed lists in the document: what the checker refuses, when a button shows or is greyed out, what a press sends (the document's parameters, never the request's), and `functionProblems` against a registry. `test/cli.test.js` includes `pages`. `test/files.test.js` covers files: several in one field (the value, its column, its checks), camera only, and a button whose press takes files.
+`test/buttons.test.js` covers buttons and function-fed lists in the document: what the checker refuses, when a button shows or is greyed out, what a press sends (the document's parameters, never the request's), and `functionProblems` against a registry. `test/cli.test.js` includes `pages`. `test/dashboard.test.js` covers a list's date range and KPI cards, and a button that asks for values. `test/files.test.js` covers files: several in one field (the value, its column, its checks), camera only, and a button whose press takes files.
 
 `test/urlState.test.js` covers the URL state: the key format, and the three controllers reading their places back from a real `MemoryRouter` and being clicked through in memory, rendered with `react-dom/server`.
 
@@ -1114,7 +1147,7 @@ npx playwright install chromium-headless-shell   # once
 npm run test:phone
 ```
 
-`test/phone.check.js` opens the dev app (`dev/`) in a real browser at 360, 390 and 430px wide and holds every screen to the phone rules: the page never scrolls sideways; fields are one per row, full width, in reading order, none overlapping; inputs are 16px or larger and 44px tall; the footer's buttons are 44px and on screen; a list's row buttons are on screen without scrolling the table; a popup fills the screen. At 1280px it checks that the designed layout is untouched. On the Orders page it checks the function-fed list and buttons at phone sizes (16px / 44px search, chips on screen, an "ask first" that fills the screen) and, at 1280px, that they work: search and chips narrow the rows and the counts, the hover box lists entries, a row opens, a press with a note changes the order and greys its button out, and Confirm COD gives way to Undo. On the Photos page it checks the pickers (several images; the back camera for camera only), the thumbnails, Remove, and a button whose press takes a photo end to end. It is not part of `npm test` — it needs a browser and starts a dev server — so run it before releasing anything that changes how a screen is drawn. The list checks use the `@xeplr/ui-table` installed here.
+`test/phone.check.js` opens the dev app (`dev/`) in a real browser at 360, 390 and 430px wide and holds every screen to the phone rules: the page never scrolls sideways; fields are one per row, full width, in reading order, none overlapping; inputs are 16px or larger and 44px tall; the footer's buttons are 44px and on screen; a list's row buttons are on screen without scrolling the table; a popup fills the screen. At 1280px it checks that the designed layout is untouched. On the Orders page it checks the function-fed list and buttons at phone sizes (16px / 44px search, chips on screen, an "ask first" that fills the screen) and, at 1280px, that they work: search and chips narrow the rows and the counts, the hover box lists entries, a row opens, a press with a note changes the order and greys its button out, and Confirm COD gives way to Undo. It checks the dashboard (KPI cards two to a row on a phone, a card showing its rows and letting go, a range narrowing the counts) and Packed asking for the parcel's size (nothing sent without it, numbers reaching the function). On the Photos page it checks the pickers (several images; the back camera for camera only), the thumbnails, Remove, and a button whose press takes a photo end to end. It is not part of `npm test` — it needs a browser and starts a dev server — so run it before releasing anything that changes how a screen is drawn. The list checks use the `@xeplr/ui-table` installed here.
 
 ## License
 

@@ -644,6 +644,26 @@ function ToggleEditor({ id, field, value, onChange }) {
   )
 }
 
+/** A list's date range: none, or where it starts and what the dates are. */
+function DateRangeEditor({ id, field, value, onChange }) {
+  const r = value && typeof value === 'object' ? value : null
+  return (
+    <div className="xeplr-factory-prop-stack">
+      <select id={id} className="xeplr-factory-prop-input" value={r ? (r.default || 'all') : ''} onChange={(e) => {
+        const v = e.target.value
+        onChange(v === '' ? undefined : { ...(r || {}), default: v })
+      }}>
+        <option value="">— none —</option>
+        {(field.presets || []).map((o) => <option key={o.value} value={o.value}>Starts at: {o.label}</option>)}
+      </select>
+      {r && (
+        <input className="xeplr-factory-prop-input" type="text" value={r.label || ''} placeholder='What the dates are, e.g. "Placed"'
+               onChange={(e) => { const next = { ...r, label: e.target.value }; if (!next.label) delete next.label; onChange(next) }} />
+      )}
+    </div>
+  )
+}
+
 function SelectEditor({ id, field, value, onChange }) {
   // Style selects may be unset ("inherit"); numeric option values stay numbers.
   const optional = String(field.path || '').includes('.style.') || String(field.path || '').startsWith('style.')
@@ -982,6 +1002,11 @@ function ButtonsEditor({ value, onChange, functions }) {
                 {takesNote
                   ? <MiniField label="Note box label" help="Blank → no note box"><input className="xeplr-factory-prop-input" value={b.ask.note || ''} placeholder="Reason (optional)" onChange={(e) => edit(i, { ask: clean({ ...b.ask, note: e.target.value }) })} /></MiniField>
                   : fn && <div className="xeplr-factory-prop-help">{fn.name} takes no note.</div>}
+                <AskFieldsEditor
+                  value={b.ask.fields}
+                  inputs={schema.filter((f) => f.name !== NOTE_INPUT && f.name !== FILES_INPUT && !(b.params && Object.prototype.hasOwnProperty.call(b.params, f.name)))}
+                  onChange={(fields) => edit(i, { ask: clean({ ...b.ask, fields }) })}
+                />
                 {takesFiles
                   ? <AskFileEditor value={b.ask.file} onChange={(file) => edit(i, { ask: clean({ ...b.ask, file }) })} />
                   : b.ask.file && <div className="xeplr-factory-prop-help">{fn ? fn.name : 'This function'} takes no files — the picker will be refused when publishing.</div>}
@@ -1004,6 +1029,55 @@ function ButtonsEditor({ value, onChange, functions }) {
 }
 
 const VARIANT_LABELS = { default: 'Ordinary', primary: 'Main', danger: 'Undo / remove' }
+
+/**
+ * The values a button's press asks for (`ask.fields`) — a parcel's size before
+ * Packed. Each is one of the function's inputs the screen does not give.
+ */
+function AskFieldsEditor({ value, inputs, onChange }) {
+  const fields = Array.isArray(value) ? value : []
+  const set = (next) => onChange(next.length ? next : undefined)
+  const edit = (j, patch) => set(fields.map((f, k) => {
+    if (k !== j) return f
+    const next = { ...f, ...patch }
+    Object.keys(next).forEach((key) => { if (next[key] === undefined || next[key] === '' || next[key] === false) delete next[key] })
+    return next
+  }))
+  const free = inputs.filter((f) => !fields.some((a) => a.name === f.name))
+  const typeOf = (f) => (f && f.type === 'number' ? 'number' : 'text')
+  if (!inputs.length && !fields.length) return null
+  return (
+    <div className="xeplr-factory-rows-editor">
+      <div className="xeplr-factory-prop-label">Asks for</div>
+      {fields.map((f, j) => (
+        <fieldset key={f.name || j} className="xeplr-factory-rows-editor-card">
+          <legend>{f.label || f.name}</legend>
+          <RowTools i={j} count={fields.length} onMove={(to) => set(move(fields, j, to))} onRemove={() => set(fields.filter((_, k) => k !== j))} />
+          <MiniField label="Input"><input className="xeplr-factory-prop-input" value={f.name} readOnly /></MiniField>
+          <MiniField label="Label"><input className="xeplr-factory-prop-input" value={f.label || ''} onChange={(e) => edit(j, { label: e.target.value })} /></MiniField>
+          <MiniField label="Unit" help='e.g. "in", "kg"'><input className="xeplr-factory-prop-input" value={f.unit || ''} maxLength={12} onChange={(e) => edit(j, { unit: e.target.value })} /></MiniField>
+          {f.type === 'number' && (
+            <MiniField label="At least"><input className="xeplr-factory-prop-input" type="number" value={f.min ?? ''} onChange={(e) => edit(j, { min: e.target.value === '' ? undefined : Number(e.target.value) })} /></MiniField>
+          )}
+          <MiniField label="Starts from" help="A field of the record — asked again, it shows the last value"><input className="xeplr-factory-prop-input" value={f.fill || ''} onChange={(e) => edit(j, { fill: e.target.value })} /></MiniField>
+          <label className="xeplr-factory-toggle">
+            <input type="checkbox" checked={Boolean(f.required)} onChange={(e) => edit(j, { required: e.target.checked })} />
+            <span>Required</span>
+          </label>
+        </fieldset>
+      ))}
+      {free.length > 0 && (
+        <select className="xeplr-factory-prop-input" value="" aria-label="Ask for another input" onChange={(e) => {
+          const f = free.find((x) => x.name === e.target.value)
+          if (f) set([...fields, { name: f.name, label: f.label || f.name, type: typeOf(f) }])
+        }}>
+          <option value="">+ Ask for…</option>
+          {free.map((f) => <option key={f.name} value={f.name}>{f.label || f.name}</option>)}
+        </select>
+      )}
+    </div>
+  )
+}
 
 /**
  * The file a button's press takes (`ask.file`): a file field's rules, set the
@@ -1168,6 +1242,7 @@ export const EDITORS = {
   toggle: ToggleEditor,
   toggleValue: ToggleValueEditor,
   select: SelectEditor,
+  dateRange: DateRangeEditor,
   font: FontEditor,
   color: ColorEditor,
   table: TableEditor,

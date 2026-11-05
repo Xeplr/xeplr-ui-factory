@@ -13,10 +13,11 @@
 import { SCREEN_EVENT_KEYS, FUNCTION_NAME } from './events.js'
 import { CONTROLS, LABEL_VARIANTS, LIST_ACTIONS, STYLE_KEYS, SCREEN_STYLE_KEYS, LAYOUTS, MULTI_SEPARATOR, MAX_FILE_MB, STEP_LIMIT, acceptList, FILE_SOURCES, IMAGE_EXTENSIONS, MAX_FILES } from './controls.js'
 import { DOCUMENT_KIND, DOCUMENT_VERSION } from './document.js'
+import { DATE_PRESET_VALUES } from './listRange.js'
 import { RESERVED_COLUMNS, MAX_IDENTIFIER } from './tableSchema.js'
 import { FIELD_PRESETS, INPUT_TYPES, presetFor } from './presets.js'
 import { isBinding } from './values.js'
-import { BUTTON_VARIANTS, COLUMN_DISPLAYS, BADGE_TONES, CONDITION_OPERATORS } from './buttons.js'
+import { BUTTON_VARIANTS, COLUMN_DISPLAYS, BADGE_TONES, CONDITION_OPERATORS, ASK_FIELD_TYPES, NOTE_INPUT, FILES_INPUT } from './buttons.js'
 
 const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 const TABLE_NAME = /^[A-Za-z_][A-Za-z0-9_.$-]*$/
@@ -508,6 +509,35 @@ function checkFedList(props, fed, at, err) {
       })
     }
   }
+  need('kpis', 'KPI cards')
+  need('dateRange', 'a date range')
+  if (props.kpis !== undefined) {
+    if (!Array.isArray(props.kpis)) err(`${at}.props.kpis`, 'must be an array of { key, label, tone? }')
+    else {
+      const keys = new Set()
+      props.kpis.forEach((k, j) => {
+        const p = `${at}.props.kpis[${j}]`
+        if (!k || typeof k !== 'object') { err(p, 'must be { key, label, tone? }'); return }
+        if (!(nonEmptyString(k.key) && /^[A-Za-z0-9_-]+$/.test(k.key))) err(`${p}.key`, 'must be letters, digits, _ or - — what the function is asked for, e.g. "open"')
+        else if (keys.has(k.key)) err(`${p}.key`, `"${k.key}" appears twice`)
+        else keys.add(k.key)
+        if (!nonEmptyString(k.label)) err(`${p}.label`, 'must be the card\'s text, e.g. "Open"')
+        if (k.tone !== undefined && !BADGE_TONES.includes(k.tone)) err(`${p}.tone`, `must be one of: ${BADGE_TONES.join(', ')}`)
+        const extra = Object.keys(k).filter((x) => !['key', 'label', 'tone'].includes(x))
+        if (extra.length) err(p, `only "key", "label" and "tone" are used — remove: ${extra.join(', ')}`)
+      })
+    }
+  }
+  if (props.dateRange !== undefined) {
+    const d = props.dateRange
+    if (!d || typeof d !== 'object' || Array.isArray(d)) err(`${at}.props.dateRange`, 'must be { label?, default? } — the range the function is asked for')
+    else {
+      const extra = Object.keys(d).filter((x) => x !== 'label' && x !== 'default')
+      if (extra.length) err(`${at}.props.dateRange`, `only "label" and "default" are used — remove: ${extra.join(', ')}`)
+      if (d.label !== undefined && typeof d.label !== 'string') err(`${at}.props.dateRange.label`, 'must be a string, e.g. "Placed"')
+      if (d.default !== undefined && !DATE_PRESET_VALUES.includes(d.default)) err(`${at}.props.dateRange.default`, `must be one of: ${DATE_PRESET_VALUES.join(', ')}`)
+    }
+  }
   if (props.refreshEvery !== undefined && !(Number.isInteger(props.refreshEvery) && props.refreshEvery >= 10 && props.refreshEvery <= 3600)) {
     err(`${at}.props.refreshEvery`, 'must be a whole number of seconds from 10 to 3600')
   }
@@ -557,6 +587,36 @@ const ASK_FILE_KEYS = ['label', 'required', 'accept', 'maxSize', 'multiple', 'ma
  * server checks the names against what is registered when the screen is
  * published (functionProblems). Here: the shape.
  */
+const ASK_FIELD_KEYS = ['name', 'label', 'type', 'unit', 'required', 'min', 'max', 'fill']
+
+/** A button's `ask.fields`: the values a press asks for, each reaching the function under its name. */
+function checkAskFields(fields, params, at, err) {
+  if (!Array.isArray(fields)) { err(at, 'must be a list of { name, label, type, unit?, required?, min?, max?, fill? }'); return }
+  const seen = new Set()
+  fields.forEach((f, i) => {
+    const p = `${at}[${i}]`
+    if (!f || typeof f !== 'object' || Array.isArray(f)) { err(p, 'must be { name, label, type, … }'); return }
+    const bad = Object.keys(f).filter((k) => !ASK_FIELD_KEYS.includes(k))
+    if (bad.length) err(p, `only ${ASK_FIELD_KEYS.map((k) => `"${k}"`).join(', ')} are used — remove: ${bad.join(', ')}`)
+    if (!(nonEmptyString(f.name) && /^[A-Za-z][A-Za-z0-9_]{0,62}$/.test(f.name))) err(`${p}.name`, 'must be letters, digits or _ — what the function receives it as, e.g. "lengthIn"')
+    else if (seen.has(f.name)) err(`${p}.name`, `"${f.name}" is asked twice`)
+    else if (f.name === NOTE_INPUT || f.name === FILES_INPUT) err(`${p}.name`, `"${f.name}" is the note's or the files' own name — use ask.note or ask.file`)
+    else if (params && Object.prototype.hasOwnProperty.call(params, f.name)) err(`${p}.name`, `"${f.name}" is already one of the button's parameters — the screen gives it, so nobody should be asked`)
+    else seen.add(f.name)
+    if (!nonEmptyString(f.label)) err(`${p}.label`, 'must be what the person sees, e.g. "Length"')
+    if (!ASK_FIELD_TYPES.includes(f.type)) err(`${p}.type`, `must be one of: ${ASK_FIELD_TYPES.join(', ')}`)
+    if (f.unit !== undefined && !(typeof f.unit === 'string' && f.unit.length <= 12)) err(`${p}.unit`, 'must be a short text, e.g. "in" or "kg"')
+    if (f.required !== undefined && typeof f.required !== 'boolean') err(`${p}.required`, 'must be true or false')
+    ;['min', 'max'].forEach((k) => {
+      if (f[k] === undefined) return
+      if (f.type !== 'number') err(`${p}.${k}`, 'is for a number field')
+      else if (!Number.isFinite(f[k])) err(`${p}.${k}`, 'must be a number')
+    })
+    if (Number.isFinite(f.min) && Number.isFinite(f.max) && f.min > f.max) err(`${p}.min`, 'is more than max')
+    if (f.fill !== undefined && !(nonEmptyString(f.fill) && /^[A-Za-z_][A-Za-z0-9_]*$/.test(f.fill))) err(`${p}.fill`, 'must be a field of the record, e.g. "parcelLengthIn"')
+  })
+}
+
 function checkAskFile(f, at, err) {
   if (!f || typeof f !== 'object' || Array.isArray(f)) { err(at, 'must be { label?, accept, maxSize?, multiple?, maxFiles?, source?, required? } — the file a press takes'); return }
   const bad = Object.keys(f).filter((k) => !ASK_FILE_KEYS.includes(k))
@@ -591,10 +651,11 @@ function checkButtons(props, at, err, ids) {
     if (b.ask !== undefined) {
       if (!b.ask || typeof b.ask !== 'object' || Array.isArray(b.ask)) err(`${p}.ask`, 'must be { title?, message?, note? } — what the person is asked before it runs')
       else {
-        const bad = Object.keys(b.ask).filter((k) => !ASK_KEYS.includes(k) && k !== 'file')
-        if (bad.length) err(`${p}.ask`, `only ${[...ASK_KEYS, 'file'].map((k) => `"${k}"`).join(', ')} are used — remove: ${bad.join(', ')}`)
+        const bad = Object.keys(b.ask).filter((k) => !ASK_KEYS.includes(k) && k !== 'file' && k !== 'fields')
+        if (bad.length) err(`${p}.ask`, `only ${[...ASK_KEYS, 'file', 'fields'].map((k) => `"${k}"`).join(', ')} are used — remove: ${bad.join(', ')}`)
         ASK_KEYS.forEach((k) => { if (b.ask[k] !== undefined && typeof b.ask[k] !== 'string') err(`${p}.ask.${k}`, 'must be a string') })
         if (b.ask.file !== undefined) checkAskFile(b.ask.file, `${p}.ask.file`, err)
+        if (b.ask.fields !== undefined) checkAskFields(b.ask.fields, b.params, `${p}.ask.fields`, err)
       }
     }
     if (b.variant !== undefined && !BUTTON_VARIANTS.includes(b.variant)) err(`${p}.variant`, `must be one of: ${BUTTON_VARIANTS.join(', ')}`)

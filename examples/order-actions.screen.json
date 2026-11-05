@@ -26,7 +26,45 @@
             },
             "ask": {
               "title": "Change status to “Packed”?",
-              "note": "Reason (optional)"
+              "note": "Reason (optional)",
+              "fields": [
+                {
+                  "name": "lengthIn",
+                  "label": "Length",
+                  "type": "number",
+                  "unit": "in",
+                  "required": true,
+                  "min": 0.1,
+                  "fill": "parcelLengthIn"
+                },
+                {
+                  "name": "widthIn",
+                  "label": "Width",
+                  "type": "number",
+                  "unit": "in",
+                  "required": true,
+                  "min": 0.1,
+                  "fill": "parcelWidthIn"
+                },
+                {
+                  "name": "heightIn",
+                  "label": "Height",
+                  "type": "number",
+                  "unit": "in",
+                  "required": true,
+                  "min": 0.1,
+                  "fill": "parcelHeightIn"
+                },
+                {
+                  "name": "weightKg",
+                  "label": "Weight",
+                  "type": "number",
+                  "unit": "kg",
+                  "required": true,
+                  "min": 0.01,
+                  "fill": "parcelWeightKg"
+                }
+              ]
             },
             "pressedWhen": [
               {

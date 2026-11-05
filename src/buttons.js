@@ -104,15 +104,79 @@ export function askFile(button) {
 
 /**
  * What a press sends the function: the document's parameters, the person's
- * note when it asks for one, and the stored files when it takes them.
+ * note when it asks for one, the stored files when it takes them, and the
+ * values its `ask.fields` asked for (already checked: askFieldValues).
  */
-export function buttonInput(button, note, files) {
-  const input = { ...((button && button.params) || {}) }
+export function buttonInput(button, note, files, values) {
+  // The person's answers first: the document's own parameters always win.
+  const input = { ...((values && typeof values === 'object') ? values : {}), ...((button && button.params) || {}) }
   if (button && button.ask && button.ask.note && note !== undefined && note !== null && String(note).trim() !== '') {
     input[NOTE_INPUT] = String(note).trim()
   }
   if (askFile(button) && Array.isArray(files) && files.length) input[FILES_INPUT] = files.slice()
   return input
+}
+
+/** The kinds of value a button's `ask.fields` can ask for. */
+export const ASK_FIELD_TYPES = ['number', 'text']
+
+/** Longest text an ask field takes. */
+export const MAX_ASK_TEXT = 500
+
+/**
+ * The values a button's press asks the person for (`ask.fields`) — a parcel's
+ * length, width, height and weight before Packed:
+ *
+ *   "ask": { "fields": [
+ *     { "name": "lengthIn", "label": "Length", "type": "number", "unit": "in", "required": true, "min": 0.1, "fill": "parcelLengthIn" } ] }
+ *
+ * Each reaches the function under its `name`, which its inputSchema must take.
+ * `fill` names a field of the record the dialog starts from, so asking again
+ * shows what was given last time.
+ */
+export function askFields(button) {
+  const f = button && button.ask && button.ask.fields
+  return Array.isArray(f) ? f.filter((x) => x && typeof x === 'object' && x.name) : []
+}
+
+/** What the dialog starts each field with: the record's `fill` field, or empty. */
+export function askFieldStart(field, record) {
+  const v = field.fill && record ? record[field.fill] : undefined
+  return v === undefined || v === null ? '' : String(v)
+}
+
+/**
+ * The values given for a button's `ask.fields`, checked and typed:
+ * { values: { name: value }, errors: [{ field, message }] }. Typed text is
+ * what both sides receive — "12.5" from a box — and a number field's value is
+ * a number. Anything not asked for is dropped. Both the dialog and the server
+ * use it, so a value refused in one is refused in the other.
+ */
+export function askFieldValues(button, given) {
+  const values = {}
+  const errors = []
+  const raw = given && typeof given === 'object' && !Array.isArray(given) ? given : {}
+  askFields(button).forEach((f) => {
+    const label = f.label || f.name
+    const v = raw[f.name]
+    const empty = v === undefined || v === null || String(v).trim() === ''
+    if (empty) {
+      if (f.required) errors.push({ field: f.name, message: `${label} is required` })
+      return
+    }
+    if (f.type === 'number') {
+      const n = typeof v === 'number' ? v : Number(String(v).trim())
+      if (!Number.isFinite(n)) { errors.push({ field: f.name, message: `${label} must be a number` }); return }
+      if (f.min !== undefined && n < f.min) { errors.push({ field: f.name, message: `${label} must be at least ${f.min}` }); return }
+      if (f.max !== undefined && n > f.max) { errors.push({ field: f.name, message: `${label} must be at most ${f.max}` }); return }
+      values[f.name] = n
+      return
+    }
+    const t = String(v).trim()
+    if (t.length > MAX_ASK_TEXT) { errors.push({ field: f.name, message: `${label} can be at most ${MAX_ASK_TEXT} characters` }); return }
+    values[f.name] = t
+  })
+  return { values, errors }
 }
 
 /** Why the files given to a press are not what its `ask.file` takes — or null. */
@@ -171,10 +235,17 @@ export function paramProblems(button, inputSchema) {
     if (!f || !f.name || !f.required || f.default !== undefined) return
     if (f.name === NOTE_INPUT && button && button.ask && button.ask.note) return
     if (f.name === FILES_INPUT && askFile(button)) return
+    if (askFields(button).some((a) => a.name === f.name && a.required)) return
     if (params[f.name] === undefined || params[f.name] === null || params[f.name] === '') problems.push(`needs "${f.name}"`)
   })
   if (button && button.ask && button.ask.note && !byName.has(NOTE_INPUT)) problems.push(`asks for a note, but takes no "${NOTE_INPUT}"`)
   if (askFile(button) && !byName.has(FILES_INPUT)) problems.push(`asks for a file, but takes no "${FILES_INPUT}"`)
+  askFields(button).forEach((a) => {
+    const f = byName.get(a.name)
+    if (!f) { problems.push(`asks for "${a.name}", but takes no "${a.name}"`); return }
+    const want = a.type === 'number' ? 'number' : 'string'
+    if (f.type && f.type !== want) problems.push(`asks for "${a.name}" as ${a.type === 'number' ? 'a number' : 'text'}, but it takes ${f.type}`)
+  })
   return problems
 }
 

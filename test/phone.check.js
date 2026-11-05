@@ -13,6 +13,8 @@
 //   - the footer's buttons are 44px tall and on screen;
 //   - a list's row buttons are on screen without scrolling the table;
 //   - a popup fills the screen;
+//   - a dashboard: KPI cards two to a row, the date range 16px / 44px; a
+//     button that asks for values (a parcel's size) asks in 16px number boxes;
 //   - a list fed by a function: its search box is 16px and 44px tall, its
 //     chips stay on screen, and a button's "ask first" fills the screen with
 //     44px buttons and a 16px note box.
@@ -139,6 +141,10 @@ try {
     check(`orders: search is on screen`, search.right <= width)
     const chips = await page.$eval('.xeplr-factory-chips', (el) => el.getBoundingClientRect().right)
     check(`orders: the chip row stays on screen (it scrolls inside)`, chips <= width + 0.5, String(chips))
+    const cards = await page.$$eval('.xeplr-factory-kpi', (els) => els.map((el) => { const r = el.getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top } }))
+    check(`dashboard: KPI cards two to a row, on screen`, cards.length === 4 && cards[0].top === cards[1].top && cards[1].top < cards[2].top && cards.every((c) => c.right <= width), JSON.stringify(cards))
+    const range = await page.$$eval('.xeplr-factory-range-preset, .xeplr-factory-range-day', (els) => els.map((el) => { const r = el.getBoundingClientRect(); return { font: parseFloat(getComputedStyle(el).fontSize), h: r.height, right: r.right } }))
+    check(`dashboard: the range boxes are 16px, 44px tall and on screen`, range.length === 3 && range.every((b) => b.font >= 16 && b.h >= 44 && b.right <= width), JSON.stringify(range))
     await page.locator('tbody tr').first().click()
     await page.waitForTimeout(500)
     const buttons = await page.$$eval('.dev-order .xeplr-factory-button', (els) => els.map((el) => { const r = el.getBoundingClientRect(); return { h: r.height, right: r.right } }))
@@ -147,6 +153,8 @@ try {
     await page.waitForTimeout(300)
     const ask = await page.$eval('.xeplr-factory-ask', (el) => { const r = el.getBoundingClientRect(); return { left: r.left, width: r.width } })
     check(`ask first: fills the screen's width`, ask.left === 0 && Math.abs(ask.width - width) < 1, JSON.stringify(ask))
+    const sizes = await page.$$eval('.xeplr-factory-ask-input', (els) => els.map((el) => { const r = el.getBoundingClientRect(); return { font: parseFloat(getComputedStyle(el).fontSize), h: r.height, right: r.right, type: el.inputMode } }))
+    check(`packed: four size boxes, 16px, 44px tall, a number keyboard, on screen`, sizes.length === 4 && sizes.every((b) => b.font >= 16 && b.h >= 44 && b.right <= width && b.type === 'decimal'), JSON.stringify(sizes))
     const note = await page.$eval('.xeplr-factory-ask-note', (el) => parseFloat(getComputedStyle(el).fontSize))
     check(`ask first: the note box is 16px or larger`, note >= 16, String(note))
     const foot = await page.$$eval('.xeplr-factory-ask-foot button', (els) => els.map((el) => el.getBoundingClientRect().height))
@@ -162,6 +170,20 @@ try {
     const rowsShown = () => page.$$eval('tbody tr', (els) => els.length)
     const count = (label) => page.locator('.xeplr-factory-chip', { hasText: label }).locator('.xeplr-factory-chip-count').textContent()
     check(`orders: rows and counts from the function`, (await rowsShown()) === 10 && (await count('All')) === '14', `${await rowsShown()} rows, All ${await count('All')}`)
+    const kpiCount = (label) => page.locator('.xeplr-factory-kpi', { hasText: label }).locator('.xeplr-factory-kpi-count').textContent()
+    check(`dashboard: the KPI cards show the function's counts for the range`, (await kpiCount('Total orders')) === '14' && (await kpiCount('Not started')) === '5', `${await kpiCount('Total orders')} / ${await kpiCount('Not started')}`)
+    await page.locator('.xeplr-factory-kpi', { hasText: 'Not started' }).click()
+    await page.waitForTimeout(500)
+    const notStarted = await page.$$eval('tbody tr td:nth-child(4)', (els) => els.map((el) => el.textContent.trim()))
+    check(`dashboard: a card shows its rows`, notStarted.length === 5 && notStarted.every((t) => t === 'Ordered'), notStarted.join(','))
+    await page.locator('.xeplr-factory-kpi', { hasText: 'Not started' }).click()
+    await page.waitForTimeout(500)
+    check(`dashboard: clicking it again lets go`, (await rowsShown()) === 10)
+    await page.locator('.xeplr-factory-range-preset').selectOption('today')
+    await page.waitForTimeout(500)
+    check(`dashboard: a range narrows the cards and the rows`, Number(await kpiCount('Total orders')) < 14 && (await rowsShown()) === Number(await kpiCount('Total orders')), await kpiCount('Total orders'))
+    await page.locator('.xeplr-factory-range-preset').selectOption('last30')
+    await page.waitForTimeout(500)
     await page.locator('.xeplr-factory-list-search').fill('Pune')
     await page.waitForTimeout(700)
     check(`orders: the search narrows the rows and the counts`, (await rowsShown()) === 4 && (await count('All')) === '4', `${await rowsShown()} rows, All ${await count('All')}`)
@@ -187,7 +209,15 @@ try {
     await packed.click()
     await page.locator('.xeplr-factory-ask-note').fill('courier late')
     await page.locator('.xeplr-factory-ask-foot button', { hasText: 'Packed' }).click()
+    await page.waitForTimeout(300)
+    const sizeErrors = await page.$$eval('.xeplr-factory-ask-field-error', (els) => els.map((el) => el.textContent))
+    check(`packed: without the parcel size it is not sent, and each box says why`, sizeErrors.length === 4 && sizeErrors[0] === 'Length is required' && (await page.locator('.xeplr-factory-ask').count()) === 1, sizeErrors.join(' | '))
+    for (const [label, v] of [['Length', '12'], ['Width', '9'], ['Height', '4'], ['Weight', '1.25']]) await page.getByLabel(label + ' *', { exact: true }).fill(v)
+    check(`packed: typing in a box clears its message`, (await page.locator('.xeplr-factory-ask-field-error').count()) === 0)
+    await page.locator('.xeplr-factory-ask-foot button', { hasText: 'Packed' }).click()
     await page.waitForTimeout(800)
+    const parcel = await page.evaluate(() => { const o = JSON.parse(localStorage.getItem('dev-orders'))[0]; return [o.parcelLengthIn, o.parcelWidthIn, o.parcelHeightIn, o.parcelWeightKg] })
+    check(`packed: the size reaches the function as numbers`, JSON.stringify(parcel) === '[12,9,4,1.25]', JSON.stringify(parcel))
     const said = await page.locator('.dev-order .xeplr-factory-buttons-note').first().textContent().catch(() => '')
     check(`buttons: the press says what it did`, /GA1025: Packed/.test(said), said)
     check(`buttons: its button is greyed out now`, await packed.isDisabled())

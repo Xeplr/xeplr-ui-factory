@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { XeplrTable } from '@xeplr/ui-table'
 import { boxStyle, fieldStyle } from './styles.js'
+import { DATE_PRESETS, customRange, isDay } from '../listRange.js'
 
 // A LIST WHOSE ROWS A FUNCTION WORKS OUT (rowsFrom) — live, in @xeplr/ui-table.
 //
@@ -11,9 +12,10 @@ import { boxStyle, fieldStyle } from './styles.js'
 // renderer. What this file draws is only how: a second line, badges, the
 // pictures, an activity line with its hover box.
 //
-// Above the rows: the search box and the filter chips, each chip with the
-// count the function gave it. Presentation only — the query, the rows and
-// what a click does arrive as props.
+// Above the rows: a date range and KPI cards (a dashboard), then the search
+// box and the filter chips, each card and chip with the count the function
+// gave it. A card is a filter too: a click shows its rows, another lets go.
+// Presentation only — the query, the rows and what a click does arrive as props.
 
 const OPEN_DELAY_MS = 250
 const CLOSE_DELAY_MS = 200
@@ -66,8 +68,37 @@ export default function FedList({ node, list, query, onOpen, rowDetails, recordK
     if (marker) open(rows[Number(marker.getAttribute('data-xf-row'))])
   }
 
+  const kpis = Array.isArray(p.kpis) ? p.kpis : []
+  const kpiCounts = list.kpis || {}
+  const range = query.rangeFor ? query.rangeFor(node) : null
+
   return (
     <div className="xeplr-factory-list xeplr-factory-list--fed" style={style}>
+      {(range || kpis.length > 0) && (
+        <div className="xeplr-factory-dash">
+          {range && <RangePicker label={p.dateRange.label} range={range} onChange={query.setDates} />}
+          {kpis.length > 0 && (
+            <div className="xeplr-factory-kpis" role="group" aria-label={p.title ? `${p.title} at a glance` : 'At a glance'}>
+              {kpis.map((k) => {
+                const on = query.kpi === k.key
+                const n = kpiCounts[k.key]
+                return (
+                  <button
+                    key={k.key}
+                    type="button"
+                    aria-pressed={on}
+                    className={`xeplr-factory-kpi xeplr-factory-kpi--${k.tone || 'accent'}${on ? ' is-on' : ''}`}
+                    onClick={() => query.setKpi(on ? '' : k.key)}
+                  >
+                    <span className="xeplr-factory-kpi-count">{n === undefined ? '—' : n}</span>
+                    <span className="xeplr-factory-kpi-label">{k.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
       <div className="xeplr-factory-list-tools">
         {p.title && <span className="xeplr-factory-list-title">{p.title}</span>}
         {p.search && p.search.placeholder && (
@@ -102,7 +133,7 @@ export default function FedList({ node, list, query, onOpen, rowDetails, recordK
         {list.error && <span className="xeplr-factory-error-inline" role="alert">{list.error}</span>}
       </div>
       {rows.length === 0
-        ? !list.loading && !list.error && <div className="xeplr-factory-list-empty">{query.q ? 'Nothing matches that search.' : 'Nothing here yet.'}</div>
+        ? !list.loading && !list.error && <div className="xeplr-factory-list-empty">{query.q || query.kpi || (range && range.from) ? 'Nothing matches.' : 'Nothing here yet.'}</div>
         : (
           <div className={'xeplr-factory-fed-table' + (open ? ' is-openable' : '')} onClick={openFromRow}>
             <XeplrTable
@@ -117,6 +148,41 @@ export default function FedList({ node, list, query, onOpen, rowDetails, recordK
             />
           </div>
         )}
+    </div>
+  )
+}
+
+/** From–To: a preset, or two days typed. Whatever is chosen is kept as one value. */
+function RangePicker({ label, range, onChange }) {
+  const custom = !range.preset
+  const [from, setFrom] = useState(range.from)
+  const [to, setTo] = useState(range.to)
+  useEffect(() => { setFrom(range.from); setTo(range.to) }, [range.from, range.to])
+  const typed = (f, t) => {
+    setFrom(f); setTo(t)
+    if ((f === '' || isDay(f)) && (t === '' || isDay(t)) && !(f && t && f > t)) onChange(customRange(f, t))
+  }
+  return (
+    <div className="xeplr-factory-range" role="group" aria-label={label ? `${label} between` : 'Dates'}>
+      {label && <span className="xeplr-factory-range-label">{label}</span>}
+      <select
+        className="xeplr-factory-range-preset"
+        aria-label={label ? `${label}: range` : 'Range'}
+        value={custom ? 'custom' : range.preset}
+        onChange={(e) => onChange(e.target.value === 'custom' ? customRange(range.from, range.to) : e.target.value)}
+      >
+        {DATE_PRESETS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        <option value="custom">Between…</option>
+      </select>
+      {(custom || range.from || range.to) && (
+        <span className="xeplr-factory-range-days">
+          <input type="date" className="xeplr-factory-range-day" aria-label="From" value={from} max={to || undefined}
+                 onChange={(e) => typed(e.target.value, to)} />
+          <span aria-hidden="true">–</span>
+          <input type="date" className="xeplr-factory-range-day" aria-label="To" value={to} min={from || undefined}
+                 onChange={(e) => typed(from, e.target.value)} />
+        </span>
+      )}
     </div>
   )
 }

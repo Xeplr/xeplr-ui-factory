@@ -132,14 +132,15 @@ export function createFactoryApi({ fetch: doFetch, fetchFile, base = '' } = {}) 
 
     // ROWS A FUNCTION WORKS OUT, for a list with rowsFrom: { rows, counts }.
     // Only what the person typed goes with it — the function is the screen's.
-    fetchRows: async ({ screen, node, q, filter }) => one(await call('GET', `/rows/${enc(screen)}${query({ node, q, filter })}`)),
+    fetchRows: async ({ screen, node, q, filter, kpi, from, to }) => one(await call('GET', `/rows/${enc(screen)}${query({ node, q, filter, kpi, from, to })}`)),
     // An activity cell's hover box for one row.
     fetchRowDetails: ({ screen, node, column, id }) => call('GET', `/rows/${enc(screen)}/details${query({ node, column, id })}`),
     // A button's press on one record → { button, message, output }. The
     // server reads the button — its function and parameters — from the
     // published screen; the request names it and carries the note.
-    pressButton: async ({ screen, button, id, note, files }) => one(await call('POST', `/buttons/${enc(screen)}/${enc(button)}`, {
-      id, ...(note ? { note } : {}), ...(Array.isArray(files) && files.length ? { files } : {})
+    pressButton: async ({ screen, button, id, note, files, values }) => one(await call('POST', `/buttons/${enc(screen)}/${enc(button)}`, {
+      id, ...(note ? { note } : {}), ...(Array.isArray(files) && files.length ? { files } : {}),
+      ...(values && Object.keys(values).length ? { values } : {})
     })),
     // A file a button's ask.file takes, stored before the press; the press
     // then names it by the path this answers with.

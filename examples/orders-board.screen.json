@@ -26,6 +26,31 @@
         "search": {
           "placeholder": "Search order, customer or city"
         },
+        "dateRange": {
+          "label": "Placed",
+          "default": "last30"
+        },
+        "kpis": [
+          {
+            "key": "ordered",
+            "label": "Not started",
+            "tone": "warning"
+          },
+          {
+            "key": "open",
+            "label": "Open"
+          },
+          {
+            "key": "delivered",
+            "label": "Delivered",
+            "tone": "success"
+          },
+          {
+            "key": "total",
+            "label": "Total orders",
+            "tone": "muted"
+          }
+        ],
         "filters": [
           {
             "key": "all",

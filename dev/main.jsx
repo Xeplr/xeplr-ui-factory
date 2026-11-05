@@ -116,37 +116,47 @@ const asRow = (o) => ({
   customerName: o.customerName, city: o.city, images: o.items.slice(0, 3), moreImages: Math.max(0, o.items.length - 3),
   customStatus: o.customStatus, statusLabel: statusLabel(o.customStatus), amount: o.amount, amountText: '₹' + o.amount.toLocaleString('en-IN'),
   ageMs: o.placedHoursAgo * 3600000, agingText: ago(o.placedHoursAgo), paymentMethod: o.paymentMethod,
-  lastActivityAt: o.log[0].at, lastActivityText: o.log[0].text + ' · ' + o.log[0].at
+  lastActivityAt: o.log[0].at, lastActivityText: o.log[0].text + ' · ' + o.log[0].at,
+  parcelLengthIn: o.parcelLengthIn, parcelWidthIn: o.parcelWidthIn, parcelHeightIn: o.parcelHeightIn, parcelWeightKg: o.parcelWeightKg
 })
 const functionsApi = {
   listFunctions: async () => [
     { name: 'orderList', event: 'listRows', description: 'Every order, most urgent first', inputSchema: [] },
     { name: 'orderActivity', event: 'rowDetails', description: 'The order\'s latest timeline entries', inputSchema: [] },
-    { name: 'setOrderStatus', event: 'button', description: 'Sets the order\'s status and posts who changed it', inputSchema: [{ name: 'status', type: 'string', required: true, options: STATUSES }, { name: 'note', type: 'string', required: false }] },
+    { name: 'setOrderStatus', event: 'button', description: 'Sets the order\'s status and posts who changed it', inputSchema: [{ name: 'status', type: 'string', required: true, options: STATUSES }, { name: 'note', type: 'string', required: false },
+      { name: 'lengthIn', type: 'number' }, { name: 'widthIn', type: 'number' }, { name: 'heightIn', type: 'number' }, { name: 'weightKg', type: 'number' }] },
     { name: 'confirmCod', event: 'button', description: 'Confirms (or undoes) cash on delivery', inputSchema: [{ name: 'undo', type: 'boolean', required: false, default: false }, { name: 'note', type: 'string', required: false }] },
     { name: 'addOrderPhotos', event: 'button', description: 'Adds photos to the order\'s timeline', inputSchema: [{ name: 'files', type: 'array', required: true }, { name: 'note', type: 'string', required: false }] }
   ],
   ...fileApi,
-  fetchRows: async ({ q, filter }) => {
+  fetchRows: async ({ q, filter, kpi, from, to }) => {
     await wait(150)
-    const all = orders().filter((o) => !q || (o.name + ' ' + o.customerName + ' ' + o.city).toLowerCase().includes(q.toLowerCase().replace(/^#/, '')))
+    // The range is by the day an order was placed; every count is for it.
+    const placedDay = (o) => new Date(Date.now() - o.placedHoursAgo * 3600000).toISOString().slice(0, 10)
+    const inRange = orders().filter((o) => (!from || placedDay(o) >= from) && (!to || placedDay(o) <= to))
+    const KPI = { ordered: (o) => o.customStatus === 'ordered', open: (o) => ['ordered', 'packed'].includes(o.customStatus), delivered: (o) => o.customStatus === 'delivered', total: () => true }
+    const kpis = Object.fromEntries(Object.entries(KPI).map(([k, f]) => [k, inRange.filter(f).length]))
+    const all = inRange.filter((o) => (!kpi || !KPI[kpi] || KPI[kpi](o)) && (!q || (o.name + ' ' + o.customerName + ' ' + o.city).toLowerCase().includes(q.toLowerCase().replace(/^#/, ''))))
     const counts = Object.fromEntries([['all', all.length], ...STATUSES.map((s) => [s.value, all.filter((o) => o.customStatus === s.value).length])])
     const shown = filter && filter !== 'all' ? all.filter((o) => o.customStatus === filter) : all
-    return { rows: shown.map(asRow), counts }
+    return { rows: shown.map(asRow), counts, kpis }
   },
   fetchRowDetails: async ({ id }) => {
     await wait(200)
     const o = orders().find((x) => x.id === id)
     return o ? o.log.map((e) => ({ text: e.text, at: e.at, open: { tab: 'comments' } })) : []
   },
-  pressButton: async ({ button, id, note, files }) => {
+  pressButton: async ({ button, id, note, files, values }) => {
     await wait(250)
     const all = orders()
     const o = all.find((x) => x.id === id)
     const doc = actionsExample
     const b = doc.nodes.flatMap((n) => n.props.buttons || []).find((x) => x.id === button)
     if (!o || !b) throw new Error('Not found')
-    if (b.action === 'setOrderStatus') o.customStatus = b.params.status
+    if (b.action === 'setOrderStatus') {
+      o.customStatus = b.params.status
+      if (values && values.lengthIn) Object.assign(o, { parcelLengthIn: values.lengthIn, parcelWidthIn: values.widthIn, parcelHeightIn: values.heightIn, parcelWeightKg: values.weightKg })
+    }
     if (b.action === 'confirmCod') o.paymentMethod = b.params.undo ? 'COD' : 'COD Confirmed'
     const added = Array.isArray(files) && files.length ? ` (${files.length} photo${files.length === 1 ? '' : 's'})` : ''
     o.log.unshift({ text: `${b.label}${added}${note ? ' — ' + note : ''}`, at: 'Just now' })
