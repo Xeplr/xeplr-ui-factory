@@ -1,0 +1,62 @@
+{
+  "kind": "xeplr-screen",
+  "version": 1,
+  "id": "packing_board",
+  "name": "Packing",
+  "units": "fraction",
+  "aspect": 1,
+  "width": 1400,
+  "description": "Orders ready to pack — each with its items' pictures, oldest first.",
+  "nodes": [
+    {
+      "id": "list",
+      "type": "list",
+      "x": 0,
+      "y": 0,
+      "w": 1,
+      "h": 0.6,
+      "z": 1,
+      "props": {
+        "title": "Ready to pack",
+        "layout": "cards",
+        "pageSize": 20,
+        "actions": [],
+        "openIn": "popup",
+        "rowsFrom": "packingList",
+        "editScreen": "packing_actions",
+        "rowOpen": true,
+        "grow": true,
+        "refreshEvery": 60,
+        "search": {
+          "placeholder": "Order number"
+        },
+        "columns": [
+          {
+            "field": "orderNumber",
+            "label": "Order",
+            "text": "orderLabel",
+            "sub": "customerCity",
+            "badges": [
+              {
+                "field": "isCod",
+                "label": "COD",
+                "tone": "warning"
+              }
+            ]
+          },
+          {
+            "field": "items",
+            "label": "Items",
+            "display": "items",
+            "sortable": false
+          },
+          {
+            "field": "placedAt",
+            "label": "Placed",
+            "text": "placedText"
+          }
+        ]
+      }
+    }
+  ]
+}

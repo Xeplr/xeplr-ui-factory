@@ -6,6 +6,8 @@ import editExample from '../examples/employee-edit.screen.json'
 import boardExample from '../examples/orders-board.screen.json'
 import photosExample from '../examples/delivery-photos.screen.json'
 import actionsExample from '../examples/order-actions.screen.json'
+import packingExample from '../examples/packing-board.screen.json'
+import packActionsExample from '../examples/packing-actions.screen.json'
 import './dev.css'
 
 // A STAND-IN HOST, for trying the package on its own — laid out the way an app
@@ -105,7 +107,7 @@ const seedOrders = () => Array.from({ length: 14 }, (_, i) => ({
   id: 'o' + (i + 1), name: 'GA' + (1025 + i), customerName: ['Asha Rao', 'Vikram Shetty', 'Meera Iyer', 'Rohan Das'][i % 4],
   city: ['Pune', 'Mumbai', 'Delhi', 'Bengaluru'][i % 4], amount: 1200 + i * 375, customStatus: STATUSES[i % 3].value,
   paymentMethod: i % 3 === 0 ? 'COD' : 'Prepaid', placedHoursAgo: 3 + i * 7, seen: i > 3, cancelled: i === 6,
-  items: Array.from({ length: 1 + (i % 5) }, (_, k) => ({ src: PIC((i * 40 + k * 70) % 360), name: 'Item ' + (k + 1) })),
+  items: Array.from({ length: 1 + (i % 5) }, (_, k) => ({ src: PIC((i * 40 + k * 70) % 360), name: 'Item ' + (k + 1), variant: ['Teak / 24 x 36 in', 'Walnut / A3', 'Black frame / 12 x 18 in'][k % 3], qty: 1 + ((i + k) % 3) })),
   log: [{ text: 'Order placed', at: (3 + i * 7) + 'h ago' }]
 }))
 const orders = () => read('dev-orders', null) || seedOrders()
@@ -122,6 +124,7 @@ const asRow = (o) => ({
 const functionsApi = {
   listFunctions: async () => [
     { name: 'orderList', event: 'listRows', description: 'Every order, most urgent first', inputSchema: [] },
+    { name: 'packingList', event: 'listRows', description: 'Orders ready to pack, with their items\' pictures', inputSchema: [] },
     { name: 'orderActivity', event: 'rowDetails', description: 'The order\'s latest timeline entries', inputSchema: [] },
     { name: 'setOrderStatus', event: 'button', description: 'Sets the order\'s status and posts who changed it', inputSchema: [{ name: 'status', type: 'string', required: true, options: STATUSES }, { name: 'note', type: 'string', required: false },
       { name: 'lengthIn', type: 'number' }, { name: 'widthIn', type: 'number' }, { name: 'heightIn', type: 'number' }, { name: 'weightKg', type: 'number' }] },
@@ -129,8 +132,20 @@ const functionsApi = {
     { name: 'addOrderPhotos', event: 'button', description: 'Adds photos to the order\'s timeline', inputSchema: [{ name: 'files', type: 'array', required: true }, { name: 'note', type: 'string', required: false }] }
   ],
   ...fileApi,
-  fetchRows: async ({ q, filter, kpi, from, to }) => {
+  fetchRows: async ({ screen, q, filter, kpi, from, to }) => {
     await wait(150)
+    // Packing: the dev's "ready to pack" is Ordered — a card each, big pictures.
+    if (screen === packingExample.id) {
+      const ready = orders().filter((o) => o.customStatus === 'ordered' && !o.cancelled && (!q || o.name.toLowerCase().includes(q.toLowerCase().replace(/^#/, ''))))
+      return {
+        rows: ready.map((o) => ({
+          id: o.id, orderNumber: o.name, orderLabel: '#' + o.name, customerCity: o.customerName + ' · ' + o.city, isCod: o.paymentMethod === 'COD',
+          items: o.items.map((it) => ({ src: it.src, name: it.name, detail: it.variant, qty: it.qty })),
+          placedAt: o.placedHoursAgo, placedText: ago(o.placedHoursAgo) + ' ago'
+        })),
+        counts: {}
+      }
+    }
     // The range is by the day an order was placed; every count is for it.
     const placedDay = (o) => new Date(Date.now() - o.placedHoursAgo * 3600000).toISOString().slice(0, 10)
     const inRange = orders().filter((o) => (!from || placedDay(o) >= from) && (!to || placedDay(o) <= to))
@@ -150,8 +165,7 @@ const functionsApi = {
     await wait(250)
     const all = orders()
     const o = all.find((x) => x.id === id)
-    const doc = actionsExample
-    const b = doc.nodes.flatMap((n) => n.props.buttons || []).find((x) => x.id === button)
+    const b = [actionsExample, packActionsExample].flatMap((d) => d.nodes).flatMap((n) => n.props.buttons || []).find((x) => x.id === button)
     if (!o || !b) throw new Error('Not found')
     if (b.action === 'setOrderStatus') {
       o.customStatus = b.params.status
@@ -176,8 +190,20 @@ const MENU = [
   { key: 'screen-orders', group: 'Screen', label: 'Orders' },
   { key: 'design-orders', group: 'Designer', label: 'Orders' },
   { key: 'design-buttons', group: 'Designer', label: 'Buttons' },
-  { key: 'screen-photos', group: 'Screen', label: 'Photos' }
+  { key: 'screen-photos', group: 'Screen', label: 'Photos' },
+  { key: 'screen-packing', group: 'Screen', label: 'Packing' }
 ]
+
+/** Packing: a card per order ready to pack; a card opens Packed in a popup. */
+function PackingPage() {
+  const fetchRecord = async ({ id }) => { await wait(100); const o = orders().find((x) => x.id === id); if (!o) throw new Error('No order ' + id); return asRow(o) }
+  return (
+    <div className="dev-run">
+      <FactoryScreen document={packingExample} {...functionsApi} urlKey="packing"
+                     screens={{ [packActionsExample.id]: packActionsExample }} fetchRecord={fetchRecord} />
+    </div>
+  )
+}
 
 /** Orders: the board, and the order a row opens with its buttons — as an app would lay them out. */
 function OrdersPage({ board, actions }) {
@@ -272,6 +298,7 @@ function App() {
       {page === 'design-orders' && (
         <FactoryBuilder key="design-orders" {...functionsApi} document={designs[boardExample.id]} onSave={saveDesign} onPublish={publish} screens={screenChoices} />
       )}
+      {page === 'screen-packing' && <PackingPage />}
       {page === 'screen-photos' && (
         <div className="dev-run">
           <FactoryScreen document={photosExample} {...api} />

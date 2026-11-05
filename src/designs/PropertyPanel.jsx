@@ -912,7 +912,7 @@ function FedColumnsEditor({ value, onChange, functions }) {
   )
 }
 
-const DISPLAY_LABELS = { text: 'Text', images: 'Pictures', activity: 'Latest activity (with hover box)' }
+const DISPLAY_LABELS = { text: 'Text', images: 'Pictures', activity: 'Latest activity (with hover box)', items: 'Items — picture, name, detail, how many' }
 
 function badgesText(badges) {
   return (Array.isArray(badges) ? badges : []).map((b) => [b.field, b.label, b.tone].filter(Boolean).join(':')).join(', ')
