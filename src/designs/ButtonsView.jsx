@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { boxStyle, fieldStyle } from './styles.js'
 import FileField from './FileField.jsx'
+import { askFields, askFieldStart, askFieldValues } from '../buttons.js'
 
 // A PANEL OF BUTTONS. Each runs a function of the app on the server, with the
 // parameters the screen gives it; which ones show, and which are greyed out,
@@ -63,19 +64,30 @@ export default function ButtonsView({ node, design, panel }) {
           onCancel={() => { setAsking(null); panel.clearNote() }}
           upload={(file) => panel.upload(file, asking)}
           readFile={panel.readFile}
-          onConfirm={async (typed, files) => { if (await panel.press(asking, typed, files)) setAsking(null) }}
+          record={panel.record}
+          onConfirm={async (typed, files, values) => { if (await panel.press(asking, typed, files, values)) setAsking(null) }}
         />
       )}
     </div>
   )
 }
 
-/** "Change status to Packed?" — the button's message, a note and files when it takes them. */
-function AskDialog({ button, busy, error, onCancel, onConfirm, upload, readFile }) {
+/** "Change status to Packed?" — the button's message, its fields, a note and files when it takes them. */
+function AskDialog({ button, busy, error, onCancel, onConfirm, upload, readFile, record }) {
   const ask = button.ask || {}
   const file = ask.file && typeof ask.file === 'object' ? ask.file : null
+  const fields = askFields(button)
   const [typed, setTyped] = useState('')
   const [files, setFiles] = useState([])
+  // Each asked value starts from the record (`fill`): asked again, it shows what was given last.
+  const [given, setGiven] = useState(() => Object.fromEntries(fields.map((f) => [f.name, askFieldStart(f, record)])))
+  const [shown, setShown] = useState({})          // field → message, after a try
+  const confirm = () => {
+    const out = askFieldValues(button, given)
+    if (out.errors.length) { setShown(Object.fromEntries(out.errors.map((e) => [e.field, e.message]))); return }
+    setShown({})
+    onConfirm(typed, files, out.values)
+  }
   const missing = Boolean(file && file.required && !files.length)
   const ref = useRef(null)
   useEffect(() => {
@@ -95,6 +107,34 @@ function AskDialog({ button, busy, error, onCancel, onConfirm, upload, readFile 
         </header>
         <div className="xeplr-factory-modal-body">
           {ask.message && <p className="xeplr-factory-ask-message">{ask.message}</p>}
+          {fields.length > 0 && (
+            <div className="xeplr-factory-ask-fields">
+              {fields.map((f) => {
+                const fid = `${titleId}-${f.name}`
+                return (
+                  <div key={f.name} className="xeplr-factory-ask-field">
+                    <label className="xeplr-factory-ask-label" htmlFor={fid}>{f.label}{f.required ? ' *' : ''}</label>
+                    <span className="xeplr-factory-ask-value">
+                      <input
+                        id={fid}
+                        className="xeplr-factory-ask-input"
+                        type={f.type === 'number' ? 'number' : 'text'}
+                        inputMode={f.type === 'number' ? 'decimal' : undefined}
+                        step={f.type === 'number' ? 'any' : undefined}
+                        min={f.min} max={f.max}
+                        value={given[f.name] ?? ''}
+                        aria-invalid={shown[f.name] ? true : undefined}
+                        aria-describedby={shown[f.name] ? `${fid}-error` : undefined}
+                        onChange={(e) => { const v = e.target.value; setGiven((g) => ({ ...g, [f.name]: v })); setShown((m) => ({ ...m, [f.name]: undefined })) }}
+                      />
+                      {f.unit && <span className="xeplr-factory-ask-unit">{f.unit}</span>}
+                    </span>
+                    {shown[f.name] && <span className="xeplr-factory-ask-field-error" id={`${fid}-error`} role="alert">{shown[f.name]}</span>}
+                  </div>
+                )
+              })}
+            </div>
+          )}
           {ask.note && (
             <label className="xeplr-factory-ask-field" htmlFor={`${titleId}-note`}>
               <span className="xeplr-factory-ask-label">{ask.note}</span>
@@ -120,7 +160,7 @@ function AskDialog({ button, busy, error, onCancel, onConfirm, upload, readFile 
         </div>
         <footer className="xeplr-factory-ask-foot">
           <button type="button" className="xeplr-factory-secondary" onClick={onCancel} disabled={busy}>Cancel</button>
-          <button type="button" className={button.variant === 'danger' ? 'xeplr-factory-danger' : 'xeplr-factory-primary'} onClick={() => onConfirm(typed, files)} disabled={busy || missing}>
+          <button type="button" className={button.variant === 'danger' ? 'xeplr-factory-danger' : 'xeplr-factory-primary'} onClick={confirm} disabled={busy || missing}>
             {busy ? 'Working…' : button.label}
           </button>
         </footer>

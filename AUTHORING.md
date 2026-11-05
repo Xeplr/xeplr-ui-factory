@@ -241,6 +241,8 @@ A button is **a registered function and its parameters** — never code. Several
 ] } }
 ```
 
+A button that needs values typed first (a parcel's size before Packed) gets `ask.fields` — `[{ name, label, type: "number" | "text", unit, required, min, max, fill }]` — and its function takes each `name`. A list with KPI cards over it gets `kpis: [{ key, label, tone? }]` and `dateRange: { label, default: "last30" }`; its `listRows` function returns `kpis: { key: count }` and reads `ctx.query.kpi`, `from`, `to`.
+
 Register the function with `event: 'button'` and an `inputSchema` (with `options` for the values allowed, a `note` input if a button asks for one, and a `files` input if its `ask.file` takes photos or documents — `{ "accept": ".png,.jpg,.jpeg", "multiple": true, "source": "any" }`, the same rules as a file field). `when` / `disabledWhen` are `@xeplr/rules` rules on the record. Publishing refuses parameters the function does not take. See the README's "Buttons".
 
 ## When the document cannot say it

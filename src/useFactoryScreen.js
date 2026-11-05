@@ -6,6 +6,7 @@ import { initialValues, parseInput, saveState, fieldError, optionValue, recordVa
 import { hookMethod } from './hooks.js'
 import { useUrlSteps, useUrlListQuery } from './useUrlPlaces.js'
 import { buttonShown, buttonDisabled, buttonPressed } from './buttons.js'
+import { resolveRange, dayOf } from './listRange.js'
 
 // A saved screen, running. No JSX — designs/ScreenSample.jsx draws it.
 //
@@ -59,9 +60,9 @@ import { buttonShown, buttonDisabled, buttonPressed } from './buttons.js'
  * @param onDirtyChange (dirty) → void — whether there are unsaved changes, as that changes
  * @param controls      the control registry (default: the built-ins)
  * @param hooks         a FactoryHooks (or an object with some of its methods) — get / save / delete / actions
- * @param fetchRows     async ({ screen, node, q, filter }) → { rows, counts } — a list whose rows a function works out (rowsFrom)
+ * @param fetchRows     async ({ screen, node, q, filter, kpi, from, to }) → { rows, counts, kpis } — a list whose rows a function works out (rowsFrom)
  * @param fetchRowDetails async ({ screen, node, column, id }) → [{ text, sub?, at?, open? }] — an activity cell's hover box
- * @param pressButton   async ({ screen, button, id, note, files }) → { message } — a button's press, run on the server
+ * @param pressButton   async ({ screen, button, id, note, files, values }) → { message } — a button's press, run on the server
  * @param uploadButtonFile async (file, { screen, button }) → { path } — a file a button's `ask.file` takes, stored before the press
  * @param readFile      async (path) → Blob — an attached file's bytes: a picture's preview (no preview without it)
  * @param onButtonDone  ({ button, result, record }) → void — after a press: the host reloads what it shows
@@ -612,6 +613,15 @@ export function useFactoryScreen({
   // rows. The search waits for a pause in typing before it asks.
   const [listQ, setListQ] = useUrlListQuery(urlKey, 'q')
   const [listFilter, setListFilter] = useUrlListQuery(urlKey, 'filter')
+  // A dashboard's KPI card (clicked: its rows) and date range (a preset, or
+  // "from..to"), in the URL too. The range is turned into days when asked.
+  const [listKpi, setListKpi] = useUrlListQuery(urlKey, 'kpi')
+  const [listDates, setListDates] = useUrlListQuery(urlKey, 'dates')
+  const rangeFor = useCallback((node) => {
+    const r = node && node.props && node.props.dateRange
+    if (!r) return null
+    return resolveRange(listDates || r.default || 'all', dayOf(new Date()), r.default || 'all')
+  }, [listDates])
   const [askedQ, setAskedQ] = useState(listQ)
   useEffect(() => {
     if (askedQ === listQ) return undefined
@@ -635,14 +645,21 @@ export function useFactoryScreen({
       const run = Promise.resolve().then(() => hook('get')({
         many: true, id: null, screen: doc.id, source: src, node, document: doc,
         steps: live.current.steps,
-        query: fed ? { q: askedQ, filter: listFilter } : undefined,
+        query: fed ? { q: askedQ, filter: listFilter, kpi: listKpi, ...(rangeFor(node) || {}) } : undefined,
         defaults: {
           get: () => {
             // ROWS A FUNCTION WORKS OUT: the server runs the list's rowsFrom
             // with the search and the chip, and answers { rows, counts }.
             if (fed) {
               if (!fetchRowsRef.current) throw new Error(`No fetchRows was provided — the list's rows come from "${node.props.rowsFrom}"`)
-              return fetchRowsRef.current({ screen: doc.id, node: node.id, q: askedQ, filter: listFilter || undefined })
+              const range = rangeFor(node)
+              const kpis = Array.isArray(node.props.kpis) ? node.props.kpis : []
+              return fetchRowsRef.current({
+                screen: doc.id, node: node.id, q: askedQ, filter: listFilter || undefined,
+                kpi: kpis.some((k) => k.key === listKpi) ? listKpi : undefined,
+                from: range && range.from ? range.from : undefined,
+                to: range && range.to ? range.to : undefined
+              })
             }
             if (!fetchRecordsRef.current) throw new Error(`No fetchRecords was provided to list "${src}"`)
             // A SUB-TABLE IS THIS RECORD'S. `belongsTo` names the column on
@@ -663,15 +680,21 @@ export function useFactoryScreen({
           if (cancelled) return
           const rows = Array.isArray(out) ? out : out && Array.isArray(out.rows) ? out.rows : []
           const counts = out && !Array.isArray(out) && out.counts ? out.counts : {}
-          setLists((l) => ({ ...l, [node.id]: { rows, counts, loading: false, error: null } }))
+          const kpis = out && !Array.isArray(out) && out.kpis ? out.kpis : {}
+          setLists((l) => ({ ...l, [node.id]: { rows, counts, kpis, loading: false, error: null } }))
         })
         .catch((err) => { if (!cancelled) setLists((l) => ({ ...l, [node.id]: { rows: l[node.id]?.rows || [], counts: l[node.id]?.counts || {}, loading: false, error: err.message || 'Could not load records' } })) })
     })
     return () => { cancelled = true }
-  }, [listNodes, listVersion, doc, askedQ, listFilter, reloadKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [listNodes, listVersion, doc, askedQ, listFilter, listKpi, rangeFor, reloadKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /** What a function-fed list is narrowed to, and how to change it. */
-  const listQuery = useMemo(() => ({ q: listQ, filter: listFilter, setQ: setListQ, setFilter: setListFilter }), [listQ, listFilter, setListQ, setListFilter])
+  const listQuery = useMemo(() => ({
+    q: listQ, filter: listFilter, setQ: setListQ, setFilter: setListFilter,
+    kpi: listKpi, setKpi: setListKpi,
+    // The range a list shows (its own default until one is chosen), and choosing one.
+    rangeFor, setDates: setListDates
+  }), [listQ, listFilter, setListQ, setListFilter, listKpi, setListKpi, rangeFor, setListDates])
 
   /** An activity cell's hover box: the column's function, for one row. */
   const fetchRowDetailsRef = useRef(fetchRowDetails); fetchRowDetailsRef.current = fetchRowDetails
@@ -853,12 +876,12 @@ export function useFactoryScreen({
       if (!out || !out.path) throw new Error('The upload did not answer with the stored file')
       return out
     },
-    press: async (b, typed, files) => {
+    press: async (b, typed, files, values) => {
       if (!pressRef.current) { setButtonNote({ kind: 'error', text: 'No pressButton was provided', button: b.id }); return false }
       setPressing(b.id)
       setButtonNote(null)
       try {
-        const result = await pressRef.current({ screen: doc.id, button: b.id, id: recordId, note: typed, files })
+        const result = await pressRef.current({ screen: doc.id, button: b.id, id: recordId, note: typed, files, values })
         setButtonNote({ kind: 'done', text: (result && result.message) || `${b.label} — done`, button: b.id })
         setListVersion((v) => v + 1)
         if (buttonDoneRef.current) buttonDoneRef.current({ button: b, result, record: buttonRecord })

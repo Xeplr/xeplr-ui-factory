@@ -12,6 +12,8 @@
 // (width × the screen's aspect). See document.js.
 
 /** A dropdown binds `id` and shows `name` — always. */
+import { DATE_PRESETS } from './listRange.js'
+
 export const OPTION_ID = 'id'
 export const OPTION_LABEL = 'name'
 
@@ -591,7 +593,7 @@ CONTROLS.list = {
   // rowsFrom: rows a registered function works out (event "listRows") —
   // with its search box, filter chips and their counts — instead of one
   // table's records. See buttons.js.
-  props: ['title', 'source', 'belongsTo', 'editScreen', 'openIn', 'columns', 'pageSize', 'actions', 'rowsFrom', 'search', 'filters', 'refreshEvery', 'rowOpen', 'highlight', 'grow', 'style'],
+  props: ['title', 'source', 'belongsTo', 'editScreen', 'openIn', 'columns', 'pageSize', 'actions', 'rowsFrom', 'search', 'filters', 'kpis', 'dateRange', 'refreshEvery', 'rowOpen', 'highlight', 'grow', 'style'],
   validation: [],
   styles: ['fontFamily', 'fontSize', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'],
   properties: [
@@ -624,6 +626,9 @@ CONTROLS.list = {
           help: 'A function of the app that works the rows out — instead of reading one table. Blank → the table above.' },
         { path: 'props.search.placeholder', label: 'Search box hint', type: 'text', help: 'Blank → no search box. Needs "Rows from".' },
         { path: 'props.filters', label: 'Filter chips', type: 'filters', help: 'The first is where the list starts. The function counts each.' },
+        { path: 'props.kpis', label: 'KPI cards', type: 'filters', help: 'Counts above the table, for the date range. A click shows that card\'s rows; another click lets go. The function counts each.' },
+        { path: 'props.dateRange', label: 'Date range', type: 'dateRange', presets: DATE_PRESETS,
+          help: 'A From–To range above the table, starting at the one chosen here. The function is asked for its rows and counts in it.' },
         { path: 'props.refreshEvery', label: 'Refresh every (seconds)', type: 'number', help: 'For rows whose text changes with time, like "2h ago". Blank → never.' },
         { path: 'props.rowOpen', label: 'A click on a row opens it', type: 'toggle' },
         { path: 'props.highlight', label: 'Mark rows where', type: 'text', help: 'A field of the row; a row where it is true is marked — "isNew".' },

@@ -14,6 +14,7 @@ const REPLIES = {
   'GET /factory/rows/orders_board?node=list1&q=GA%2010&filter=packed': [200, { dataArray: [{ rows: [{ id: 'o1' }], counts: { all: 1 } }] }],
   'GET /factory/rows/orders_board/details?node=list1&column=lastActivityAt&id=o1': [200, { dataArray: [{ text: 'Packed' }] }],
   'POST /factory/buttons/order_actions/packed': [200, { dataArray: [{ button: 'packed', message: 'Order GA1 is now packed' }] }],
+  'GET /factory/rows/orders_board?node=list1&kpi=open&from=2026-10-07&to=2026-11-05': [200, { dataArray: [{ rows: [{ id: 'o2' }], counts: {}, kpis: { open: 1 } }] }],
   'POST /factory/buttons/order_actions/proof/files': [200, { dataArray: [{ path: 'orders/_buttons/proof/u1/k3__door.jpg', name: 'door.jpg', size: 3 }] }]
 }
 const sent = []
@@ -42,6 +43,10 @@ for (const [label, doFetch] of [['a Response fetch', responseFetch], ['authFetch
   check('a press: the message, and only the id and the note sent', pressed.message === 'Order GA1 is now packed' && sent[sent.length - 1] === JSON.stringify({ id: 'o1', note: 'late' }))
   await api.pressButton({ screen: 'order_actions', button: 'packed', id: 'o1' })
   check('...no note: none sent', sent[sent.length - 1] === JSON.stringify({ id: 'o1' }))
+  const dash = await api.fetchRows({ screen: 'orders_board', node: 'list1', kpi: 'open', from: '2026-10-07', to: '2026-11-05' })
+  check('a dashboard: the KPI card and the range are asked for, and the cards\' counts come back', dash.kpis.open === 1 && dash.rows[0].id === 'o2')
+  await api.pressButton({ screen: 'order_actions', button: 'packed', id: 'o1', values: { lengthIn: 12, weightKg: 1.5 } })
+  check('...asked values are sent as values', sent[sent.length - 1] === JSON.stringify({ id: 'o1', values: { lengthIn: 12, weightKg: 1.5 } }))
   await api.pressButton({ screen: 'order_actions', button: 'packed', id: 'o1', files: ['orders/_buttons/proof/u1/k3__door.jpg'] })
   check('...with files: their stored paths sent', sent[sent.length - 1] === JSON.stringify({ id: 'o1', files: ['orders/_buttons/proof/u1/k3__door.jpg'] }))
   const stored = await api.uploadButtonFile(new Blob(['abc']), { screen: 'order_actions', button: 'proof' })

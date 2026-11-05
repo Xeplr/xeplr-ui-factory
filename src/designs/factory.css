@@ -323,6 +323,34 @@
    Search and chips over the rows; every cell is text the server wrote. */
 .xeplr-factory-list--fed { overflow: hidden; }
 .xeplr-factory-list--fed .xeplr-table-container { border: none; border-radius: 0; background: transparent; }
+/* A dashboard over the rows: the date range, then a card per KPI — a count,
+   and a filter (pressed: its rows). */
+.xeplr-factory-dash { display: flex; flex-direction: column; gap: 12px; padding: 14px; border-bottom: 1px solid var(--xf-border); }
+.xeplr-factory-range { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--xf-ink); }
+.xeplr-factory-range-label { font-weight: 600; }
+.xeplr-factory-range-days { display: inline-flex; align-items: center; gap: 6px; color: var(--xf-muted); }
+.xeplr-factory-range-preset, .xeplr-factory-range-day {
+  font: inherit; color: var(--xf-ink); background: var(--xf-field-bg); border: 1px solid var(--xf-field-border);
+  border-radius: 8px; padding: 6px 10px; min-height: 36px; box-sizing: border-box;
+}
+.xeplr-factory-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.xeplr-factory-kpi {
+  --xf-kpi: var(--xf-accent);
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; cursor: pointer;
+  font: inherit; color: var(--xf-ink); background: var(--xf-field-bg);
+  border: 1px solid var(--xf-border); border-left: 4px solid var(--xf-kpi); border-radius: 10px; padding: 12px 14px;
+}
+.xeplr-factory-kpi:hover { background: var(--xf-hover); }
+.xeplr-factory-kpi:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--xf-kpi) 35%, transparent); }
+.xeplr-factory-kpi.is-on { background: color-mix(in srgb, var(--xf-kpi) 12%, var(--xf-field-bg)); border-color: var(--xf-kpi); }
+.xeplr-factory-kpi--success { --xf-kpi: var(--xf-good); }
+.xeplr-factory-kpi--warning { --xf-kpi: var(--xf-warn); }
+.xeplr-factory-kpi--danger { --xf-kpi: var(--xf-danger); }
+.xeplr-factory-kpi--muted { --xf-kpi: var(--xf-muted); }
+.xeplr-factory-kpi-count { font-size: 1.9em; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.xeplr-factory-kpi-label { color: var(--xf-muted); font-size: .92em; }
+.xeplr-factory-kpi.is-on .xeplr-factory-kpi-label { color: var(--xf-ink); }
+
 .xeplr-factory-list-tools {
   display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 14px;
   border-bottom: 1px solid var(--xf-border);
@@ -417,6 +445,15 @@ button.xeplr-factory-activity-item:hover, button.xeplr-factory-activity-item:foc
   color: var(--xf-ink); background: var(--xf-field-bg); border: 1px solid var(--xf-field-border);
 }
 .xeplr-factory-ask-note { resize: vertical; min-height: 80px; }
+.xeplr-factory-ask-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px 12px; }
+.xeplr-factory-ask-value { display: flex; align-items: center; gap: 6px; }
+.xeplr-factory-ask-input {
+  flex: 1 1 auto; min-width: 0; font: inherit; color: var(--xf-ink); background: var(--xf-field-bg);
+  border: 1px solid var(--xf-field-border); border-radius: 8px; padding: 7px 10px; box-sizing: border-box;
+}
+.xeplr-factory-ask-input[aria-invalid] { border-color: var(--xf-danger); }
+.xeplr-factory-ask-unit { color: var(--xf-muted); white-space: nowrap; min-width: 1.6em; }
+.xeplr-factory-ask-field-error { color: var(--xf-danger); font-size: .88em; }
 .xeplr-factory-ask-note:focus, .xeplr-factory-list-search:focus { outline: none; border-color: var(--xf-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--xf-accent) 25%, transparent); }
 .xeplr-factory-ask-error { margin: 0; color: var(--xf-danger); }
 .xeplr-factory-ask-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px 16px; }
@@ -863,11 +900,18 @@ button.xeplr-factory-activity-item:hover, button.xeplr-factory-activity-item:foc
 /* Function-fed lists and buttons on a phone: the search takes the width, chips
    scroll in a row, and every button is a thumb-sized target. */
 @media (max-width: 640px) {
-  .xeplr-factory-list-search, .xeplr-factory-ask-note { font-size: max(16px, 1em); min-height: 44px; }
+  .xeplr-factory-list-search, .xeplr-factory-ask-note, .xeplr-factory-ask-input { font-size: max(16px, 1em); min-height: 44px; }
+  .xeplr-factory-ask-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .xeplr-factory-list-search { flex-basis: 100%; max-width: none; }
   .xeplr-factory-ask-foot button { flex: 1; min-height: 44px; }
   .xeplr-factory-chips { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; padding-bottom: 2px; }
   .xeplr-factory-chip { min-height: 36px; }
+  .xeplr-factory-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .xeplr-factory-range-preset, .xeplr-factory-range-day { font-size: max(16px, 1em); min-height: 44px; }
+  .xeplr-factory-range-preset { flex: 1 1 100%; }
+  .xeplr-factory-range-days { flex: 1 1 100%; min-width: 0; }
+  /* A date box's own width is the browser's; let the row decide instead. */
+  .xeplr-factory-range-day { flex: 1 1 0; min-width: 0; width: 0; }
   .xeplr-factory-button { min-height: 44px; flex: 1 1 auto; }
   .xeplr-factory-buttons-note { flex-basis: 100%; }
   .xeplr-factory-ask .xeplr-factory-modal-body { padding: 4px 16px 8px; }

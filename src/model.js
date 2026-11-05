@@ -17,7 +17,7 @@ export { SCREEN_EVENTS, SCREEN_EVENT_KEYS, DECIDE_EVENT, FUNCTION_NAME, screenFu
 // Buttons and lists whose rows a function works out — names and values only.
 export {
   BUTTON_EVENT, LIST_ROWS_EVENT, ROW_DETAILS_EVENT, BUTTON_VARIANTS, COLUMN_DISPLAYS, BADGE_TONES, NOTE_INPUT, FILES_INPUT, CONDITION_OPERATORS,
-  conditionMet, buttonShown, buttonDisabled, buttonPressed, screenButtons, buttonById, buttonInput, askFile, askFileProblem, nodeFunctions, paramProblems, optionValues
+  conditionMet, buttonShown, buttonDisabled, buttonPressed, screenButtons, buttonById, buttonInput, askFile, askFileProblem, askFields, askFieldStart, askFieldValues, ASK_FIELD_TYPES, nodeFunctions, paramProblems, optionValues
 } from './buttons.js'
 // Which pages are drawn from documents and which are web only (ui/pages.json).
 export { checkInventory, routesIn, pageWarnings, webOnlyMenus } from './pagesInventory.js'
@@ -43,3 +43,5 @@ export {
   addTransition, setTransition, removeTransition, firstStep, reachableSteps, layoutFlow, validateFlow, describeWhen,
   arrowTargets, navigationOf, setNavigation
 } from './flow.js'
+// A function-fed list's date range: presets → days, and what a day is.
+export { DATE_PRESETS, DATE_PRESET_VALUES, resolveRange, customRange, isDay, dayOf } from './listRange.js'
