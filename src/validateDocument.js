@@ -532,10 +532,20 @@ function checkFedList(props, fed, at, err) {
   }
   if (props.dateRange !== undefined) {
     const d = props.dateRange
-    if (!d || typeof d !== 'object' || Array.isArray(d)) err(`${at}.props.dateRange`, 'must be { label?, default? } — the range the function is asked for')
+    if (!d || typeof d !== 'object' || Array.isArray(d)) err(`${at}.props.dateRange`, 'must be { label?, default?, presets? } — the range the function is asked for')
     else {
-      const extra = Object.keys(d).filter((x) => x !== 'label' && x !== 'default')
-      if (extra.length) err(`${at}.props.dateRange`, `only "label" and "default" are used — remove: ${extra.join(', ')}`)
+      const extra = Object.keys(d).filter((x) => !['label', 'default', 'presets'].includes(x))
+      if (extra.length) err(`${at}.props.dateRange`, `only "label", "default" and "presets" are used — remove: ${extra.join(', ')}`)
+      if (d.presets !== undefined) {
+        const ps = d.presets
+        if (!Array.isArray(ps) || !ps.length) err(`${at}.props.dateRange.presets`, 'must be a list of the ranges the picker offers, e.g. ["today", "last7"] — or left out for all of them')
+        else {
+          const unknown = ps.filter((v) => !DATE_PRESET_VALUES.includes(v))
+          if (unknown.length) err(`${at}.props.dateRange.presets`, `unknown: ${unknown.join(', ')} — each must be one of: ${DATE_PRESET_VALUES.join(', ')}`)
+          if (new Set(ps).size !== ps.length) err(`${at}.props.dateRange.presets`, 'lists a range twice')
+          if (d.default !== undefined && !ps.includes(d.default)) err(`${at}.props.dateRange.default`, `"${d.default}" is not one of the presets the picker offers`)
+        }
+      }
       if (d.label !== undefined && typeof d.label !== 'string') err(`${at}.props.dateRange.label`, 'must be a string, e.g. "Placed"')
       if (d.default !== undefined && !DATE_PRESET_VALUES.includes(d.default)) err(`${at}.props.dateRange.default`, `must be one of: ${DATE_PRESET_VALUES.join(', ')}`)
     }

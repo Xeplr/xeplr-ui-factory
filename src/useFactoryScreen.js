@@ -6,7 +6,7 @@ import { initialValues, parseInput, saveState, fieldError, optionValue, recordVa
 import { hookMethod } from './hooks.js'
 import { useUrlSteps, useUrlListQuery } from './useUrlPlaces.js'
 import { buttonShown, buttonDisabled, buttonPressed } from './buttons.js'
-import { resolveRange, dayOf } from './listRange.js'
+import { resolveRange, rangePresets, dayOf } from './listRange.js'
 
 // A saved screen, running. No JSX — designs/ScreenSample.jsx draws it.
 //
@@ -620,7 +620,8 @@ export function useFactoryScreen({
   const rangeFor = useCallback((node) => {
     const r = node && node.props && node.props.dateRange
     if (!r) return null
-    return resolveRange(listDates || r.default || 'all', dayOf(new Date()), r.default || 'all')
+    const offered = rangePresets(r).map((o) => o.value)
+    return resolveRange(listDates || r.default || 'all', dayOf(new Date()), r.default || 'all', offered)
   }, [listDates])
   const [askedQ, setAskedQ] = useState(listQ)
   useEffect(() => {

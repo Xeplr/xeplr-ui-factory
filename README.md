@@ -565,11 +565,11 @@ actions.register({ name: 'orderActivity', event: 'rowDetails', execute: async (c
 - **The search and the chip live in the URL** under the screen's `urlKey` (`<urlKey>Q`, `<urlKey>Filter`), so a refresh shows the same rows. The search waits for a pause in typing.
 - **A dashboard over the rows** — `dateRange` and `kpis`:
   ```json
-  "dateRange": { "label": "Placed", "default": "last30" },
+  "dateRange": { "label": "Placed", "default": "last7", "presets": ["today", "yesterday", "last2", "last3", "last4", "last5", "last7"] },
   "kpis": [{ "key": "ordered", "label": "Not started", "tone": "warning" }, { "key": "open", "label": "Open" },
            { "key": "delivered", "label": "Delivered", "tone": "success" }, { "key": "total", "label": "Total orders", "tone": "muted" }]
   ```
-  A From–To range (presets: `today`, `yesterday`, `last7`, `last30`, `thisMonth`, `lastMonth`, `all`, or two days typed) and a card per KPI showing the count the function returned in `kpis`. **Clicking a card shows its rows** (`ctx.query.kpi`); clicking it again lets go. The range and the card live in the URL (`<urlKey>Dates` — `last30` or `2026-10-01..2026-10-31` — and `<urlKey>Kpi`), and a preset is turned into days on the day it is asked, so "last 30 days" stays the last 30 days. What a card counts, and which date the range is about, are the function's to decide; every count should be for the range. On a phone the cards are two to a row. Both need `rowsFrom`.
+  A From–To range (presets: `today`, `yesterday`, `last2`, `last3`, `last4`, `last5`, `last7`, `last30`, `thisMonth`, `lastMonth`, `all`, or two days typed — "Between…" is always offered). `presets` picks which the picker offers, in that order (left out: all of them); `default` must be one of them, and an old link to one it no longer offers opens the default. The designer's Date range box ticks them and a card per KPI showing the count the function returned in `kpis`. **Clicking a card shows its rows** (`ctx.query.kpi`); clicking it again lets go. The range and the card live in the URL (`<urlKey>Dates` — `last30` or `2026-10-01..2026-10-31` — and `<urlKey>Kpi`), and a preset is turned into days on the day it is asked, so "last 30 days" stays the last 30 days. What a card counts, and which date the range is about, are the function's to decide; every count should be for the range. On a phone the cards are two to a row. Both need `rowsFrom`.
 - **Cards instead of a table** — `"layout": "cards"`, for people who look rather than compare (packers on a phone):
   ```json
   { "title": "Ready to pack", "layout": "cards", "rowsFrom": "packingList", "editScreen": "packing_actions", "rowOpen": true,
