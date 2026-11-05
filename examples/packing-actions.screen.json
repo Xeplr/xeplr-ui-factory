@@ -1,0 +1,90 @@
+{
+  "kind": "xeplr-screen",
+  "version": 1,
+  "id": "packing_actions",
+  "name": "Pack an order",
+  "units": "fraction",
+  "aspect": 1,
+  "width": 900,
+  "description": "The one thing a packer does: Packed, with the parcel's size.",
+  "nodes": [
+    {
+      "id": "buttons",
+      "type": "buttons",
+      "x": 0.04,
+      "y": 0.04,
+      "w": 0.96,
+      "h": 0.1,
+      "z": 1,
+      "props": {
+        "buttons": [
+          {
+            "id": "packed",
+            "label": "Packed",
+            "action": "setOrderStatus",
+            "params": {
+              "status": "packed"
+            },
+            "pressedWhen": [
+              {
+                "field": "customStatus",
+                "op": "eq",
+                "value": "packed"
+              }
+            ],
+            "disabledWhen": [
+              {
+                "field": "customStatus",
+                "op": "eq",
+                "value": "packed"
+              }
+            ],
+            "ask": {
+              "title": "Change status to “Packed”?",
+              "note": "Reason (optional)",
+              "fields": [
+                {
+                  "name": "lengthIn",
+                  "label": "Length",
+                  "type": "number",
+                  "unit": "in",
+                  "required": true,
+                  "min": 0.1,
+                  "fill": "parcelLengthIn"
+                },
+                {
+                  "name": "widthIn",
+                  "label": "Width",
+                  "type": "number",
+                  "unit": "in",
+                  "required": true,
+                  "min": 0.1,
+                  "fill": "parcelWidthIn"
+                },
+                {
+                  "name": "heightIn",
+                  "label": "Height",
+                  "type": "number",
+                  "unit": "in",
+                  "required": true,
+                  "min": 0.1,
+                  "fill": "parcelHeightIn"
+                },
+                {
+                  "name": "weightKg",
+                  "label": "Weight",
+                  "type": "number",
+                  "unit": "kg",
+                  "required": true,
+                  "min": 0.01,
+                  "fill": "parcelWeightKg"
+                }
+              ]
+            },
+            "variant": "primary"
+          }
+        ]
+      }
+    }
+  ]
+}

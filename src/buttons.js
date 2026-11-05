@@ -37,8 +37,19 @@ export const ROW_DETAILS_EVENT = 'rowDetails'
 /** How a button looks: an ordinary one, the main one, or one that undoes or removes. */
 export const BUTTON_VARIANTS = ['default', 'primary', 'danger']
 
-/** What a list column can be drawn as. Every one shows text the server wrote. */
-export const COLUMN_DISPLAYS = ['text', 'images', 'activity']
+/**
+ * What a list column can be drawn as. Every one shows text the server wrote.
+ * "items" is a row's things, each a picture with its name, a detail line and
+ * how many: [{ src, name, detail, qty }] — on a card, the pictures are large.
+ */
+export const COLUMN_DISPLAYS = ['text', 'images', 'activity', 'items']
+
+/**
+ * How a function-fed list lays its rows out: a table, or a card each — for
+ * people who look rather than compare, on a phone above all: the first column
+ * is the card's heading, an "items" column its pictures, the rest lines.
+ */
+export const LIST_LAYOUTS = ['table', 'cards']
 
 /** A badge's colour. */
 export const BADGE_TONES = ['accent', 'success', 'warning', 'danger', 'muted']

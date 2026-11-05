@@ -118,7 +118,7 @@ export function FactoryScreen(props) {
       )}
       renderPopup={(popup) => (
         <ScreenModal
-          title={popup.document ? popup.document.name : 'Loading…'}
+          title={popup.document ? [popup.document.name, popup.label].filter(Boolean).join(' · ') : 'Loading…'}
           width={popup.document ? popup.document.width : undefined}
           onClose={closePopup}
         >
@@ -145,6 +145,13 @@ export function FactoryScreen(props) {
               uploadFile={props.uploadFile}
               fileUrl={props.fileUrl}
               readFile={props.readFile}
+              // A screen of buttons opened from a row — Packed on a card —
+              // presses on the server like one on the page.
+              pressButton={props.pressButton}
+              uploadButtonFile={props.uploadButtonFile}
+              fetchRows={props.fetchRows}
+              fetchRowDetails={props.fetchRowDetails}
+              onButtonDone={ctrl.popupPressed}
               screens={props.screens}
               loadScreen={props.loadScreen}
               controls={props.controls}

@@ -740,7 +740,7 @@ export function useFactoryScreen({
   }, [doc, recordKey, openRecord])
 
   // ── popup: a list's Edit / New in its edit screen ─────────────────────
-  const [popup, setPopup] = useState(null)   // { node, screenId, record, document, loading, error }
+  const [popup, setPopup] = useState(null)   // { node, screenId, record, document, loading, error, label }
   const screensRef = useRef(knownScreens); screensRef.current = knownScreens
   const fetchRecordRef = useRef(fetchRecord); fetchRecordRef.current = fetchRecord
   const loadScreenRef = useRef(loadScreen); loadScreenRef.current = loadScreen
@@ -769,7 +769,11 @@ export function useFactoryScreen({
       const at = where && typeof where === 'object' ? where : null
       return openRecordRef.current({ screen: screenId, id, record: rec || null, source: listSource(doc, node), node, params: given || at ? { ...(given || {}), ...(at || {}) } : given })
     }
-    const base = { node, screenId, record: rec || null, document: null, loading: true, error: null, params: given }
+    // Which row it is, in the popup's title: a function-fed row's first
+    // column ("#GA1025"), so a screen of buttons says what it acts on.
+    const head = node.props.rowsFrom && rec && Array.isArray(node.props.columns) ? node.props.columns[0] : null
+    const label = head && rec[head.text || head.field] !== undefined && rec[head.text || head.field] !== null ? String(rec[head.text || head.field]) : null
+    const base = { node, screenId, record: rec || null, document: null, loading: true, error: null, params: given, label }
     setPopup(base)
     try {
       let found = screensRef.current && screensRef.current[screenId]
@@ -857,6 +861,12 @@ export function useFactoryScreen({
   const pressRef = useRef(pressButton); pressRef.current = pressButton
   const buttonUploadRef = useRef(uploadButtonFile); buttonUploadRef.current = uploadButtonFile
   const buttonDoneRef = useRef(onButtonDone); buttonDoneRef.current = onButtonDone
+
+  /** A button pressed in the popup: the list behind it shows the change. */
+  const popupPressed = useCallback((result) => {
+    setListVersion((v) => v + 1)
+    if (buttonDoneRef.current) buttonDoneRef.current(result)
+  }, [])
   const [pressing, setPressing] = useState(null)        // button id on the wire
   const [buttonNote, setButtonNote] = useState(null)    // { kind: 'done' | 'error', text, button }
   const buttonRecord = useMemo(() => ({ ...(record || {}), ...values, [recordKey]: recordId }), [record, values, recordKey, recordId])
@@ -907,6 +917,7 @@ export function useFactoryScreen({
     openEditor,
     closeEditor,
     popupSave,
+    popupPressed,
     values,
     recordId,
     errors: { ...state.shown, ...serverErrors },

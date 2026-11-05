@@ -593,7 +593,7 @@ CONTROLS.list = {
   // rowsFrom: rows a registered function works out (event "listRows") —
   // with its search box, filter chips and their counts — instead of one
   // table's records. See buttons.js.
-  props: ['title', 'source', 'belongsTo', 'editScreen', 'openIn', 'columns', 'pageSize', 'actions', 'rowsFrom', 'search', 'filters', 'kpis', 'dateRange', 'refreshEvery', 'rowOpen', 'highlight', 'grow', 'style'],
+  props: ['title', 'source', 'belongsTo', 'editScreen', 'openIn', 'columns', 'pageSize', 'actions', 'rowsFrom', 'search', 'filters', 'kpis', 'dateRange', 'refreshEvery', 'rowOpen', 'highlight', 'grow', 'layout', 'style'],
   validation: [],
   styles: ['fontFamily', 'fontSize', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'],
   properties: [
@@ -630,6 +630,10 @@ CONTROLS.list = {
         { path: 'props.dateRange', label: 'Date range', type: 'dateRange', presets: DATE_PRESETS,
           help: 'A From–To range above the table, starting at the one chosen here. The function is asked for its rows and counts in it.' },
         { path: 'props.refreshEvery', label: 'Refresh every (seconds)', type: 'number', help: 'For rows whose text changes with time, like "2h ago". Blank → never.' },
+        { path: 'props.layout', label: 'Rows as', type: 'select', options: [
+          { value: 'table', label: 'A table' },
+          { value: 'cards', label: 'Cards — large pictures, for a phone' }
+        ], help: 'Cards: the first column is each card\'s heading, an "items" column its pictures, the rest lines. Needs "Rows from".' },
         { path: 'props.rowOpen', label: 'A click on a row opens it', type: 'toggle' },
         { path: 'props.highlight', label: 'Mark rows where', type: 'text', help: 'A field of the row; a row where it is true is marked — "isNew".' },
         { path: 'props.grow', label: 'As tall as its rows', type: 'toggle',

@@ -558,7 +558,7 @@ actions.register({ name: 'orderActivity', event: 'rowDetails', execute: async (c
 | `text` | the field holding what is **shown** — written by the function, in the app's words and time zone. Blank → the value |
 | `sub` | a second line, smaller |
 | `badges` | `[{ field, label, tone }]` after the text, where `field` is true. Tones: `accent`, `success`, `warning`, `danger`, `muted` |
-| `display` | `text` (default), `images` (`[{ src, name }]`, plus `more`: how many others), `activity` (a line with a hover box) |
+| `display` | `text` (default), `images` (`[{ src, name }]`, plus `more`: how many others), `activity` (a line with a hover box), `items` (`[{ src, name, detail, qty }]` — each thing with its picture, name, a detail line such as the variant, and how many) |
 | `details` | for `activity`: the function (event `rowDetails`) whose entries the hover box lists; an entry with `open` opens the row at that place (passed to `onOpenRecord` as `params`) |
 | `sortable` | `false` for a column whose header should not sort |
 
@@ -570,6 +570,16 @@ actions.register({ name: 'orderActivity', event: 'rowDetails', execute: async (c
            { "key": "delivered", "label": "Delivered", "tone": "success" }, { "key": "total", "label": "Total orders", "tone": "muted" }]
   ```
   A From–To range (presets: `today`, `yesterday`, `last7`, `last30`, `thisMonth`, `lastMonth`, `all`, or two days typed) and a card per KPI showing the count the function returned in `kpis`. **Clicking a card shows its rows** (`ctx.query.kpi`); clicking it again lets go. The range and the card live in the URL (`<urlKey>Dates` — `last30` or `2026-10-01..2026-10-31` — and `<urlKey>Kpi`), and a preset is turned into days on the day it is asked, so "last 30 days" stays the last 30 days. What a card counts, and which date the range is about, are the function's to decide; every count should be for the range. On a phone the cards are two to a row. Both need `rowsFrom`.
+- **Cards instead of a table** — `"layout": "cards"`, for people who look rather than compare (packers on a phone):
+  ```json
+  { "title": "Ready to pack", "layout": "cards", "rowsFrom": "packingList", "editScreen": "packing_actions", "rowOpen": true,
+    "columns": [
+      { "field": "orderNumber", "text": "orderLabel", "sub": "customerCity", "badges": [{ "field": "isCod", "label": "COD", "tone": "warning" }] },
+      { "field": "items", "label": "Items", "display": "items", "sortable": false },
+      { "field": "placedAt", "label": "Placed", "text": "placedText" }] }
+  ```
+  The **first column is each card's heading** (20px, its `sub` and badges under it); an **`items` column draws each thing's picture large** — square, the card's full width, one card to a row on a phone — with how many, its name and its `detail` in 18px; every other column is a line under its label. The first `pageSize` cards, then **Show more**. A tap on a card opens it, like a row. Needs `rowsFrom`. Example: `examples/packing-board.screen.json`.
+- **A screen of buttons in the popup** — a row's `editScreen` may be a screen of buttons (`examples/packing-actions.screen.json`: just Packed, asking the parcel's size). They press on the server as on a page, the list behind refreshes after a press, and the popup's title names the row from its first column (`Pack an order · #GA1025`).
 - **`refreshEvery`** (seconds, 10–3600) asks again — for text that changes with time. **`reloadKey`** on `<FactoryScreen>` reloads every list when it changes (the host heard something happen).
 - **`grow`** (a list that is its screen's **one** control) lets the page grow with the rows on a desktop, instead of the list scrolling inside the box it was placed in — a full-page list like Orders. Phones always flow.
 - **`rowOpen`** makes a click anywhere on a row open it (the first cell is also a button, for the keyboard); **`highlight`** marks rows whose field is true.

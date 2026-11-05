@@ -15,6 +15,10 @@ import { DATE_PRESETS, customRange, isDay } from '../listRange.js'
 // Above the rows: a date range and KPI cards (a dashboard), then the search
 // box and the filter chips, each card and chip with the count the function
 // gave it. A card is a filter too: a click shows its rows, another lets go.
+//
+// The rows are a table, or (layout "cards") a card each: the first column is
+// the heading, an "items" column the pictures — large, to be recognised at a
+// glance — and every other column a line under its label.
 // Presentation only — the query, the rows and what a click does arrive as props.
 
 const OPEN_DELAY_MS = 250
@@ -134,7 +138,9 @@ export default function FedList({ node, list, query, onOpen, rowDetails, recordK
       </div>
       {rows.length === 0
         ? !list.loading && !list.error && <div className="xeplr-factory-list-empty">{query.q || query.kpi || (range && range.from) ? 'Nothing matches.' : 'Nothing here yet.'}</div>
-        : (
+        : p.layout === 'cards'
+          ? <Cards rows={rows} columns={columns} pageSize={pageSize} open={open} highlight={p.highlight} />
+          : (
           <div className={'xeplr-factory-fed-table' + (open ? ' is-openable' : '')} onClick={openFromRow}>
             <XeplrTable
               data={rows}
@@ -205,6 +211,20 @@ function Cell({ column: c, row, index, first, open, details, onOpenAt }) {
     )
   }
 
+  if (c.display === 'items') {
+    const items = itemsOf(value)
+    return (
+      <span className="xeplr-factory-items-line" {...marker}>
+        {items.map((it, n) => (
+          <span key={n} className="xeplr-factory-items-chip">
+            {it.src && <img src={it.src} alt="" loading="lazy" />}
+            <span>{[it.qty > 1 ? it.qty + ' ×' : '', it.name, it.detail].filter(Boolean).join(' ')}</span>
+          </span>
+        ))}
+      </span>
+    )
+  }
+
   if (c.display === 'activity') {
     return <Activity text={text(shown)} details={details} onOpenAt={onOpenAt} marker={marker} />
   }
@@ -221,6 +241,95 @@ function Cell({ column: c, row, index, first, open, details, onOpenAt }) {
     return <button type="button" className="xeplr-factory-cell xeplr-factory-cell-open" onClick={(e) => { e.stopPropagation(); open(row) }} {...marker}>{body}</button>
   }
   return <span className="xeplr-factory-cell" {...marker}>{body}</span>
+}
+
+/** An "items" value: [{ src, name, detail, qty }], anything else dropped. */
+function itemsOf(value) {
+  return (Array.isArray(value) ? value : []).filter((x) => x && typeof x === 'object' && (x.src || x.name))
+    .map((x) => ({ src: x.src || '', name: text(x.name), detail: text(x.detail), qty: Number(x.qty) || 0 }))
+}
+
+/**
+ * A CARD PER ROW. The first column is the heading (a button when rows open —
+ * the keyboard's way in; a tap anywhere else on the card opens it too), with
+ * its badges; an "items" column draws each thing large, with its name, its
+ * detail and how many; the other columns are lines under their labels. The
+ * first `pageSize` cards, then "Show more".
+ */
+function Cards({ rows, columns, pageSize, open, highlight }) {
+  const [shown, setShown] = useState(pageSize)
+  const [head, ...rest] = columns
+  const onCard = (e, row) => {
+    if (!open || e.target.closest('button, a, input, select')) return
+    open(row)
+  }
+  return (
+    <div className="xeplr-factory-cards">
+      {rows.slice(0, shown).map((row, i) => {
+        const title = head ? text(head.text ? row[head.text] : row[head.field]) : ''
+        const badges = head ? (head.badges || []).filter((b) => row[b.field]) : []
+        return (
+          <article
+            key={row.id || i}
+            className={'xeplr-factory-card' + (open ? ' is-openable' : '') + (highlight && row[highlight] ? ' is-marked' : '')}
+            onClick={(e) => onCard(e, row)}
+          >
+            <header className="xeplr-factory-card-head">
+              {open
+                ? <button type="button" className="xeplr-factory-card-title" onClick={() => open(row)}>{title}</button>
+                : <span className="xeplr-factory-card-title">{title}</span>}
+              {badges.map((b) => <span key={b.field} className={`xeplr-factory-badge xeplr-factory-badge--${b.tone || 'accent'}`}>{b.label}</span>)}
+              {head && head.sub && row[head.sub] ? <span className="xeplr-factory-card-sub">{text(row[head.sub])}</span> : null}
+            </header>
+            {rest.map((c) => <CardPart key={c.field} column={c} row={row} />)}
+          </article>
+        )
+      })}
+      {rows.length > shown && (
+        <button type="button" className="xeplr-factory-cards-more" onClick={() => setShown((n) => n + pageSize)}>
+          Show more ({rows.length - shown})
+        </button>
+      )}
+    </div>
+  )
+}
+
+function CardPart({ column: c, row }) {
+  const value = row[c.field]
+  if (c.display === 'items') {
+    const items = itemsOf(value)
+    if (!items.length) return null
+    return (
+      <ul className="xeplr-factory-card-items" aria-label={c.label || 'Items'}>
+        {items.map((it, n) => (
+          <li key={n} className="xeplr-factory-card-item">
+            {it.src
+              ? <img src={it.src} alt={it.name} loading="lazy" />
+              : <span className="xeplr-factory-card-noimg" aria-hidden="true">No picture</span>}
+            <span className="xeplr-factory-card-item-text">
+              {it.qty > 0 && <span className="xeplr-factory-card-qty">{it.qty} ×</span>}
+              <span className="xeplr-factory-card-item-name">{it.name}</span>
+              {it.detail && <span className="xeplr-factory-card-item-detail">{it.detail}</span>}
+            </span>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+  if (c.display === 'images') {
+    const pics = Array.isArray(value) ? value.filter((x) => x && x.src) : []
+    if (!pics.length) return null
+    return <span className="xeplr-factory-thumbs">{pics.map((img, n) => <img key={n} src={img.src} alt={img.name || ''} loading="lazy" />)}</span>
+  }
+  const shown = text(c.text ? row[c.text] : value)
+  const sub = c.sub ? text(row[c.sub]) : ''
+  if (!shown && !sub) return null
+  return (
+    <p className="xeplr-factory-card-line">
+      {c.label && <span className="xeplr-factory-card-label">{c.label}</span>}
+      <span>{[shown, sub].filter(Boolean).join(' · ')}</span>
+    </p>
+  )
 }
 
 function text(v) {

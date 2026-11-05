@@ -18,6 +18,10 @@
 //   - a list fed by a function: its search box is 16px and 44px tall, its
 //     chips stay on screen, and a button's "ask first" fills the screen with
 //     44px buttons and a 16px note box.
+//   - packing cards: one to a row, each picture nearly the screen's width,
+//     the order number 20px, how many / name / variant 18px; a tap opens a
+//     popup whose Packed is 44px — and at 1280px, Packed in that popup
+//     reaches the function and the card goes.
 //   - files: a field holding several shows each picture as a thumbnail, its
 //     picker is 44px tall and on screen, and the picker asks the device for
 //     what the field says (several pictures; the back camera for "camera
@@ -231,6 +235,53 @@ try {
     await page.waitForTimeout(800)
     check(`buttons: after Confirm COD, Undo shows instead`, (await page.locator('.dev-order .xeplr-factory-button', { hasText: 'Undo COD' }).count()) === 1 && (await cod.count()) === 0)
     check(`orders: no script errors`, errors.length === 0, errors.join('; '))
+    await page.close()
+  }
+
+  // ── packing: a card per order, big pictures, Packed in a popup ────────────
+  for (const width of [360, 390, 430]) {
+    console.log(`\npacking, ${width}px`)
+    const { page, errors } = await open(width, 'Packing')
+    check(`packing: no script errors`, errors.length === 0, errors.join('; '))
+    check(`packing: page does not scroll sideways`, await noSideways(page))
+    const cards = await page.$$eval('.xeplr-factory-card', (els) => els.map((el) => { const r = el.getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top } }))
+    check(`packing: one card to a row, on screen`, cards.length > 1 && cards[0].top < cards[1].top && cards.every((c) => c.right <= width), JSON.stringify(cards.slice(0, 2)))
+    const pic = await page.$eval('.xeplr-factory-card-item img', (el) => { const r = el.getBoundingClientRect(); return { w: r.width, h: r.height } })
+    check(`packing: a picture is nearly the screen's width`, pic.w >= width - 80 && Math.abs(pic.w - pic.h) < 1, JSON.stringify(pic))
+    const title = await page.$eval('.xeplr-factory-card-title', (el) => ({ font: parseFloat(getComputedStyle(el).fontSize), h: el.getBoundingClientRect().height }))
+    check(`packing: the order number is 20px and a 44px target`, title.font >= 20 && title.h >= 44, JSON.stringify(title))
+    const words = await page.$eval('.xeplr-factory-card-item-text', (el) => ({ font: parseFloat(getComputedStyle(el).fontSize), text: el.textContent }))
+    check(`packing: how many, the name and the variant, 18px`, words.font >= 18 && /\d ×/.test(words.text) && /Item 1/.test(words.text) && /Teak/.test(words.text), JSON.stringify(words))
+    const sub = await page.$eval('.xeplr-factory-card-sub', (el) => el.textContent)
+    check(`packing: who it is for and where`, / · /.test(sub), sub)
+    await page.locator('.xeplr-factory-card').first().click()
+    await page.waitForTimeout(500)
+    const packed = await page.$$eval('.xeplr-factory-modal .xeplr-factory-button', (els) => els.map((el) => { const r = el.getBoundingClientRect(); return { text: el.textContent.trim(), h: r.height, right: r.right } }))
+    check(`packing: a tap opens Packed, 44px and on screen`, packed.length === 1 && packed[0].text === 'Packed' && packed[0].h >= 44 && packed[0].right <= width, JSON.stringify(packed))
+    check(`packing: popup does not scroll sideways`, await noSideways(page))
+    const heading = await page.$eval('.xeplr-factory-modal-head', (el) => el.textContent)
+    check(`packing: the popup says which order`, /Pack an order · #GA\d+/.test(heading), heading)
+    await page.close()
+  }
+
+  console.log('\npacking, 1280px')
+  {
+    const { page, errors } = await open(1280, 'Packing')
+    const before = await page.locator('.xeplr-factory-card').count()
+    const tops = await page.$$eval('.xeplr-factory-card', (els) => els.slice(0, 3).map((el) => el.getBoundingClientRect().top))
+    check(`packing: several cards to a row on a desktop`, tops.length === 3 && tops[0] === tops[1], tops.join(','))
+    const name = (await page.locator('.xeplr-factory-card-title').first().textContent()).trim()
+    await page.locator('.xeplr-factory-card-title').first().click()
+    await page.waitForTimeout(500)
+    await page.locator('.xeplr-factory-modal .xeplr-factory-button', { hasText: 'Packed' }).click()
+    for (const [label, v] of [['Length', '12'], ['Width', '9'], ['Height', '4'], ['Weight', '1.25']]) await page.getByLabel(label + ' *', { exact: true }).fill(v)
+    await page.locator('.xeplr-factory-ask-foot button', { hasText: 'Packed' }).click()
+    await page.waitForTimeout(800)
+    const said = await page.locator('.xeplr-factory-modal .xeplr-factory-buttons-note').first().textContent().catch(() => '')
+    check(`packing: Packed in the popup reaches the function`, said.includes(name.replace('#', '') + ': Packed'), said)
+    const after = await page.locator('.xeplr-factory-card').count()
+    check(`packing: …and the card behind it is gone`, after === before - 1, `${before} → ${after}`)
+    check(`packing: no script errors`, errors.length === 0, errors.join('; '))
     await page.close()
   }
 

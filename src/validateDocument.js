@@ -17,7 +17,7 @@ import { DATE_PRESET_VALUES } from './listRange.js'
 import { RESERVED_COLUMNS, MAX_IDENTIFIER } from './tableSchema.js'
 import { FIELD_PRESETS, INPUT_TYPES, presetFor } from './presets.js'
 import { isBinding } from './values.js'
-import { BUTTON_VARIANTS, COLUMN_DISPLAYS, BADGE_TONES, CONDITION_OPERATORS, ASK_FIELD_TYPES, NOTE_INPUT, FILES_INPUT } from './buttons.js'
+import { BUTTON_VARIANTS, COLUMN_DISPLAYS, LIST_LAYOUTS, BADGE_TONES, CONDITION_OPERATORS, ASK_FIELD_TYPES, NOTE_INPUT, FILES_INPUT } from './buttons.js'
 
 const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 const TABLE_NAME = /^[A-Za-z_][A-Za-z0-9_.$-]*$/
@@ -511,6 +511,8 @@ function checkFedList(props, fed, at, err) {
   }
   need('kpis', 'KPI cards')
   need('dateRange', 'a date range')
+  need('layout', 'a layout')
+  if (props.layout !== undefined && !LIST_LAYOUTS.includes(props.layout)) err(`${at}.props.layout`, `must be one of: ${LIST_LAYOUTS.join(', ')}`)
   if (props.kpis !== undefined) {
     if (!Array.isArray(props.kpis)) err(`${at}.props.kpis`, 'must be an array of { key, label, tone? }')
     else {
