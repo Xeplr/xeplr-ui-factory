@@ -3,7 +3,7 @@
 //
 //   import { screenFromSpec, validateDocument, formSchema } from '@xeplr/ui-factory/model'
 
-export { CONTROLS, OPTION_ID, OPTION_LABEL, LABEL_VARIANTS, LABEL_PRESETS, LIST_ACTIONS, STYLE_KEYS, SCREEN_STYLE_KEYS, FONT_FAMILIES, LAYOUTS, CHOICE_TYPES, STEP_LIMIT, MULTI_SEPARATOR, FILE_KINDS, MAX_FILE_MB, acceptList, controlGroups, withControls } from './controls.js'
+export { CONTROLS, OPTION_ID, OPTION_LABEL, LABEL_VARIANTS, LABEL_PRESETS, LIST_ACTIONS, STYLE_KEYS, SCREEN_STYLE_KEYS, FONT_FAMILIES, LAYOUTS, CHOICE_TYPES, STEP_LIMIT, MULTI_SEPARATOR, FILE_KINDS, MAX_FILE_MB, IMAGE_EXTENSIONS, FILE_SOURCES, MAX_FILES, isImageFile, filePicker, acceptList, controlGroups, withControls } from './controls.js'
 export {
   DOCUMENT_KIND, DOCUMENT_VERSION, DEFAULT_ASPECT, DEFAULT_WIDTH, MARGIN, GAP,
   createScreen, renameScreen, setScreenProperty, addControl, moveNode, setNodeProperty, getNodeProperty, removeNodes,
@@ -16,12 +16,12 @@ export { validateDocument, assertValidDocument } from './validateDocument.js'
 export { SCREEN_EVENTS, SCREEN_EVENT_KEYS, DECIDE_EVENT, FUNCTION_NAME, screenFunctions, missingFunctions, functionProblems, setEvent, functionsFor } from './events.js'
 // Buttons and lists whose rows a function works out — names and values only.
 export {
-  BUTTON_EVENT, LIST_ROWS_EVENT, ROW_DETAILS_EVENT, BUTTON_VARIANTS, COLUMN_DISPLAYS, BADGE_TONES, NOTE_INPUT, CONDITION_OPERATORS,
-  conditionMet, buttonShown, buttonDisabled, buttonPressed, screenButtons, buttonById, buttonInput, nodeFunctions, paramProblems, optionValues
+  BUTTON_EVENT, LIST_ROWS_EVENT, ROW_DETAILS_EVENT, BUTTON_VARIANTS, COLUMN_DISPLAYS, BADGE_TONES, NOTE_INPUT, FILES_INPUT, CONDITION_OPERATORS,
+  conditionMet, buttonShown, buttonDisabled, buttonPressed, screenButtons, buttonById, buttonInput, askFile, askFileProblem, nodeFunctions, paramProblems, optionValues
 } from './buttons.js'
 // Which pages are drawn from documents and which are web only (ui/pages.json).
 export { checkInventory, routesIn, pageWarnings, webOnlyMenus } from './pagesInventory.js'
-export { formSchema, initialValues, parseInput, validateValues, fieldError, sameId, optionValue, chooseable, saveState, recordValues, displayValue, fileLabel, toDbValue, fromDbValue, listColumns, listSource } from './values.js'
+export { formSchema, initialValues, parseInput, validateValues, fieldError, sameId, optionValue, chooseable, saveState, recordValues, displayValue, fileLabel, isMultiFile, toDbValue, fromDbValue, listColumns, listSource } from './values.js'
 export { screenFromSpec, screensFromSpec, entityNames, SPEC_HEIGHTS, ROW_GAP } from './generate.js'
 export { scaffoldEntity } from './scaffold.js'
 export { getAtPath, setAtPath } from './propertyPath.js'

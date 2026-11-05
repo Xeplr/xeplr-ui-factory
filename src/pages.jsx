@@ -65,6 +65,8 @@ export function FactoryBuilder(props) {
  * @prop fetchRecord  async ({ screen, id }) → record — Edit loads the record fresh
  * @prop onDelete     async ({ id, source, record }) → void
  * @prop onChange     (values) → void
+ * @prop uploadFile   async (file, { screen, field }) → { path } — a file field's upload
+ * @prop readFile     async (path) → Blob — an attached file's bytes, for a picture's preview
  * @prop screens      { id → document } — the screens a list's Edit / New open in a popup
  * @prop loadScreen   async (id) → document — for screens not in `screens`
  * @prop controls     control registry (default: built-ins)
@@ -107,6 +109,7 @@ export function FactoryScreen(props) {
           onDelete={props.onDelete}
           uploadFile={props.uploadFile}
           fileUrl={props.fileUrl}
+          readFile={props.readFile}
           screens={props.screens}
           loadScreen={props.loadScreen}
           controls={props.controls}
@@ -138,6 +141,10 @@ export function FactoryScreen(props) {
               fetchRecord={props.fetchRecord}
               fetchRecords={props.fetchRecords}
               onDelete={props.onDelete}
+              // A file field in the popup uploads like one on the page.
+              uploadFile={props.uploadFile}
+              fileUrl={props.fileUrl}
+              readFile={props.readFile}
               screens={props.screens}
               loadScreen={props.loadScreen}
               controls={props.controls}

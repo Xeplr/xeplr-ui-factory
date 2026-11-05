@@ -1,0 +1,18 @@
+{
+  "kind": "xeplr-screen",
+  "version": 1,
+  "id": "delivery_photos",
+  "name": "Delivery photos",
+  "units": "fraction",
+  "aspect": 0.75,
+  "width": 640,
+  "source": "deliveries",
+  "nodes": [
+    { "id": "title", "type": "label", "x": 0.05, "y": 0.04, "w": 0.9, "h": 0.1, "z": 1,
+      "props": { "text": "Delivery photos", "variant": "heading" } },
+    { "id": "photos", "type": "file", "x": 0.05, "y": 0.2, "w": 0.9, "h": 0.42, "z": 1,
+      "props": { "name": "photos", "label": "Photos of the parcel", "accept": ".png,.jpg,.jpeg,.gif,.webp", "maxSize": 10, "multiple": true, "maxFiles": 4, "required": true } },
+    { "id": "doorstep", "type": "file", "x": 0.05, "y": 0.68, "w": 0.9, "h": 0.26, "z": 1,
+      "props": { "name": "doorstep", "label": "At the door — taken now", "accept": ".png,.jpg,.jpeg", "maxSize": 10, "source": "camera" } }
+  ]
+}

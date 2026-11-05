@@ -157,15 +157,40 @@
 .xeplr-factory-choice { display: flex; align-items: center; gap: calc(8 * var(--xf-u)); cursor: pointer; color: var(--xf-ink); }
 .xeplr-factory-choice input { width: calc(16 * var(--xf-u)); height: calc(16 * var(--xf-u)); min-width: 11px; min-height: 11px; margin: 0; accent-color: var(--xf-accent); }
 
-/* ── file ─────────────────────────────────────────────────────────────────── */
-.xeplr-factory-file { display: flex; align-items: center; gap: calc(8 * var(--xf-u)); min-width: 0; }
-.xeplr-factory-file-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--xf-ink); }
-.xeplr-factory-file-clear {
-  flex: none; border: 1px solid var(--xf-field-border); background: var(--xf-field-bg); color: var(--xf-muted);
-  border-radius: calc(6 * var(--xf-u)); padding: calc(3 * var(--xf-u)) calc(8 * var(--xf-u)); cursor: pointer; font: inherit;
+/* ── file ───────────────────────────────────────────────────────────────────
+   What the field holds — a row per file, a thumbnail for a picture — and,
+   while it has room, the picker: a box that looks like the other inputs, the
+   real <input type="file"> laid over it, invisible, so a tap opens the
+   device's own picker (on a phone: Photos, Camera, Files). */
+.xeplr-factory-files { display: flex; flex-direction: column; gap: calc(6 * var(--xf-u, 1px)); min-width: 0; min-height: 0; overflow: auto; }
+.xeplr-factory-files-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: calc(4 * var(--xf-u, 1px)); }
+.xeplr-factory-files-item { display: flex; align-items: center; gap: calc(8 * var(--xf-u, 1px)); min-width: 0; }
+.xeplr-factory-files-thumb {
+  flex: none; width: calc(40 * var(--xf-u, 1px)); height: calc(40 * var(--xf-u, 1px)); min-width: 28px; min-height: 28px;
+  object-fit: cover; border-radius: calc(4 * var(--xf-u, 1px)); border: 1px solid var(--xf-field-border); background: var(--xf-field-bg);
 }
-.xeplr-factory-file-clear:hover { color: var(--xf-ink); border-color: var(--xf-accent); }
-.xeplr-factory-file-input { padding: calc(5 * var(--xf-u)); }
+.xeplr-factory-files-icon {
+  flex: none; width: calc(40 * var(--xf-u, 1px)); height: calc(40 * var(--xf-u, 1px)); min-width: 28px; min-height: 28px;
+  display: inline-flex; align-items: center; justify-content: center; border-radius: calc(4 * var(--xf-u, 1px));
+  border: 1px solid var(--xf-field-border); background: var(--xf-field-bg);
+}
+.xeplr-factory-files-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--xf-ink); }
+.xeplr-factory-files-remove {
+  flex: none; border: 1px solid var(--xf-field-border); background: var(--xf-field-bg); color: var(--xf-muted);
+  border-radius: calc(6 * var(--xf-u, 1px)); padding: calc(3 * var(--xf-u, 1px)) calc(8 * var(--xf-u, 1px)); cursor: pointer; font: inherit;
+}
+.xeplr-factory-files-remove:hover { color: var(--xf-ink); border-color: var(--xf-accent); }
+.xeplr-factory-files-add {
+  position: relative; display: flex; align-items: center; justify-content: center; flex: none;
+  min-height: calc(34 * var(--xf-u, 1px)); padding: calc(5 * var(--xf-u, 1px)) calc(10 * var(--xf-u, 1px)); box-sizing: border-box;
+  border: 1px dashed var(--xf-field-border); border-radius: calc(6 * var(--xf-u, 1px)); background: var(--xf-field-bg);
+  color: var(--xf-ink); cursor: pointer;
+}
+.xeplr-factory-files-add:hover, .xeplr-factory-files-add:focus-within { border-color: var(--xf-accent); }
+.xeplr-factory-files-add--off { cursor: default; opacity: .6; }
+.xeplr-factory-files-input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: inherit; margin: 0; }
+.xeplr-factory-files-add-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.xeplr-factory-files-error { color: var(--xf-danger); font-size: .9em; white-space: normal; }
 
 /* ── stepper ──────────────────────────────────────────────────────────────
    The journey across the top: a circle per step, joined by a line. The line
@@ -804,7 +829,9 @@ button.xeplr-factory-activity-item:hover, button.xeplr-factory-activity-item:foc
      the smallest target a thumb hits reliably. */
   .xeplr-factory-input { --xf-min-font: 16px; font-size: max(16px, 1em); flex: none; min-height: 44px; }
   .xeplr-factory-textarea { min-height: 112px; }
-  .xeplr-factory-file-input { min-height: 0; }
+  .xeplr-factory-files { overflow: visible; }
+  .xeplr-factory-files-add { min-height: 44px; }
+  .xeplr-factory-files-thumb, .xeplr-factory-files-icon { width: 48px; height: 48px; }
   /* In the flow now: a message may push the next field down, and wraps
      rather than being cut off at the edge of a narrow screen. */
   .xeplr-factory-error { position: static; white-space: normal; }
@@ -812,7 +839,7 @@ button.xeplr-factory-activity-item:hover, button.xeplr-factory-activity-item:foc
   .xeplr-factory-check input { width: 22px; height: 22px; }
   .xeplr-factory-choice input { width: 20px; height: 20px; }
   .xeplr-factory-choices { overflow: visible; }
-  .xeplr-factory-file-clear { min-height: 40px; padding-inline: 14px; }
+  .xeplr-factory-files-remove { min-height: 40px; padding-inline: 14px; }
   .xeplr-factory-text { height: auto; overflow: visible; }
   .xeplr-factory-stepper { height: auto; }
   .xeplr-factory-list { max-height: none; }

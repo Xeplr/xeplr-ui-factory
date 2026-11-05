@@ -241,7 +241,7 @@ A button is **a registered function and its parameters** — never code. Several
 ] } }
 ```
 
-Register the function with `event: 'button'` and an `inputSchema` (with `options` for the values allowed, and a `note` input if a button asks for one). `when` / `disabledWhen` are `@xeplr/rules` rules on the record. Publishing refuses parameters the function does not take. See the README's "Buttons".
+Register the function with `event: 'button'` and an `inputSchema` (with `options` for the values allowed, a `note` input if a button asks for one, and a `files` input if its `ask.file` takes photos or documents — `{ "accept": ".png,.jpg,.jpeg", "multiple": true, "source": "any" }`, the same rules as a file field). `when` / `disabledWhen` are `@xeplr/rules` rules on the record. Publishing refuses parameters the function does not take. See the README's "Buttons".
 
 ## When the document cannot say it
 
@@ -292,6 +292,8 @@ Rules you give merge over the ready-made ones (`"validation": { "max": 120 }`).
 | one of the app's records | `dropdown` with `table` |
 | several of a set — tags, skills, days | `multiselect` |
 | a document, a contract, a spreadsheet, a photo | `file` with `accept` (`".pdf,.docx"`) |
+| several photos, several documents | `file` with `multiple: true` (and `maxFiles`) — the value is a list of paths |
+| a photo taken now, at the door / on site | `file` with `source: "camera"` and images in `accept` — the phone opens its camera |
 | a section title between groups | `{ "type": "label", "text": "…", "variant": "subheading" }` |
 | a long form people work through in stages | a `stepper`, then `step` on each field |
 

@@ -3,8 +3,8 @@ import { getAtPath } from '../propertyPath.js'
 import { FIELD_PRESETS, presetFor } from '../presets.js'
 import { slugify, inputNodes, paramsText, screenParams } from '../document.js'
 import { isBinding, previousBinding } from '../values.js'
-import { FONT_FAMILIES, STYLE_KEYS, SCREEN_STYLE_KEYS, LIST_ACTIONS, FILE_KINDS } from '../controls.js'
-import { BUTTON_VARIANTS, COLUMN_DISPLAYS, BADGE_TONES, CONDITION_OPERATORS, NOTE_INPUT, optionValues } from '../buttons.js'
+import { FONT_FAMILIES, STYLE_KEYS, SCREEN_STYLE_KEYS, LIST_ACTIONS, FILE_KINDS, FILE_SOURCES, MAX_FILES } from '../controls.js'
+import { BUTTON_VARIANTS, COLUMN_DISPLAYS, BADGE_TONES, CONDITION_OPERATORS, NOTE_INPUT, FILES_INPUT, optionValues } from '../buttons.js'
 
 // The selected control's properties, GENERATED from its entry in controls.js:
 // each field there names a path and an editor type, and this file owns only
@@ -941,6 +941,7 @@ function ButtonsEditor({ value, onChange, functions }) {
         const fn = pick.find((f) => f.name === b.action) || null
         const schema = (fn && fn.inputSchema) || []
         const takesNote = schema.some((f) => f.name === NOTE_INPUT)
+        const takesFiles = schema.some((f) => f.name === FILES_INPUT)
         return (
           <fieldset key={i} className="xeplr-factory-rows-editor-card">
             <legend>{b.label || `Button ${i + 1}`}</legend>
@@ -961,7 +962,7 @@ function ButtonsEditor({ value, onChange, functions }) {
               </select>
             </MiniField>
             {fn && fn.description && <div className="xeplr-factory-prop-help">{fn.description}</div>}
-            {schema.filter((f) => f.name !== NOTE_INPUT).map((f) => (
+            {schema.filter((f) => f.name !== NOTE_INPUT && f.name !== FILES_INPUT).map((f) => (
               <MiniField key={f.name} label={(f.label || f.name) + (f.required && f.default === undefined ? ' *' : '')} help={f.description}>
                 <ParamInput field={f} value={b.params ? b.params[f.name] : undefined} onChange={(v) => {
                   const params = { ...(b.params || {}) }
@@ -981,6 +982,9 @@ function ButtonsEditor({ value, onChange, functions }) {
                 {takesNote
                   ? <MiniField label="Note box label" help="Blank → no note box"><input className="xeplr-factory-prop-input" value={b.ask.note || ''} placeholder="Reason (optional)" onChange={(e) => edit(i, { ask: clean({ ...b.ask, note: e.target.value }) })} /></MiniField>
                   : fn && <div className="xeplr-factory-prop-help">{fn.name} takes no note.</div>}
+                {takesFiles
+                  ? <AskFileEditor value={b.ask.file} onChange={(file) => edit(i, { ask: clean({ ...b.ask, file }) })} />
+                  : b.ask.file && <div className="xeplr-factory-prop-help">{fn ? fn.name : 'This function'} takes no files — the picker will be refused when publishing.</div>}
               </>
             )}
             <ConditionsEditor label="Shows when" value={b.when} onChange={(v) => edit(i, { when: v })} />
@@ -1000,6 +1004,51 @@ function ButtonsEditor({ value, onChange, functions }) {
 }
 
 const VARIANT_LABELS = { default: 'Ordinary', primary: 'Main', danger: 'Undo / remove' }
+
+/**
+ * The file a button's press takes (`ask.file`): a file field's rules, set the
+ * same way. Offered only when the function takes "files".
+ */
+function AskFileEditor({ value, onChange }) {
+  const f = value && typeof value === 'object' ? value : null
+  const set = (patch) => {
+    const next = { ...f, ...patch }
+    Object.keys(next).forEach((k) => { if (next[k] === undefined || next[k] === '' || next[k] === false) delete next[k] })
+    if (!next.multiple) delete next.maxFiles
+    onChange(next)
+  }
+  return (
+    <>
+      <label className="xeplr-factory-toggle">
+        <input type="checkbox" checked={Boolean(f)} onChange={(e) => onChange(e.target.checked ? { label: 'Photo', accept: FILE_KINDS.image.accept } : undefined)} />
+        <span>Asks for a file</span>
+      </label>
+      {f && (
+        <>
+          <MiniField label="File box label"><input className="xeplr-factory-prop-input" value={f.label || ''} onChange={(e) => set({ label: e.target.value })} /></MiniField>
+          <MiniField label="Allowed types"><AcceptEditor value={f.accept} onChange={(accept) => set({ accept })} /></MiniField>
+          <MiniField label="Take from">
+            <select className="xeplr-factory-prop-input" value={f.source || 'any'} onChange={(e) => set({ source: e.target.value === 'any' ? undefined : e.target.value })}>
+              {FILE_SOURCES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </MiniField>
+          <MiniField label="Largest size (MB)"><input className="xeplr-factory-prop-input" type="number" min={1} max={200} value={f.maxSize ?? ''} onChange={(e) => set({ maxSize: e.target.value === '' ? undefined : Number(e.target.value) })} /></MiniField>
+          <label className="xeplr-factory-toggle">
+            <input type="checkbox" checked={Boolean(f.multiple)} onChange={(e) => set({ multiple: e.target.checked })} />
+            <span>Several files</span>
+          </label>
+          {f.multiple && (
+            <MiniField label="At most (files)"><input className="xeplr-factory-prop-input" type="number" min={1} max={MAX_FILES} value={f.maxFiles ?? ''} onChange={(e) => set({ maxFiles: e.target.value === '' ? undefined : Number(e.target.value) })} /></MiniField>
+          )}
+          <label className="xeplr-factory-toggle">
+            <input type="checkbox" checked={Boolean(f.required)} onChange={(e) => set({ required: e.target.checked })} />
+            <span>Required</span>
+          </label>
+        </>
+      )}
+    </>
+  )
+}
 
 /** One parameter's value: a dropdown when the function names the values allowed. */
 function ParamInput({ field, value, onChange }) {

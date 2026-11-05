@@ -103,6 +103,7 @@ import { FactoryScreen } from '@xeplr/ui-factory'
   onDelete={async ({ id, source }) => api.remove(source, id)}
   fetchOptions={async ({ table }) => api.options(table)}
   uploadFile={async (file, { screen, field }) => api.upload(file, screen, field)}  // a file field: → { path }
+  readFile={async (path) => api.fileBlob(path)}       // optional: a stored picture's bytes, for its thumbnail
   screens={{ employee_edit: editScreen }}             // what a list's Edit / New open in a popup
 />
 ```
@@ -115,7 +116,7 @@ import { FactoryScreen } from '@xeplr/ui-factory'
 
 If `onSave` throws an error with `fields: [{ field, message }]` (what `createFactoryApi` does with the server's 422 — a rule, or a hook's `reject`), each message shows on its field until that field is changed.
 
-Values arrive typed: numbers as numbers, checkboxes as booleans, dates as `"YYYY-MM-DD"`, a date and time as `"YYYY-MM-DDTHH:MM"`, a dropdown or radio group as the option's own `id` (a table's numeric id stays a number), a multi-select as an **array** of ids, and a file as the stored file's **path**.
+Values arrive typed: numbers as numbers, checkboxes as booleans, dates as `"YYYY-MM-DD"`, a date and time as `"YYYY-MM-DDTHH:MM"`, a dropdown or radio group as the option's own `id` (a table's numeric id stays a number), a multi-select as an **array** of ids, and a file as the stored file's **path** (a field with `multiple`: an **array** of paths).
 
 ### On a phone
 
@@ -143,7 +144,10 @@ one scalar have a rule of their own:
   the server use them, so it is written once.
 * **File** — the column holds the path the upload answered with, not the file.
   The file itself is stored by `@xeplr/factory` and read back through its
-  authenticated route; nothing is ever served without a check.
+  authenticated route; nothing is ever served without a check. A field with
+  `multiple` keeps its paths in one `text` column, joined by commas, like a
+  multi-select (a stored path has no comma in it); turning `multiple` on is a
+  widening, so a path already saved reads back as a list of one.
 * **Date and time** — a `timestamp` column, read back as text so no timezone can
   move the moment. A `date` column may be widened to `timestamp` on publish
   (the day becomes midnight); the reverse is refused, as it would lose the time.
@@ -442,6 +446,52 @@ Rules are [`@xeplr/rules`](https://www.npmjs.com/package/@xeplr/rules) rules —
 - **The record decides.** The server reads the record (this company, active rows) and checks `when` / `disabledWhen` again, so a hidden or greyed-out button cannot be pressed by sending the request — "does not apply to this record now" (409) when it changed underneath.
 - **What happens next is the host's.** The panel shows the function's `message`; `onButtonDone({ button, result, record })` lets the page reload what it shows. Lists on the same screen reload by themselves.
 - **In the builder**, picking a function lists the parameters it takes — a dropdown where it names the values allowed — so nobody types a status by hand. Functions come from `listFunctions` (`createFactoryApi`'s `builderProps` has it).
+
+### A button that takes files — `ask.file`
+
+A press can carry photos or documents: the button's `ask` gets a file picker,
+with a file field's own rules.
+
+```json
+{ "id": "proof", "label": "Delivered", "action": "markDelivered", "params": { "status": "delivered" },
+  "ask": { "title": "Proof of delivery", "note": "Note (optional)",
+           "file": { "label": "Photos", "accept": ".png,.jpg,.jpeg", "maxSize": 10, "multiple": true, "maxFiles": 5, "source": "any", "required": true } } }
+```
+
+```js
+actions.register({
+  name: 'markDelivered', event: 'button',
+  inputSchema: [{ name: 'status', type: 'string', required: true }, { name: 'files', type: 'array' }, { name: 'note', type: 'string' }],
+  execute: async ({ input, system }) => {
+    // input.files: the stored paths. system.files: [{ path, name, size, fullPath }] — read the bytes from fullPath.
+  }
+})
+```
+
+- **Each file is stored before the press** — `POST /factory/buttons/:screen/:button/files`, checked against `ask.file`'s `accept` and `maxSize` — and the press sends the stored paths as `files`.
+- **The server takes only files stored for this button, by this person, in this company** — a path typed by hand, or another button's, is refused. It also checks `required`, `multiple` and `maxFiles` again.
+- `accept` is required: the server must have something to check an upload against.
+- The function must take `files` (in its `inputSchema`); publishing refuses a button whose function does not. The builder shows the file settings only for a function that does.
+- Host: pass `uploadButtonFile` (`createFactoryApi`'s `screenProps` has it).
+
+## Files: gallery, camera, several
+
+A file field — and a button's `ask.file` — says **what** it wants; the device
+decides how to get it. The same document works in a desktop browser, a phone
+browser, an installed web app and, later, a phone app.
+
+| prop | |
+|---|---|
+| `accept` | the extensions it takes — the server refuses anything else |
+| `maxSize` | megabytes, per file |
+| `source` | `any` (default): the device's own picker — on a phone, one menu of **Camera, Photos and Files**. `camera`: the camera opens straight away, for a photo taken now (`capture="environment"`); `accept` must then be images only |
+| `multiple` | holds several files — the value is an array of paths |
+| `maxFiles` | with `multiple`: at most this many (up to 20) |
+
+- **Pictures show as thumbnails.** An `<img>` cannot send the sign-in token, so a stored picture is read back through `readFile(path) → Blob` and shown from an object URL. `createFactoryApi({ fetch: authFetch, fetchFile: authFetchFile })` (both from `@xeplr/ui-account`) gives `screenProps.readFile`; without it a field shows names only.
+- **Several files**: chosen together, they upload one by one and each is added as it lands, so a refusal of the third keeps the first two. Remove takes one away.
+- `filePicker(props)` → `{ accept, multiple, capture }` is the one place that turns these props into a picker — a phone app's renderer reads the same.
+- iPhone photos are HEIC. iOS hands a photo over as JPEG when the picker does not ask for HEIC, so `.heic` is not in the Images list — not yet checked on a real iPhone.
 
 ## A list whose rows a function works out — `rowsFrom`
 
@@ -786,7 +836,7 @@ Both walk someone through something, and they answer different questions:
 | `dropdown` | option id | — |
 | `radio` | option id | — |
 | `multiselect` | array of option ids | `minItems`, `maxItems` |
-| `file` | the stored file's path | `accept` (extensions), `maxSize` (MB) |
+| `file` | the stored file's path — or, with `multiple`, an array of them | `accept` (extensions), `maxSize` (MB), `multiple`, `maxFiles`, `source` (`any` / `camera`); see [Files: gallery, camera, several](#files-gallery-camera-several) |
 | `stepper` | — | a journey across the top; every other control says which step it is on |
 | `label` | — | text with a heading, subheading or text preset |
 | `list` | — | saved records, with New / Edit / Delete — or rows a function works out (`rowsFrom`), with search, filter chips and counts; see above |
@@ -1030,7 +1080,7 @@ src/
   hooks.js               ─ FactoryHooks: get / save / delete / actions — extend and call super
   presets.js             ─ ready-made fields (Email, Age, Gender…), changing a field's kind, label suggestions
   tableSchema.js         ─ a form → its table; the publish plan (create / add / widen / confirmed drops and conversions)
-  remote.js              ─ createFactoryApi({ fetch }): the calls to @xeplr/factory's routes — fetch may be window.fetch or @xeplr/ui-account's authFetch (which returns parsed bodies); includes createEntity({ key, label })
+  remote.js              ─ createFactoryApi({ fetch, fetchFile }): the calls to @xeplr/factory's routes — fetch may be window.fetch or @xeplr/ui-account's authFetch (which returns parsed bodies); includes createEntity({ key, label })
   screenSource.js        ─ this app's screens as another designer wants them: describeScreen, loadScreens, keyFromName, editScreenOf (React-free)
   model.js               ─ everything above, React-free
   useFactoryBuilder.js   ─ builder controller
@@ -1041,10 +1091,11 @@ src/
   urlState.js            ─ the URL keys and values for selection and steps (React-free)
   useUrlPlaces.js        ─ useUrlSteps, useUrlSelection: those places, in the URL or in memory
   useScreenSource.js     ─ { screens, screenEditor } for @xeplr/ui-workflow's Screen step
-  designs/               ─ BuilderSample, ScreenSample, ScreenEditorSample, ControlView, ListView, FedList, ButtonsView, Palette, PropertyPanel, styles.js, factory.css
+  useFilePreview.js      ─ a stored picture as an object URL, through readFile
+  designs/               ─ BuilderSample, ScreenSample, ScreenEditorSample, ControlView, ListView, FedList, ButtonsView, FileField, Palette, PropertyPanel, styles.js, factory.css
   pages.jsx              ─ FactoryBuilder, FactoryScreen
 bin/xeplr-factory.js     ─ screens / generate / validate / controls / schema / pages
-examples/                ─ employee.entity.json and what `screens` makes of it; orders-board and order-actions (a function-fed list, buttons)
+examples/                ─ employee.entity.json and what `screens` makes of it; orders-board and order-actions (a function-fed list, buttons — one takes photos); delivery-photos (several pictures, camera only)
 dev/                     ─ the stand-in app for `npm run dev` (not published)
 ```
 
@@ -1054,7 +1105,7 @@ dev/                     ─ the stand-in app for `npm run dev` (not published)
 npm test
 ```
 
-`test/buttons.test.js` covers buttons and function-fed lists in the document: what the checker refuses, when a button shows or is greyed out, what a press sends (the document's parameters, never the request's), and `functionProblems` against a registry. `test/cli.test.js` includes `pages`.
+`test/buttons.test.js` covers buttons and function-fed lists in the document: what the checker refuses, when a button shows or is greyed out, what a press sends (the document's parameters, never the request's), and `functionProblems` against a registry. `test/cli.test.js` includes `pages`. `test/files.test.js` covers files: several in one field (the value, its column, its checks), camera only, and a button whose press takes files.
 
 `test/urlState.test.js` covers the URL state: the key format, and the three controllers reading their places back from a real `MemoryRouter` and being clicked through in memory, rendered with `react-dom/server`.
 
@@ -1063,7 +1114,7 @@ npx playwright install chromium-headless-shell   # once
 npm run test:phone
 ```
 
-`test/phone.check.js` opens the dev app (`dev/`) in a real browser at 360, 390 and 430px wide and holds every screen to the phone rules: the page never scrolls sideways; fields are one per row, full width, in reading order, none overlapping; inputs are 16px or larger and 44px tall; the footer's buttons are 44px and on screen; a list's row buttons are on screen without scrolling the table; a popup fills the screen. At 1280px it checks that the designed layout is untouched. On the Orders page it checks the function-fed list and buttons at phone sizes (16px / 44px search, chips on screen, an "ask first" that fills the screen) and, at 1280px, that they work: search and chips narrow the rows and the counts, the hover box lists entries, a row opens, a press with a note changes the order and greys its button out, and Confirm COD gives way to Undo. It is not part of `npm test` — it needs a browser and starts a dev server — so run it before releasing anything that changes how a screen is drawn. The list checks use the `@xeplr/ui-table` installed here.
+`test/phone.check.js` opens the dev app (`dev/`) in a real browser at 360, 390 and 430px wide and holds every screen to the phone rules: the page never scrolls sideways; fields are one per row, full width, in reading order, none overlapping; inputs are 16px or larger and 44px tall; the footer's buttons are 44px and on screen; a list's row buttons are on screen without scrolling the table; a popup fills the screen. At 1280px it checks that the designed layout is untouched. On the Orders page it checks the function-fed list and buttons at phone sizes (16px / 44px search, chips on screen, an "ask first" that fills the screen) and, at 1280px, that they work: search and chips narrow the rows and the counts, the hover box lists entries, a row opens, a press with a note changes the order and greys its button out, and Confirm COD gives way to Undo. On the Photos page it checks the pickers (several images; the back camera for camera only), the thumbnails, Remove, and a button whose press takes a photo end to end. It is not part of `npm test` — it needs a browser and starts a dev server — so run it before releasing anything that changes how a screen is drawn. The list checks use the `@xeplr/ui-table` installed here.
 
 ## License
 

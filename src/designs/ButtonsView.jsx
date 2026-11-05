@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { boxStyle, fieldStyle } from './styles.js'
+import FileField from './FileField.jsx'
 
 // A PANEL OF BUTTONS. Each runs a function of the app on the server, with the
 // parameters the screen gives it; which ones show, and which are greyed out,
 // the controller works out from the record (useFactoryScreen.buttonsFor).
 //
-// A button that asks first opens a small dialog: its message, and a note box
-// when it takes a note. Presentation only — the press is the controller's.
+// A button that asks first opens a small dialog: its message, a note box when
+// it takes a note, and a file picker when it takes files (`ask.file` — on a
+// phone, the gallery or the camera). Presentation only — the press, and the
+// upload, are the controller's.
 //
 // On the canvas (design) the buttons are drawn as they will look, inert.
 
@@ -58,17 +61,22 @@ export default function ButtonsView({ node, design, panel }) {
           busy={panel.pressing === asking.id}
           error={note && note.kind === 'error' && note.button === asking.id ? note.text : null}
           onCancel={() => { setAsking(null); panel.clearNote() }}
-          onConfirm={async (typed) => { if (await panel.press(asking, typed)) setAsking(null) }}
+          upload={(file) => panel.upload(file, asking)}
+          readFile={panel.readFile}
+          onConfirm={async (typed, files) => { if (await panel.press(asking, typed, files)) setAsking(null) }}
         />
       )}
     </div>
   )
 }
 
-/** "Change status to Packed?" — the button's message, and a note when it takes one. */
-function AskDialog({ button, busy, error, onCancel, onConfirm }) {
+/** "Change status to Packed?" — the button's message, a note and files when it takes them. */
+function AskDialog({ button, busy, error, onCancel, onConfirm, upload, readFile }) {
   const ask = button.ask || {}
+  const file = ask.file && typeof ask.file === 'object' ? ask.file : null
   const [typed, setTyped] = useState('')
+  const [files, setFiles] = useState([])
+  const missing = Boolean(file && file.required && !files.length)
   const ref = useRef(null)
   useEffect(() => {
     ref.current?.focus()
@@ -93,11 +101,26 @@ function AskDialog({ button, busy, error, onCancel, onConfirm }) {
               <textarea id={`${titleId}-note`} className="xeplr-factory-ask-note" rows={3} maxLength={1000} value={typed} onChange={(e) => setTyped(e.target.value)} />
             </label>
           )}
+          {file && (
+            <div className="xeplr-factory-ask-field">
+              <span className="xeplr-factory-ask-label" id={`${titleId}-file`}>{file.label || (file.multiple ? 'Files' : 'File')}{file.required ? ' *' : ''}</span>
+              <FileField
+                id={`${titleId}-files`}
+                rules={file}
+                files={files}
+                onChange={setFiles}
+                upload={upload}
+                readFile={readFile}
+                disabled={busy}
+                inputProps={{ 'aria-labelledby': `${titleId}-file`, 'aria-required': file.required ? true : undefined }}
+              />
+            </div>
+          )}
           {error && <p className="xeplr-factory-ask-error" role="alert">{error}</p>}
         </div>
         <footer className="xeplr-factory-ask-foot">
           <button type="button" className="xeplr-factory-secondary" onClick={onCancel} disabled={busy}>Cancel</button>
-          <button type="button" className={button.variant === 'danger' ? 'xeplr-factory-danger' : 'xeplr-factory-primary'} onClick={() => onConfirm(typed)} disabled={busy}>
+          <button type="button" className={button.variant === 'danger' ? 'xeplr-factory-danger' : 'xeplr-factory-primary'} onClick={() => onConfirm(typed, files)} disabled={busy || missing}>
             {busy ? 'Working…' : button.label}
           </button>
         </footer>

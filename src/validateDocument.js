@@ -11,7 +11,7 @@
 // fields writing the same key — looks like a data problem to whoever uses it.
 
 import { SCREEN_EVENT_KEYS, FUNCTION_NAME } from './events.js'
-import { CONTROLS, LABEL_VARIANTS, LIST_ACTIONS, STYLE_KEYS, SCREEN_STYLE_KEYS, LAYOUTS, MULTI_SEPARATOR, MAX_FILE_MB, STEP_LIMIT, acceptList } from './controls.js'
+import { CONTROLS, LABEL_VARIANTS, LIST_ACTIONS, STYLE_KEYS, SCREEN_STYLE_KEYS, LAYOUTS, MULTI_SEPARATOR, MAX_FILE_MB, STEP_LIMIT, acceptList, FILE_SOURCES, IMAGE_EXTENSIONS, MAX_FILES } from './controls.js'
 import { DOCUMENT_KIND, DOCUMENT_VERSION } from './document.js'
 import { RESERVED_COLUMNS, MAX_IDENTIFIER } from './tableSchema.js'
 import { FIELD_PRESETS, INPUT_TYPES, presetFor } from './presets.js'
@@ -281,19 +281,44 @@ function checkStep(node, doc, at, err) {
 
 /** A file field: which extensions it takes, and how big a file may be. */
 function checkFile(props, at, err) {
-  if (props.accept !== undefined) {
-    if (typeof props.accept !== 'string') err(`${at}.props.accept`, 'must be a string of extensions, e.g. ".pdf,.docx"')
+  checkFileRules(props, `${at}.props`, err)
+}
+
+/**
+ * A file's rules — a file field's props, or a button's `ask.file`: what it
+ * takes, how large, how many, and from where. `at` is where they sit.
+ */
+function checkFileRules(rules, at, err) {
+  if (rules.accept !== undefined) {
+    if (typeof rules.accept !== 'string') err(`${at}.accept`, 'must be a string of extensions, e.g. ".pdf,.docx"')
     else {
-      const list = acceptList(props.accept)
-      if (!list.length) err(`${at}.props.accept`, 'names no extension — ".pdf,.docx", or leave it out for any file')
+      const list = acceptList(rules.accept)
+      if (!list.length) err(`${at}.accept`, 'names no extension — ".pdf,.docx", or leave it out for any file')
       list.forEach((x) => {
-        if (!EXTENSION.test(x)) err(`${at}.props.accept`, `"${x}" is not an extension — letters and digits after a dot, e.g. ".xlsx"`)
+        if (!EXTENSION.test(x)) err(`${at}.accept`, `"${x}" is not an extension — letters and digits after a dot, e.g. ".xlsx"`)
       })
     }
   }
-  if (props.maxSize !== undefined) {
-    if (!(Number.isFinite(props.maxSize) && props.maxSize > 0 && props.maxSize <= MAX_FILE_MB)) {
-      err(`${at}.props.maxSize`, `must be a number of megabytes from 1 to ${MAX_FILE_MB}`)
+  if (rules.maxSize !== undefined) {
+    if (!(Number.isFinite(rules.maxSize) && rules.maxSize > 0 && rules.maxSize <= MAX_FILE_MB)) {
+      err(`${at}.maxSize`, `must be a number of megabytes from 1 to ${MAX_FILE_MB}`)
+    }
+  }
+  if (rules.multiple !== undefined && typeof rules.multiple !== 'boolean') err(`${at}.multiple`, 'must be true or false')
+  if (rules.maxFiles !== undefined) {
+    if (!(Number.isInteger(rules.maxFiles) && rules.maxFiles >= 1 && rules.maxFiles <= MAX_FILES)) err(`${at}.maxFiles`, `must be a whole number of files from 1 to ${MAX_FILES}`)
+    else if (!rules.multiple) err(`${at}.maxFiles`, 'is for several files — turn on "multiple", or remove it')
+  }
+  if (rules.source !== undefined) {
+    const sources = FILE_SOURCES.map((s) => s.value)
+    if (!sources.includes(rules.source)) err(`${at}.source`, `must be one of: ${sources.join(', ')}`)
+    else if (rules.source === 'camera') {
+      // A camera takes pictures: a field that also takes PDFs could never be
+      // filled the way it says, and one that takes no images at all is wrong.
+      const list = typeof rules.accept === 'string' ? acceptList(rules.accept) : []
+      if (!list.length || list.some((x) => !IMAGE_EXTENSIONS.includes(x))) {
+        err(`${at}.accept`, `a camera takes photos — with "source": "camera", the allowed types must be images only (${IMAGE_EXTENSIONS.join(',')})`)
+      }
     }
   }
 }
@@ -524,12 +549,25 @@ function checkFedColumn(c, p, err) {
 
 const BUTTON_KEYS = ['id', 'label', 'action', 'params', 'ask', 'when', 'disabledWhen', 'pressedWhen', 'variant']
 const ASK_KEYS = ['title', 'message', 'note']
+// A button's `ask.file`: the file a press takes — a file field's rules, plus its label and required.
+const ASK_FILE_KEYS = ['label', 'required', 'accept', 'maxSize', 'multiple', 'maxFiles', 'source']
 
 /**
  * A panel of buttons. Each names a function and the values it is given; the
  * server checks the names against what is registered when the screen is
  * published (functionProblems). Here: the shape.
  */
+function checkAskFile(f, at, err) {
+  if (!f || typeof f !== 'object' || Array.isArray(f)) { err(at, 'must be { label?, accept, maxSize?, multiple?, maxFiles?, source?, required? } — the file a press takes'); return }
+  const bad = Object.keys(f).filter((k) => !ASK_FILE_KEYS.includes(k))
+  if (bad.length) err(at, `only ${ASK_FILE_KEYS.map((k) => `"${k}"`).join(', ')} are used — remove: ${bad.join(', ')}`)
+  if (f.label !== undefined && typeof f.label !== 'string') err(`${at}.label`, 'must be a string')
+  if (f.required !== undefined && typeof f.required !== 'boolean') err(`${at}.required`, 'must be true or false')
+  // The server checks an upload against these, so there must be something to check.
+  if (f.accept === undefined) err(`${at}.accept`, 'is required — the extensions it takes, e.g. ".png,.jpg,.jpeg" (the server refuses anything else)')
+  checkFileRules(f, at, err)
+}
+
 function checkButtons(props, at, err, ids) {
   if (props.title !== undefined && typeof props.title !== 'string') err(`${at}.props.title`, 'must be a string')
   if (!Array.isArray(props.buttons)) { err(`${at}.props.buttons`, 'must be an array of buttons — { id, label, action, params? }'); return }
@@ -553,9 +591,10 @@ function checkButtons(props, at, err, ids) {
     if (b.ask !== undefined) {
       if (!b.ask || typeof b.ask !== 'object' || Array.isArray(b.ask)) err(`${p}.ask`, 'must be { title?, message?, note? } — what the person is asked before it runs')
       else {
-        const bad = Object.keys(b.ask).filter((k) => !ASK_KEYS.includes(k))
-        if (bad.length) err(`${p}.ask`, `only ${ASK_KEYS.map((k) => `"${k}"`).join(', ')} are used — remove: ${bad.join(', ')}`)
+        const bad = Object.keys(b.ask).filter((k) => !ASK_KEYS.includes(k) && k !== 'file')
+        if (bad.length) err(`${p}.ask`, `only ${[...ASK_KEYS, 'file'].map((k) => `"${k}"`).join(', ')} are used — remove: ${bad.join(', ')}`)
         ASK_KEYS.forEach((k) => { if (b.ask[k] !== undefined && typeof b.ask[k] !== 'string') err(`${p}.ask.${k}`, 'must be a string') })
+        if (b.ask.file !== undefined) checkAskFile(b.ask.file, `${p}.ask.file`, err)
       }
     }
     if (b.variant !== undefined && !BUTTON_VARIANTS.includes(b.variant)) err(`${p}.variant`, `must be one of: ${BUTTON_VARIANTS.join(', ')}`)

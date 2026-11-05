@@ -148,6 +148,24 @@
               }
             ],
             "variant": "danger"
+          },
+          {
+            "id": "photos",
+            "label": "Add photos",
+            "action": "addOrderPhotos",
+            "ask": {
+              "title": "Photos of the parcel",
+              "message": "Added to the order's timeline.",
+              "note": "Note (optional)",
+              "file": {
+                "label": "Photos",
+                "accept": ".png,.jpg,.jpeg,.gif,.webp",
+                "maxSize": 10,
+                "multiple": true,
+                "maxFiles": 5,
+                "required": true
+              }
+            }
           }
         ],
         "title": "Payment"

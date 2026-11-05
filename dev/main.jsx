@@ -4,6 +4,7 @@ import { FactoryBuilder, FactoryScreen, inputNodes } from '../src/index.js'
 import listExample from '../examples/employee-list.screen.json'
 import editExample from '../examples/employee-edit.screen.json'
 import boardExample from '../examples/orders-board.screen.json'
+import photosExample from '../examples/delivery-photos.screen.json'
 import actionsExample from '../examples/order-actions.screen.json'
 import './dev.css'
 
@@ -29,8 +30,24 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 const read = (key, fallback) => { try { return JSON.parse(localStorage.getItem(key)) ?? fallback } catch (_) { return fallback } }
 const write = (key, value) => localStorage.setItem(key, JSON.stringify(value))
 
+// FILES, as @xeplr/factory would keep them: a stored path → the bytes. In
+// memory only — a reload forgets them, which is all a demo needs.
+const stored = new Map()
+const storeFile = async (file, folder) => {
+  await wait(150)
+  const path = `${folder}/${Math.random().toString(36).slice(2, 8)}__${file.name.replace(/[^A-Za-z0-9._-]+/g, '_')}`
+  stored.set(path, file)
+  return { path, name: file.name, size: file.size }
+}
+const fileApi = {
+  uploadFile: (file, { screen, field }) => storeFile(file, `${screen}/${field}`),
+  uploadButtonFile: (file, { screen, button }) => storeFile(file, `${screen}/_buttons/${button}`),
+  readFile: async (path) => { if (!stored.has(path)) throw new Error('No such file'); return stored.get(path) }
+}
+
 // What an app's API would be: one AJAX call per operation.
 const api = {
+  ...fileApi,
   listTables: async () => [...Object.keys(LOOKUPS), 'employees'],
   fetchOptions: async ({ table }) => {
     await wait(120)
@@ -106,8 +123,10 @@ const functionsApi = {
     { name: 'orderList', event: 'listRows', description: 'Every order, most urgent first', inputSchema: [] },
     { name: 'orderActivity', event: 'rowDetails', description: 'The order\'s latest timeline entries', inputSchema: [] },
     { name: 'setOrderStatus', event: 'button', description: 'Sets the order\'s status and posts who changed it', inputSchema: [{ name: 'status', type: 'string', required: true, options: STATUSES }, { name: 'note', type: 'string', required: false }] },
-    { name: 'confirmCod', event: 'button', description: 'Confirms (or undoes) cash on delivery', inputSchema: [{ name: 'undo', type: 'boolean', required: false, default: false }, { name: 'note', type: 'string', required: false }] }
+    { name: 'confirmCod', event: 'button', description: 'Confirms (or undoes) cash on delivery', inputSchema: [{ name: 'undo', type: 'boolean', required: false, default: false }, { name: 'note', type: 'string', required: false }] },
+    { name: 'addOrderPhotos', event: 'button', description: 'Adds photos to the order\'s timeline', inputSchema: [{ name: 'files', type: 'array', required: true }, { name: 'note', type: 'string', required: false }] }
   ],
+  ...fileApi,
   fetchRows: async ({ q, filter }) => {
     await wait(150)
     const all = orders().filter((o) => !q || (o.name + ' ' + o.customerName + ' ' + o.city).toLowerCase().includes(q.toLowerCase().replace(/^#/, '')))
@@ -120,7 +139,7 @@ const functionsApi = {
     const o = orders().find((x) => x.id === id)
     return o ? o.log.map((e) => ({ text: e.text, at: e.at, open: { tab: 'comments' } })) : []
   },
-  pressButton: async ({ button, id, note }) => {
+  pressButton: async ({ button, id, note, files }) => {
     await wait(250)
     const all = orders()
     const o = all.find((x) => x.id === id)
@@ -129,7 +148,8 @@ const functionsApi = {
     if (!o || !b) throw new Error('Not found')
     if (b.action === 'setOrderStatus') o.customStatus = b.params.status
     if (b.action === 'confirmCod') o.paymentMethod = b.params.undo ? 'COD' : 'COD Confirmed'
-    o.log.unshift({ text: `${b.label}${note ? ' — ' + note : ''}`, at: 'Just now' })
+    const added = Array.isArray(files) && files.length ? ` (${files.length} photo${files.length === 1 ? '' : 's'})` : ''
+    o.log.unshift({ text: `${b.label}${added}${note ? ' — ' + note : ''}`, at: 'Just now' })
     write('dev-orders', all)
     return { message: `#${o.name}: ${b.label}` }
   }
@@ -145,7 +165,8 @@ const MENU = [
   { key: 'design-edit', group: 'Designer', label: 'Edit' },
   { key: 'screen-orders', group: 'Screen', label: 'Orders' },
   { key: 'design-orders', group: 'Designer', label: 'Orders' },
-  { key: 'design-buttons', group: 'Designer', label: 'Buttons' }
+  { key: 'design-buttons', group: 'Designer', label: 'Buttons' },
+  { key: 'screen-photos', group: 'Screen', label: 'Photos' }
 ]
 
 /** Orders: the board, and the order a row opens with its buttons — as an app would lay them out. */
@@ -240,6 +261,11 @@ function App() {
       {page === 'screen-orders' && <OrdersPage board={designs[boardExample.id]} actions={designs[actionsExample.id]} />}
       {page === 'design-orders' && (
         <FactoryBuilder key="design-orders" {...functionsApi} document={designs[boardExample.id]} onSave={saveDesign} onPublish={publish} screens={screenChoices} />
+      )}
+      {page === 'screen-photos' && (
+        <div className="dev-run">
+          <FactoryScreen document={photosExample} {...api} />
+        </div>
       )}
       {page === 'design-buttons' && (
         <FactoryBuilder key="design-buttons" {...functionsApi} document={designs[actionsExample.id]} onSave={saveDesign} onPublish={publish} screens={screenChoices} />

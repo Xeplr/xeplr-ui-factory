@@ -3,7 +3,7 @@
 // in the app's database; this only sends and receives.
 //
 //   import { authFetch } from '@xeplr/ui-account'
-//   const factory = createFactoryApi({ fetch: authFetch })
+//   const factory = createFactoryApi({ fetch: authFetch, fetchFile: authFetchFile })
 //   <FactoryScreen document={screen} {...factory.screenProps} />
 //   <FactoryBuilder document={screen} {...factory.builderProps} lockedNames={…} />
 //
@@ -12,10 +12,13 @@
 /**
  * @param options.fetch  a fetch that adds auth and tenant headers (e.g. @xeplr/ui-account's authFetch)
  * @param options.base   prefix before /factory, if the router is mounted elsewhere (default '')
+ * @param options.fetchFile  (url) → Blob, signed like `fetch` (@xeplr/ui-account's authFetchFile):
+ *                       how an attached picture is read back for its preview. Without it
+ *                       a file field shows names only — an <img> cannot send the token.
  */
 import { createChildTable } from './masters.js'
 
-export function createFactoryApi({ fetch: doFetch, base = '' } = {}) {
+export function createFactoryApi({ fetch: doFetch, fetchFile, base = '' } = {}) {
   if (typeof doFetch !== 'function') throw new Error('createFactoryApi: pass { fetch } — usually authFetch from @xeplr/ui-account')
 
   // Two kinds of fetch are accepted, because both are what apps have:
@@ -135,7 +138,16 @@ export function createFactoryApi({ fetch: doFetch, base = '' } = {}) {
     // A button's press on one record → { button, message, output }. The
     // server reads the button — its function and parameters — from the
     // published screen; the request names it and carries the note.
-    pressButton: async ({ screen, button, id, note }) => one(await call('POST', `/buttons/${enc(screen)}/${enc(button)}`, note ? { id, note } : { id })),
+    pressButton: async ({ screen, button, id, note, files }) => one(await call('POST', `/buttons/${enc(screen)}/${enc(button)}`, {
+      id, ...(note ? { note } : {}), ...(Array.isArray(files) && files.length ? { files } : {})
+    })),
+    // A file a button's ask.file takes, stored before the press; the press
+    // then names it by the path this answers with.
+    uploadButtonFile: async (file, { screen, button }) => {
+      const form = new FormData()
+      form.append('file', file)
+      return one(await send('POST', `/buttons/${enc(screen)}/${enc(button)}/files`, form))
+    },
 
     // A file field's upload. The answer's `path` is what the record stores;
     // the file itself is read back through the same route, with auth.
@@ -144,10 +156,12 @@ export function createFactoryApi({ fetch: doFetch, base = '' } = {}) {
       form.append('file', file)
       return one(await send('POST', `/files/${enc(screen)}/${enc(field)}`, form))
     },
-    fileUrl: (path) => `${base}/factory/files/${String(path).split('/').map(enc).join('/')}`
+    fileUrl: (path) => `${base}/factory/files/${String(path).split('/').map(enc).join('/')}`,
+    // An attached file's bytes (a picture's preview), when the host said how.
+    readFile: typeof fetchFile === 'function' ? (path) => fetchFile(api.fileUrl(path)) : undefined
   }
-  api.screenProps = { loadScreen: api.loadScreen, onSave: api.onSave, fetchRecords: api.fetchRecords, fetchRecord: api.fetchRecord, onDelete: api.onDelete, fetchOptions: api.fetchOptions, uploadFile: api.uploadFile, fileUrl: api.fileUrl,
-    fetchRows: api.fetchRows, fetchRowDetails: api.fetchRowDetails, pressButton: api.pressButton }
+  api.screenProps = { loadScreen: api.loadScreen, onSave: api.onSave, fetchRecords: api.fetchRecords, fetchRecord: api.fetchRecord, onDelete: api.onDelete, fetchOptions: api.fetchOptions, uploadFile: api.uploadFile, fileUrl: api.fileUrl, readFile: api.readFile,
+    fetchRows: api.fetchRows, fetchRowDetails: api.fetchRowDetails, pressButton: api.pressButton, uploadButtonFile: api.uploadButtonFile }
   // makeChildTable: a list on a form can make the table it is about to point
   // at — rows belonging to this record — without leaving the designer. A
   // server act, which is why the builder is given it rather than doing it.
