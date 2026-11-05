@@ -61,7 +61,9 @@ import { buttonShown, buttonDisabled, buttonPressed } from './buttons.js'
  * @param hooks         a FactoryHooks (or an object with some of its methods) — get / save / delete / actions
  * @param fetchRows     async ({ screen, node, q, filter }) → { rows, counts } — a list whose rows a function works out (rowsFrom)
  * @param fetchRowDetails async ({ screen, node, column, id }) → [{ text, sub?, at?, open? }] — an activity cell's hover box
- * @param pressButton   async ({ screen, button, id, note }) → { message } — a button's press, run on the server
+ * @param pressButton   async ({ screen, button, id, note, files }) → { message } — a button's press, run on the server
+ * @param uploadButtonFile async (file, { screen, button }) → { path } — a file a button's `ask.file` takes, stored before the press
+ * @param readFile      async (path) → Blob — an attached file's bytes: a picture's preview (no preview without it)
  * @param onButtonDone  ({ button, result, record }) → void — after a press: the host reloads what it shows
  * @param reloadKey     anything — when it changes, every list reloads (the host heard something changed)
  * @param urlKey        where the open step of each stepper lives in the URL (`<urlKey>Steps`),
@@ -82,9 +84,9 @@ import { buttonShown, buttonDisabled, buttonPressed } from './buttons.js'
 const SEARCH_PAUSE_MS = 250
 
 export function useFactoryScreen({
-  document: doc, record, recordKey = 'id', onSave, fetchOptions, fetchRecords, fetchRecord, onDelete, onChange, screens, loadScreen, hooks, uploadFile, fileUrl,
+  document: doc, record, recordKey = 'id', onSave, fetchOptions, fetchRecords, fetchRecord, onDelete, onChange, screens, loadScreen, hooks, uploadFile, fileUrl, readFile,
   onOpenRecord, onDone, onDirtyChange, params, urlKey, previous,
-  fetchRows, fetchRowDetails, pressButton, onButtonDone, reloadKey,
+  fetchRows, fetchRowDetails, pressButton, uploadButtonFile, onButtonDone, reloadKey,
   link, onReady,
   controls = CONTROLS
 } = {}) {
@@ -830,6 +832,7 @@ export function useFactoryScreen({
   // and is greyed out is read from it; the press runs on the server, which
   // checks the same again on the saved record.
   const pressRef = useRef(pressButton); pressRef.current = pressButton
+  const buttonUploadRef = useRef(uploadButtonFile); buttonUploadRef.current = uploadButtonFile
   const buttonDoneRef = useRef(onButtonDone); buttonDoneRef.current = onButtonDone
   const [pressing, setPressing] = useState(null)        // button id on the wire
   const [buttonNote, setButtonNote] = useState(null)    // { kind: 'done' | 'error', text, button }
@@ -842,12 +845,20 @@ export function useFactoryScreen({
     pressing,
     note: buttonNote,
     clearNote: () => setButtonNote(null),
-    press: async (b, typed) => {
+    readFile: readFile || null,
+    // A file the button's ask.file takes: stored first, its path sent with the press.
+    upload: async (file, b) => {
+      if (!buttonUploadRef.current) throw new Error('No uploadButtonFile was provided, so this button cannot take a file')
+      const out = await buttonUploadRef.current(file, { screen: doc.id, button: b.id })
+      if (!out || !out.path) throw new Error('The upload did not answer with the stored file')
+      return out
+    },
+    press: async (b, typed, files) => {
       if (!pressRef.current) { setButtonNote({ kind: 'error', text: 'No pressButton was provided', button: b.id }); return false }
       setPressing(b.id)
       setButtonNote(null)
       try {
-        const result = await pressRef.current({ screen: doc.id, button: b.id, id: recordId, note: typed })
+        const result = await pressRef.current({ screen: doc.id, button: b.id, id: recordId, note: typed, files })
         setButtonNote({ kind: 'done', text: (result && result.message) || `${b.label} — done`, button: b.id })
         setListVersion((v) => v + 1)
         if (buttonDoneRef.current) buttonDoneRef.current({ button: b, result, record: buttonRecord })
@@ -859,7 +870,7 @@ export function useFactoryScreen({
         setPressing(null)
       }
     }
-  }), [buttonRecord, pressing, buttonNote, doc, recordId])
+  }), [buttonRecord, pressing, buttonNote, doc, recordId, readFile])
 
   return {
     document: doc,
@@ -889,6 +900,7 @@ export function useFactoryScreen({
     visibleNodes,
     upload,
     fileUrl,
+    readFile: readFile || null,
     flush,
     save: runSave,
     saveNow: runSave,

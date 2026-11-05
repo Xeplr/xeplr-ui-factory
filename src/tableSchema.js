@@ -88,8 +88,10 @@ export function columnForField(node) {
     case 'datetime':
       return { ...base, type: 'timestamp' }
     case 'file':
-      // The stored file's path, as the upload answered with it.
-      return { ...base, type: 'varchar', length: FILE_PATH_LENGTH }
+      // The stored file's path, as the upload answered with it — several of
+      // them, comma separated, in a text column (varchar → text is a widening,
+      // so turning "several files" on keeps what is saved).
+      return p.multiple ? { ...base, type: 'text' } : { ...base, type: 'varchar', length: FILE_PATH_LENGTH }
     case 'multiselect':
       // Every chosen id in one text column, separated by commas.
       return { ...base, type: 'text' }

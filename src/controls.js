@@ -139,6 +139,44 @@ export const FILE_KINDS = {
   any: { label: 'Any of the above', accept: '.pdf,.doc,.docx,.odt,.rtf,.txt,.xls,.xlsx,.csv,.ods,.png,.jpg,.jpeg,.gif,.webp,.svg' }
 }
 
+/** The extensions a picture can have — what a preview is drawn for, and all a camera field takes. */
+export const IMAGE_EXTENSIONS = acceptList(FILE_KINDS.image.accept)
+
+/**
+ * Where a file field's files come from. `any` is the device's own choice —
+ * on a phone that is Camera, Photos and Files in one menu; `camera` opens the
+ * camera straight away (a photo taken now, not one from the gallery).
+ */
+export const FILE_SOURCES = [
+  { value: 'any', label: 'Files, gallery or camera' },
+  { value: 'camera', label: 'Camera only' }
+]
+
+/** Most files one field can hold. */
+export const MAX_FILES = 20
+
+/** Whether a stored path (or a file name) is a picture — by its extension, as the server checks. */
+export function isImageFile(name) {
+  const s = String(name || '').toLowerCase()
+  const dot = s.lastIndexOf('.')
+  return dot !== -1 && IMAGE_EXTENSIONS.includes(s.slice(dot))
+}
+
+/**
+ * What a file picker is asked for, from a file field's props — the one place
+ * that turns `accept`, `multiple` and `source` into a picker. The web reads it
+ * as <input type="file"> attributes; a phone app reads the same three.
+ */
+export function filePicker(props) {
+  const p = props || {}
+  const camera = p.source === 'camera'
+  return {
+    accept: p.accept || '',
+    multiple: Boolean(p.multiple) && !camera,
+    capture: camera ? 'environment' : undefined
+  }
+}
+
 /** An extension list as one string → the same list, cleaned and lower-cased. */
 export function acceptList(accept) {
   return String(accept || '')
@@ -456,11 +494,13 @@ export const CONTROLS = {
     label: 'File upload',
     group: 'Inputs',
     input: true,
-    // The value is the stored file's path, as the upload answered with it.
+    // The value is the stored file's path, as the upload answered with it —
+    // or, with `multiple`, a list of them (one text column, comma separated,
+    // like a multi-select: a stored path has no comma in it).
     valueType: 'string',
     defaultSize: { w: 0.44, h: 0.1 },
     defaults: { label: 'File', accept: FILE_KINDS.document.accept, maxSize: 10 },
-    props: ['name', 'label', 'preset', 'required', 'accept', 'maxSize', 'style'],
+    props: ['name', 'label', 'preset', 'required', 'accept', 'maxSize', 'multiple', 'maxFiles', 'source', 'style'],
     validation: [],
     styles: INPUT_STYLES.filter((k) => k !== 'textAlign'),
     properties: [
@@ -470,7 +510,10 @@ export const CONTROLS = {
         title: 'File',
         fields: [
           { path: 'props.accept', label: 'Allowed types', type: 'accept', help: 'Extensions, comma separated — the server refuses anything else' },
-          { path: 'props.maxSize', label: 'Largest size (MB)', type: 'number', min: 1, max: 200 }
+          { path: 'props.maxSize', label: 'Largest size (MB)', type: 'number', min: 1, max: 200 },
+          { path: 'props.source', label: 'Take from', type: 'select', options: FILE_SOURCES, help: 'Camera only: a photo taken now — the allowed types must be images' },
+          { path: 'props.multiple', label: 'Several files', type: 'toggle' },
+          { path: 'props.maxFiles', label: 'At most (files)', type: 'number', min: 1, max: MAX_FILES, help: 'With several files' }
         ]
       },
       ...styleGroups(INPUT_STYLES.filter((k) => k !== 'textAlign'))

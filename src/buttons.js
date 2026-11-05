@@ -46,6 +46,13 @@ export const BADGE_TONES = ['accent', 'success', 'warning', 'danger', 'muted']
 /** The name a button's note reaches its function under. */
 export const NOTE_INPUT = 'note'
 
+/**
+ * The name a button's files reach its function under: the stored paths, as a
+ * list, when the button's `ask.file` takes them. The function reads the bytes
+ * through `system.files` (each with its full path on disk).
+ */
+export const FILES_INPUT = 'files'
+
 /** Operators a button's condition can use: every one that compares a single value. */
 export const CONDITION_OPERATORS = OPERATORS.filter((o) => !o.needsRows)
 
@@ -89,13 +96,35 @@ export function buttonById(doc, id) {
   return screenButtons(doc).find((b) => b.button && b.button.id === id) || null
 }
 
-/** What a press sends the function: the document's parameters, and the person's note when it asks for one. */
-export function buttonInput(button, note) {
+/** The file a button's press takes (`ask.file`), or null when it takes none. */
+export function askFile(button) {
+  const f = button && button.ask && button.ask.file
+  return f && typeof f === 'object' ? f : null
+}
+
+/**
+ * What a press sends the function: the document's parameters, the person's
+ * note when it asks for one, and the stored files when it takes them.
+ */
+export function buttonInput(button, note, files) {
   const input = { ...((button && button.params) || {}) }
   if (button && button.ask && button.ask.note && note !== undefined && note !== null && String(note).trim() !== '') {
     input[NOTE_INPUT] = String(note).trim()
   }
+  if (askFile(button) && Array.isArray(files) && files.length) input[FILES_INPUT] = files.slice()
   return input
+}
+
+/** Why the files given to a press are not what its `ask.file` takes — or null. */
+export function askFileProblem(button, files) {
+  const f = askFile(button)
+  const list = Array.isArray(files) ? files : []
+  if (!f) return list.length ? 'This button takes no files' : null
+  const label = f.label || 'A file'
+  if (!list.length) return f.required ? `${label} is required` : null
+  if (!f.multiple && list.length > 1) return `${label}: one file only`
+  if (f.multiple && f.maxFiles && list.length > f.maxFiles) return `${label}: at most ${f.maxFiles} files`
+  return null
 }
 
 /**
@@ -141,9 +170,11 @@ export function paramProblems(button, inputSchema) {
   schema.forEach((f) => {
     if (!f || !f.name || !f.required || f.default !== undefined) return
     if (f.name === NOTE_INPUT && button && button.ask && button.ask.note) return
+    if (f.name === FILES_INPUT && askFile(button)) return
     if (params[f.name] === undefined || params[f.name] === null || params[f.name] === '') problems.push(`needs "${f.name}"`)
   })
   if (button && button.ask && button.ask.note && !byName.has(NOTE_INPUT)) problems.push(`asks for a note, but takes no "${NOTE_INPUT}"`)
+  if (askFile(button) && !byName.has(FILES_INPUT)) problems.push(`asks for a file, but takes no "${FILES_INPUT}"`)
   return problems
 }
 

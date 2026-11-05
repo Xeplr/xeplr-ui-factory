@@ -16,6 +16,11 @@
 //   - a list fed by a function: its search box is 16px and 44px tall, its
 //     chips stay on screen, and a button's "ask first" fills the screen with
 //     44px buttons and a 16px note box.
+//   - files: a field holding several shows each picture as a thumbnail, its
+//     picker is 44px tall and on screen, and the picker asks the device for
+//     what the field says (several pictures; the back camera for "camera
+//     only"); a button whose press takes photos uploads them in its ask
+//     dialog and sends them.
 // And at 1280px, that the desktop layout is still the designed one — and the
 // function-fed list and buttons WORK: search and chips narrow the rows, a row
 // opens its order, a press with a note changes it and greys its button out,
@@ -55,6 +60,10 @@ async function open(width, menu) {
   await page.waitForTimeout(400)
   return { page, errors }
 }
+
+// A real PNG (2×2, red), so the browser has a picture to draw as a thumbnail.
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAFElEQVR4nGP4z8DwHwyBNAMDAwMAQeIH+Rnvk5oAAAAASUVORK5CYII=', 'base64')
+const photo = (name) => ({ name, mimeType: 'image/png', buffer: PNG })
 
 const noSideways = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)
 
@@ -193,6 +202,49 @@ try {
     check(`buttons: after Confirm COD, Undo shows instead`, (await page.locator('.dev-order .xeplr-factory-button', { hasText: 'Undo COD' }).count()) === 1 && (await cod.count()) === 0)
     check(`orders: no script errors`, errors.length === 0, errors.join('; '))
     await page.close()
+  }
+
+  // ── files: several pictures, the camera, a button that takes photos ─────
+  for (const width of [360, 430]) {
+    console.log(`\nfiles, ${width}px`)
+    const { page, errors } = await open(width, 'Photos')
+    const pickers = await page.$$eval('.xeplr-factory-files-input', (els) => els.map((el) => ({ accept: el.accept, multiple: el.multiple, capture: el.getAttribute('capture') })))
+    check(`files: several pictures — the picker asks for several images`, pickers[0] && pickers[0].multiple && /\.jpg/.test(pickers[0].accept) && !pickers[0].capture, JSON.stringify(pickers[0]))
+    check(`files: camera only — the picker asks for the back camera`, pickers[1] && pickers[1].capture === 'environment' && !pickers[1].multiple, JSON.stringify(pickers[1]))
+    const add = await page.$eval('.xeplr-factory-files-add', (el) => { const r = el.getBoundingClientRect(); return { h: r.height, right: r.right } })
+    check(`files: the picker is 44px tall and on screen`, add.h >= 44 && add.right <= width, JSON.stringify(add))
+    await page.locator('.xeplr-factory-files-input').first().setInputFiles([photo('front.png'), photo('back.png')])
+    await page.waitForTimeout(900)
+    const thumbs = await page.$$eval('.xeplr-factory-node:first-of-type .xeplr-factory-files-thumb, .xeplr-factory-files-thumb', (els) => els.map((el) => ({ w: el.naturalWidth, shown: el.getBoundingClientRect().width })))
+    check(`files: each picture shows as a thumbnail`, thumbs.length === 2 && thumbs.every((t) => t.w === 2 && t.shown >= 44), JSON.stringify(thumbs))
+    const names = await page.$$eval('.xeplr-factory-files-name', (els) => els.map((el) => el.textContent))
+    check(`files: …with its name, not the stored id`, names.join() === 'front.png,back.png', names.join())
+    check(`files: the picker says "Add another"`, /Add another/.test(await page.locator('.xeplr-factory-files-add-label').first().textContent()))
+    await page.locator('.xeplr-factory-files-remove').first().click()
+    check(`files: Remove takes one away`, (await page.locator('.xeplr-factory-files-item').count()) === 1)
+    check(`files: page does not scroll sideways`, await noSideways(page))
+    check(`files: no script errors`, errors.length === 0, errors.join('; '))
+    await page.close()
+
+    const orders = await open(width, 'Orders')
+    await orders.page.locator('tbody tr').first().click()
+    await orders.page.waitForTimeout(500)
+    await orders.page.locator('.dev-order .xeplr-factory-button', { hasText: 'Add photos' }).click()
+    await orders.page.waitForTimeout(300)
+    const confirm = orders.page.locator('.xeplr-factory-ask-foot button', { hasText: 'Add photos' })
+    check(`button with photos: nothing chosen yet, so it cannot be pressed`, await confirm.isDisabled())
+    await orders.page.locator('.xeplr-factory-ask .xeplr-factory-files-input').setInputFiles([photo('parcel.png')])
+    await orders.page.waitForTimeout(700)
+    check(`button with photos: the photo shows in the dialog`, (await orders.page.locator('.xeplr-factory-ask .xeplr-factory-files-thumb').count()) === 1)
+    check(`button with photos: dialog does not scroll sideways`, await noSideways(orders.page))
+    await confirm.click()
+    await orders.page.waitForTimeout(800)
+    const said = await orders.page.locator('.dev-order .xeplr-factory-buttons-note').first().textContent().catch(() => '')
+    check(`button with photos: the press carried them`, /Add photos/.test(said) && (await orders.page.locator('.xeplr-factory-ask').count()) === 0, said)
+    const log = await orders.page.evaluate(() => JSON.parse(localStorage.getItem('dev-orders'))[0].log[0].text)
+    check(`button with photos: …and the function got the files`, /\(1 photo\)/.test(log), log)
+    check(`button with photos: no script errors`, orders.errors.length === 0, orders.errors.join('; '))
+    await orders.page.close()
   }
 
   // ── a desktop, unchanged ─────────────────────────────────────────────────

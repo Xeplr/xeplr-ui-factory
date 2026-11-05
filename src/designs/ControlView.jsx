@@ -3,6 +3,7 @@ import { tableColumns, LABEL_PRESETS } from '../controls.js'
 import { stepsOf } from '../document.js'
 import ListView from './ListView.jsx'
 import ButtonsView from './ButtonsView.jsx'
+import FileField from './FileField.jsx'
 import { fieldStyle, labelStyle, boxStyle } from './styles.js'
 
 // How each control LOOKS — the one renderer, used both on the builder's
@@ -14,7 +15,7 @@ import { fieldStyle, labelStyle, boxStyle } from './styles.js'
 
 const ids = (node) => `xeplr-factory-${node.id}`
 
-export default function ControlView({ node, mode = 'live', value, error, options, onChange, onBlur, disabled, list, upload, stepper, subform, rows, buttons }) {
+export default function ControlView({ node, mode = 'live', value, error, options, onChange, onBlur, disabled, list, upload, readFile, stepper, subform, rows, buttons }) {
   const View = VIEWS[node.type]
   if (!View) {
     return <div className="xeplr-factory-unknown">Unknown control “{node.type}”</div>
@@ -33,6 +34,7 @@ export default function ControlView({ node, mode = 'live', value, error, options
       disabled={design || disabled}
       list={list}
       upload={upload}
+      readFile={readFile}
       stepper={stepper}
       subform={subform}
       rows={rows}
@@ -317,51 +319,31 @@ function DatetimeView({ node, p, value, error, onChange, onBlur, disabled }) {
 }
 
 /**
- * A file field holds the stored file's PATH, not the file. Picking one uploads
- * it straight away (`upload`, supplied by the screen) and what comes back is
- * the value that is saved with the record.
+ * A file field holds the stored file's PATH, not the file — or, with
+ * `multiple`, a list of them. Picking one uploads it straight away (`upload`,
+ * supplied by the screen) and what comes back is the value saved with the
+ * record. A stored picture shows as a thumbnail when the screen can read it
+ * back (`readFile`).
  */
-function FileView({ node, p, design, value, error, onChange, onBlur, disabled, upload }) {
-  const [busy, setBusy] = useState(false)
-  const [failed, setFailed] = useState(null)
-  const accept = p.accept || ''
-  const choose = async (file) => {
-    if (!file || !upload) return
-    setFailed(null)
-    setBusy(true)
-    try {
-      const out = await upload(file, node)
-      onChange(out && out.path ? out.path : undefined)
-    } catch (e) {
-      setFailed(e && e.message ? e.message : 'The file could not be uploaded')
-    } finally {
-      setBusy(false)
-      onBlur()
-    }
-  }
+function FileView({ node, p, design, value, error, onChange, onBlur, disabled, upload, readFile }) {
+  const several = Boolean(p.multiple)
+  const files = several ? (Array.isArray(value) ? value : []) : value ? [value] : []
+  const { style, ...aria } = inputProps(node, p, error, disabled, onBlur)
   return (
-    <Field node={node} p={p} error={error || failed}>
-      {value
-        ? (
-          <div className="xeplr-factory-file">
-            <span className="xeplr-factory-file-name" title={String(value)}>{fileName(value)}</span>
-            <button type="button" className="xeplr-factory-file-clear" disabled={disabled} onClick={() => { onChange(undefined); onBlur() }}>Remove</button>
-          </div>
-        )
-        : (
-          <input
-            className="xeplr-factory-input xeplr-factory-file-input"
-            type="file"
-            accept={accept}
-            disabled={disabled || busy}
-            onChange={(e) => { const f = e.target.files && e.target.files[0]; e.target.value = ''; choose(f) }}
-            {...inputProps(node, p, error, disabled || busy, onBlur)}
-          />
-        )}
-      {busy && <div className="xeplr-factory-hint">Uploading…</div>}
-      {!busy && !value && (design || accept) && (
-        <div className="xeplr-factory-hint">{accept || 'any file'}{p.maxSize ? ` · up to ${p.maxSize} MB` : ''}</div>
-      )}
+    <Field node={node} p={p} error={error}>
+      <FileField
+        id={aria.id}
+        rules={p}
+        files={files}
+        onChange={(paths) => onChange(several ? paths : paths[0])}
+        onBlur={onBlur}
+        upload={upload ? (file) => upload(file, node) : undefined}
+        readFile={readFile}
+        disabled={disabled}
+        design={design}
+        inputProps={aria}
+        style={style}
+      />
     </Field>
   )
 }

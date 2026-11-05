@@ -220,6 +220,7 @@ export default function ScreenSample({ ctrl, className, style, renderPopup, rend
               error={node.props?.name ? ctrl.errors[node.props.name] : undefined}
               options={CHOICE_TYPES.includes(node.type) ? ctrl.optionsFor(node) : undefined}
               upload={node.type === 'file' ? ctrl.upload : undefined}
+              readFile={node.type === 'file' ? ctrl.readFile : undefined}
               rows={node.type === 'table' && ctrl.rowsFor ? ctrl.rowsFor(node) : undefined}
               stepper={node.type === 'stepper' ? {
                 active: ctrl.steps.active(node.id),

@@ -20,7 +20,7 @@ export function formSchema(doc, controls = CONTROLS) {
     const def = controls[node.type]
     const p = node.props
     const field = { name: p.name }
-    if (def.valueType) field.type = def.valueType
+    if (def.valueType) field.type = isMultiFile(node) ? 'array' : def.valueType
     if (p.label) field.description = p.label
     if (p.required) field.required = true
     if (p.default !== undefined) field.default = p.default
@@ -41,6 +41,8 @@ export function formSchema(doc, controls = CONTROLS) {
       delete v.notFuture
       if (Object.keys(v).length) field.validation = v
     }
+    // Several files: a list of stored paths, no longer than the field holds.
+    if (isMultiFile(node)) field.validation = { ...(field.validation || {}), itemType: 'string', ...(p.maxFiles ? { maxItems: p.maxFiles } : {}) }
     return field
   })
 }
@@ -101,10 +103,10 @@ export function initialValues(doc, provided = {}, controls = CONTROLS, previous 
       if (resolved !== undefined) out[name] = resolved
       else if (!isBinding(node.props.default)) out[name] = node.props.default
       else if (node.type === 'checkbox') out[name] = false
-      else if (node.type === 'multiselect' || node.type === 'table') out[name] = []
+      else if (listValued(node)) out[name] = []
     }
     else if (node.type === 'checkbox') out[name] = false
-    else if (node.type === 'multiselect' || node.type === 'table') out[name] = []
+    else if (listValued(node)) out[name] = []
   })
   return out
 }
@@ -116,7 +118,7 @@ export function initialValues(doc, provided = {}, controls = CONTROLS, previous 
  */
 export function parseInput(node, raw) {
   if (node.type === 'checkbox') return Boolean(raw)
-  if (node.type === 'multiselect') return Array.isArray(raw) ? raw : fromDbValue(node, raw) || []
+  if (node.type === 'multiselect' || isMultiFile(node)) return Array.isArray(raw) ? raw : fromDbValue(node, raw) || []
   if (node.type === 'table') return Array.isArray(raw) ? raw : []
   if (raw === undefined || raw === null || raw === '') return undefined
   if (node.type === 'number') {
@@ -164,6 +166,13 @@ export function fieldError(node, value, loadedOptions) {
     if (!ticked.length) return p.required ? `${label}: tick at least one row` : null
     if (v.minItems != null && ticked.length < v.minItems) return `${label}: tick at least ${v.minItems}`
     if (v.maxItems != null && ticked.length > v.maxItems) return `${label}: tick at most ${v.maxItems}`
+    return null
+  }
+  // SEVERAL FILES: required is at least one, and no more than it holds.
+  if (isMultiFile(node)) {
+    const files = Array.isArray(value) ? value : []
+    if (!files.length) return p.required ? `${label} is required` : null
+    if (p.maxFiles && files.length > p.maxFiles) return `${label}: at most ${p.maxFiles} files`
     return null
   }
   if (node.type === 'multiselect') {
@@ -286,7 +295,7 @@ export function recordValues(doc, record, controls = CONTROLS) {
     const v = record ? record[name] : undefined
     if (v !== undefined && v !== null) out[name] = fromDbValue(node, v)
     else if (node.type === 'checkbox') out[name] = false
-    else if (node.type === 'multiselect' || node.type === 'table') out[name] = []
+    else if (listValued(node)) out[name] = []
   })
   return out
 }
@@ -329,7 +338,7 @@ export function displayValue(node, value, options) {
   if (value === undefined || value === null || value === '') return ''
   if (!node) return typeof value === 'object' ? JSON.stringify(value) : value
   if (node.type === 'checkbox') return value ? 'Yes' : 'No'
-  if (node.type === 'file') return fileLabel(value)
+  if (node.type === 'file') return (isMultiFile(node) ? fromDbValue(node, value) || [] : [value]).map(fileLabel).join(', ')
   if (node.type === 'datetime') return String(value).replace('T', ' ').slice(0, 16)
   if (node.type === 'dropdown' || node.type === 'radio') return optionName(node, value, options)
   if (node.type === 'multiselect') {
@@ -342,6 +351,16 @@ function optionName(node, value, options) {
   const opts = node.props.data?.source === 'static' ? node.props.data.options : options
   const hit = (opts || []).find((o) => sameId(o.id, value))
   return hit ? hit.name : String(value)
+}
+
+/** A file field that holds several files: its value is a list of stored paths. */
+export function isMultiFile(node) {
+  return Boolean(node && node.type === 'file' && node.props && node.props.multiple)
+}
+
+/** A field whose value is a list: a multi-select, a table's ticked rows, several files. */
+function listValued(node) {
+  return node.type === 'multiselect' || node.type === 'table' || isMultiFile(node)
 }
 
 /** The name at the end of a stored file path, without the id that keeps it apart. */
@@ -361,7 +380,7 @@ export function fileLabel(path) {
 /** A screen value → what its column stores. */
 export function toDbValue(node, value) {
   if (value === undefined || value === null) return value
-  if (node.type === 'multiselect') {
+  if (node.type === 'multiselect' || isMultiFile(node)) {
     const list = Array.isArray(value) ? value : [value]
     return list.length ? list.map((v) => String(v)).join(MULTI_SEPARATOR) : null
   }
@@ -371,7 +390,7 @@ export function toDbValue(node, value) {
 /** What a column holds → the screen's value. */
 export function fromDbValue(node, value) {
   if (value === undefined || value === null) return value
-  if (node.type === 'multiselect') {
+  if (node.type === 'multiselect' || isMultiFile(node)) {
     if (Array.isArray(value)) return value
     const s = String(value)
     return s === '' ? [] : s.split(MULTI_SEPARATOR).filter((x) => x !== '')
