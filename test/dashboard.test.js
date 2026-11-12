@@ -72,8 +72,8 @@ console.log('\na button that asks for values')
   check('a screen saying so is valid', errs(panel([packed])) === '', errs(panel([packed])))
   check('asking for one of the button\'s own parameters is refused', /already one of the button's parameters/.test(errs(panel([{ ...packed, ask: { fields: [{ name: 'status', label: 'Status', type: 'text' }] } }]))))
   check('asking for "note" is refused: that is ask.note', /use ask.note or ask.file/.test(errs(panel([{ ...packed, ask: { fields: [{ name: 'note', label: 'N', type: 'text' }] } }]))))
-  check('an unknown type is refused', /type: must be one of: number, text/.test(errs(panel([{ ...packed, ask: { fields: [{ name: 'x', label: 'X', type: 'date' }] } }]))))
-  check('min on a text field is refused', /is for a number field/.test(errs(panel([{ ...packed, ask: { fields: [{ name: 'x', label: 'X', type: 'text', min: 1 } ] } }]))))
+  check('an unknown type is refused', /type: must be one of: number, text, date/.test(errs(panel([{ ...packed, ask: { fields: [{ name: 'x', label: 'X', type: 'colour' }] } }]))))
+  check('min on a text field is refused', /is for a number or date field/.test(errs(panel([{ ...packed, ask: { fields: [{ name: 'x', label: 'X', type: 'text', min: 1 } ] } }]))))
   check('the same name twice is refused', /is asked twice/.test(errs(panel([{ ...packed, ask: { fields: [SIZE[0], SIZE[0]] } }]))))
 
   check('askFields reads them', askFields(packed).length === 3 && askFields({ id: 'x' }).length === 0)
@@ -86,6 +86,21 @@ console.log('\na button that asks for values')
   check('required and empty', askFieldValues(packed, { lengthIn: '', weightKg: '1' }).errors[0].message === 'Length is required')
   check('below min', /at least 0.1/.test(askFieldValues(packed, { lengthIn: '0', weightKg: '1' }).errors[0].message))
   check('the press sends them, and the screen\'s parameters always win', same(buttonInput(packed, null, null, { lengthIn: 3, status: 'cancelled' }), { lengthIn: 3, status: 'packed' }))
+
+  console.log('\na date asked for')
+  const when = { name: 'rtoOn', label: 'RTO on', type: 'date', required: true, max: 'today', fill: 'rtoReasonAt' }
+  const rto = { id: 'rto-reason', label: 'RTO reason', action: 'setRtoReason', ask: { fields: [when, { name: 'reason', label: 'Why', type: 'text', required: true }] } }
+  const NOW = new Date(2026, 10, 12, 15, 0)
+  check('a date field is valid, with max "today"', errs(panel([rto])) === '', errs(panel([rto])))
+  check('its min / max must be a day or "today"', /must be a day, "YYYY-MM-DD", or "today"/.test(errs(panel([{ ...rto, ask: { fields: [{ ...when, max: 'tomorrow' }] } }]))))
+  check('min after max is refused', /is after max/.test(errs(panel([{ ...rto, ask: { fields: [{ ...when, min: '2026-11-10', max: '2026-11-01' }] } }]))))
+  check('a unit on a date is refused', /is for a number or text field/.test(errs(panel([{ ...rto, ask: { fields: [{ ...when, unit: 'd' }] } }]))))
+  check('it starts from the day of a date-and-time', askFieldStart(when, { rtoReasonAt: '2026-11-09T14:30' }) === '2026-11-09' && askFieldStart(when, { rtoReasonAt: 'soon' }) === '')
+  check('a real day is taken', same(askFieldValues(rto, { rtoOn: ' 2026-11-09 ', reason: 'Refused' }, NOW), { values: { rtoOn: '2026-11-09', reason: 'Refused' }, errors: [] }))
+  check('not a day is refused', /RTO on must be a date/.test(askFieldValues(rto, { rtoOn: '2026-02-30', reason: 'x' }, NOW).errors[0].message))
+  check('max "today": tomorrow is refused, today is fine', /cannot be in the future/.test(askFieldValues(rto, { rtoOn: '2026-11-13', reason: 'x' }, NOW).errors[0].message) && askFieldValues(rto, { rtoOn: '2026-11-12', reason: 'x' }, NOW).errors.length === 0)
+  check('a date is a string to the function', paramProblems(rto, [{ name: 'rtoOn', type: 'string', required: true }, { name: 'reason', type: 'string', required: true }]).length === 0)
+  check('…and one that takes a number is named', paramProblems(rto, [{ name: 'rtoOn', type: 'number' }, { name: 'reason', type: 'string' }]).some((p) => /as a date, but it takes number/.test(p)))
 
   const schema = [{ name: 'status', type: 'string', required: true }, { name: 'lengthIn', type: 'number' }, { name: 'weightKg', type: 'number', required: true }, { name: 'ref', type: 'string' }]
   check('a function that takes them fits — a required one is the person\'s to give', paramProblems(packed, schema).length === 0, paramProblems(packed, schema).join())

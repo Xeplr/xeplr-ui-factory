@@ -1079,7 +1079,21 @@ function AskFieldsEditor({ value, inputs, onChange }) {
           <RowTools i={j} count={fields.length} onMove={(to) => set(move(fields, j, to))} onRemove={() => set(fields.filter((_, k) => k !== j))} />
           <MiniField label="Input"><input className="xeplr-factory-prop-input" value={f.name} readOnly /></MiniField>
           <MiniField label="Label"><input className="xeplr-factory-prop-input" value={f.label || ''} onChange={(e) => edit(j, { label: e.target.value })} /></MiniField>
-          <MiniField label="Unit" help='e.g. "in", "kg"'><input className="xeplr-factory-prop-input" value={f.unit || ''} maxLength={12} onChange={(e) => edit(j, { unit: e.target.value })} /></MiniField>
+          {f.type !== 'number' && (
+            <MiniField label="Kind"><select className="xeplr-factory-prop-input" value={f.type === 'date' ? 'date' : 'text'} onChange={(e) => edit(j, e.target.value === 'date' ? { type: 'date', unit: undefined } : { type: 'text', min: undefined, max: undefined })}>
+              <option value="text">Text</option>
+              <option value="date">Date</option>
+            </select></MiniField>
+          )}
+          {f.type !== 'date' && (
+            <MiniField label="Unit" help='e.g. "in", "kg"'><input className="xeplr-factory-prop-input" value={f.unit || ''} maxLength={12} onChange={(e) => edit(j, { unit: e.target.value })} /></MiniField>
+          )}
+          {f.type === 'date' && (
+            <label className="xeplr-factory-toggle">
+              <input type="checkbox" checked={f.max === 'today'} onChange={(e) => edit(j, { max: e.target.checked ? 'today' : undefined })} />
+              <span>Not in the future</span>
+            </label>
+          )}
           {f.type === 'number' && (
             <MiniField label="At least"><input className="xeplr-factory-prop-input" type="number" value={f.min ?? ''} onChange={(e) => edit(j, { min: e.target.value === '' ? undefined : Number(e.target.value) })} /></MiniField>
           )}

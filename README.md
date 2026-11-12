@@ -463,9 +463,9 @@ Packed asks for the parcel's size, for the courier:
 |---|---|
 | `name` | what the function receives it as — one of its `inputSchema` inputs, never one of the button's `params`, `note` or `files` |
 | `label`, `unit` | what the person sees: "Length", "in" |
-| `type` | `number` (a number keyboard on a phone; the value arrives as a number) or `text` |
-| `required`, `min`, `max` | checked in the dialog **and on the server**, by the same `askFieldValues` |
-| `fill` | a field of the record the dialog starts from — asked again, it shows what was given last time |
+| `type` | `number` (a number keyboard on a phone; the value arrives as a number), `text`, or `date` (a calendar; the value arrives as `"YYYY-MM-DD"`) |
+| `required`, `min`, `max` | checked in the dialog **and on the server**, by the same `askFieldValues`. For a `date`, `min` / `max` are days or `"today"` — `"max": "today"` for something that has already happened ("today" is the day where the check runs) |
+| `fill` | a field of the record the dialog starts from — asked again, it shows what was given last time. A `date` takes the day of a date-and-time |
 
 - The press sends them as `values`; the server checks them against the **published** button and hands them to the function with its `params` — which always win, so a value typed cannot change what the screen says the button does.
 - Publishing refuses a field the function does not take, or takes as another type. A required input the button asks for is not "missing" from its `params`.
