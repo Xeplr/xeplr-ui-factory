@@ -129,7 +129,34 @@ export function buttonInput(button, note, files, values) {
 }
 
 /** The kinds of value a button's `ask.fields` can ask for. */
-export const ASK_FIELD_TYPES = ['number', 'text']
+export const ASK_FIELD_TYPES = ['number', 'text', 'date']
+
+const ASK_DAY = /^\d{4}-\d{2}-\d{2}$/
+
+/** Whether `s` is a real calendar day, "YYYY-MM-DD". */
+function isAskDay(s) {
+  if (typeof s !== 'string' || !ASK_DAY.test(s)) return false
+  const d = new Date(s + 'T00:00:00Z')
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s
+}
+
+/** Today where this runs, "YYYY-MM-DD". */
+function localDay(now) {
+  const d = now || new Date()
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+/** A date field's `min` / `max` as a day: "today" is today where it runs; a day is itself. */
+export function askDayLimit(limit, now) {
+  if (limit === 'today') return localDay(now)
+  return isAskDay(limit) ? limit : undefined
+}
+
+/** Whether a date field's `min` / `max` is one it takes: "today" or a real day. */
+export function isAskDayLimit(limit) {
+  return limit === 'today' || isAskDay(limit)
+}
 
 /** Longest text an ask field takes. */
 export const MAX_ASK_TEXT = 500
@@ -141,6 +168,10 @@ export const MAX_ASK_TEXT = 500
  *   "ask": { "fields": [
  *     { "name": "lengthIn", "label": "Length", "type": "number", "unit": "in", "required": true, "min": 0.1, "fill": "parcelLengthIn" } ] }
  *
+ * A `date` field is a day, "YYYY-MM-DD", picked from a calendar; its `min` /
+ * `max` are days too, or "today" — `"max": "today"` for something that has
+ * already happened.
+ *
  * Each reaches the function under its `name`, which its inputSchema must take.
  * `fill` names a field of the record the dialog starts from, so asking again
  * shows what was given last time.
@@ -150,10 +181,15 @@ export function askFields(button) {
   return Array.isArray(f) ? f.filter((x) => x && typeof x === 'object' && x.name) : []
 }
 
-/** What the dialog starts each field with: the record's `fill` field, or empty. */
+/** What the dialog starts each field with: the record's `fill` field, or empty. A date field takes the day of a date-and-time. */
 export function askFieldStart(field, record) {
   const v = field.fill && record ? record[field.fill] : undefined
-  return v === undefined || v === null ? '' : String(v)
+  if (v === undefined || v === null) return ''
+  if (field.type === 'date') {
+    const day = v instanceof Date ? localDay(v) : String(v).slice(0, 10)
+    return isAskDay(day) ? day : ''
+  }
+  return String(v)
 }
 
 /**
@@ -163,7 +199,7 @@ export function askFieldStart(field, record) {
  * a number. Anything not asked for is dropped. Both the dialog and the server
  * use it, so a value refused in one is refused in the other.
  */
-export function askFieldValues(button, given) {
+export function askFieldValues(button, given, now) {
   const values = {}
   const errors = []
   const raw = given && typeof given === 'object' && !Array.isArray(given) ? given : {}
@@ -181,6 +217,15 @@ export function askFieldValues(button, given) {
       if (f.min !== undefined && n < f.min) { errors.push({ field: f.name, message: `${label} must be at least ${f.min}` }); return }
       if (f.max !== undefined && n > f.max) { errors.push({ field: f.name, message: `${label} must be at most ${f.max}` }); return }
       values[f.name] = n
+      return
+    }
+    if (f.type === 'date') {
+      const day = String(v).trim()
+      if (!isAskDay(day)) { errors.push({ field: f.name, message: `${label} must be a date` }); return }
+      const min = askDayLimit(f.min, now), max = askDayLimit(f.max, now)
+      if (min && day < min) { errors.push({ field: f.name, message: f.min === 'today' ? `${label} cannot be before today` : `${label} must be on or after ${min}` }); return }
+      if (max && day > max) { errors.push({ field: f.name, message: f.max === 'today' ? `${label} cannot be in the future` : `${label} must be on or before ${max}` }); return }
+      values[f.name] = day
       return
     }
     const t = String(v).trim()
@@ -255,7 +300,7 @@ export function paramProblems(button, inputSchema) {
     const f = byName.get(a.name)
     if (!f) { problems.push(`asks for "${a.name}", but takes no "${a.name}"`); return }
     const want = a.type === 'number' ? 'number' : 'string'
-    if (f.type && f.type !== want) problems.push(`asks for "${a.name}" as ${a.type === 'number' ? 'a number' : 'text'}, but it takes ${f.type}`)
+    if (f.type && f.type !== want) problems.push(`asks for "${a.name}" as ${a.type === 'number' ? 'a number' : a.type === 'date' ? 'a date' : 'text'}, but it takes ${f.type}`)
   })
   return problems
 }

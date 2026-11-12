@@ -17,7 +17,7 @@ import { DATE_PRESET_VALUES } from './listRange.js'
 import { RESERVED_COLUMNS, MAX_IDENTIFIER } from './tableSchema.js'
 import { FIELD_PRESETS, INPUT_TYPES, presetFor } from './presets.js'
 import { isBinding } from './values.js'
-import { BUTTON_VARIANTS, COLUMN_DISPLAYS, LIST_LAYOUTS, BADGE_TONES, CONDITION_OPERATORS, ASK_FIELD_TYPES, NOTE_INPUT, FILES_INPUT } from './buttons.js'
+import { BUTTON_VARIANTS, COLUMN_DISPLAYS, LIST_LAYOUTS, BADGE_TONES, CONDITION_OPERATORS, ASK_FIELD_TYPES, NOTE_INPUT, FILES_INPUT, isAskDayLimit } from './buttons.js'
 
 const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 const TABLE_NAME = /^[A-Za-z_][A-Za-z0-9_.$-]*$/
@@ -621,10 +621,13 @@ function checkAskFields(fields, params, at, err) {
     if (f.required !== undefined && typeof f.required !== 'boolean') err(`${p}.required`, 'must be true or false')
     ;['min', 'max'].forEach((k) => {
       if (f[k] === undefined) return
-      if (f.type !== 'number') err(`${p}.${k}`, 'is for a number field')
+      if (f.type === 'date') { if (!isAskDayLimit(f[k])) err(`${p}.${k}`, 'must be a day, "YYYY-MM-DD", or "today"') }
+      else if (f.type !== 'number') err(`${p}.${k}`, 'is for a number or date field')
       else if (!Number.isFinite(f[k])) err(`${p}.${k}`, 'must be a number')
     })
     if (Number.isFinite(f.min) && Number.isFinite(f.max) && f.min > f.max) err(`${p}.min`, 'is more than max')
+    if (f.type === 'date' && typeof f.min === 'string' && typeof f.max === 'string' && f.min !== 'today' && f.max !== 'today' && f.min > f.max) err(`${p}.min`, 'is after max')
+    if (f.type === 'date' && f.unit !== undefined) err(`${p}.unit`, 'is for a number or text field')
     if (f.fill !== undefined && !(nonEmptyString(f.fill) && /^[A-Za-z_][A-Za-z0-9_]*$/.test(f.fill))) err(`${p}.fill`, 'must be a field of the record, e.g. "parcelLengthIn"')
   })
 }

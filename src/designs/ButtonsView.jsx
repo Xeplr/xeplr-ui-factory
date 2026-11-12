@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { boxStyle, fieldStyle } from './styles.js'
 import FileField from './FileField.jsx'
-import { askFields, askFieldStart, askFieldValues } from '../buttons.js'
+import { askFields, askFieldStart, askFieldValues, askDayLimit } from '../buttons.js'
 
 // A PANEL OF BUTTONS. Each runs a function of the app on the server, with the
 // parameters the screen gives it; which ones show, and which are greyed out,
@@ -118,10 +118,10 @@ function AskDialog({ button, busy, error, onCancel, onConfirm, upload, readFile,
                       <input
                         id={fid}
                         className="xeplr-factory-ask-input"
-                        type={f.type === 'number' ? 'number' : 'text'}
+                        type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : 'text'}
                         inputMode={f.type === 'number' ? 'decimal' : undefined}
                         step={f.type === 'number' ? 'any' : undefined}
-                        min={f.min} max={f.max}
+                        min={f.type === 'date' ? askDayLimit(f.min) : f.min} max={f.type === 'date' ? askDayLimit(f.max) : f.max}
                         value={given[f.name] ?? ''}
                         aria-invalid={shown[f.name] ? true : undefined}
                         aria-describedby={shown[f.name] ? `${fid}-error` : undefined}
