@@ -30,7 +30,7 @@ import { presetFor, presetProps, suggestPreset } from './presets.js'
 
 /** Heights by control, as page fractions (a page is as tall as it is wide). */
 export const SPEC_HEIGHTS = {
-  text: 0.08, number: 0.08, date: 0.08, datetime: 0.08, dropdown: 0.08,
+  text: 0.08, autocomplete: 0.08, number: 0.08, date: 0.08, datetime: 0.08, dropdown: 0.08,
   file: 0.1, stepper: 0.09,
   textarea: 0.18,
   // A group is as tall as its options make it — see heightOf().
@@ -46,7 +46,7 @@ export const SPEC_HEIGHTS = {
  */
 export const ROW_GAP = 0.04
 
-const FIELD_KEYS = ['type', 'preset', 'label', 'name', 'required', 'placeholder', 'default', 'validation', 'data', 'options', 'table', 'layout', 'accept', 'maxSize', 'step', 'steps', 'showNumbers', 'width', 'text', 'variant', 'style']
+const FIELD_KEYS = ['type', 'preset', 'label', 'name', 'required', 'placeholder', 'default', 'validation', 'data', 'options', 'table', 'layout', 'accept', 'maxSize', 'suggestFrom', 'minChars', 'step', 'steps', 'showNumbers', 'width', 'text', 'variant', 'style']
 const SPEC_KEYS = ['name', 'id', 'source', 'columns', 'heading', 'fields', 'list', 'aspect', 'width', 'style']
 const LIST_KEYS = ['title', 'source', 'columns', 'pageSize', 'actions', 'style']
 
@@ -59,6 +59,7 @@ const LIST_KEYS = ['title', 'source', 'columns', 'pageSize', 'actions', 'style']
  *   fields    in reading order. Each: { label, type?='text', name?, required?, placeholder?,
  *             default?, validation?, width?: 'half'|'full' }
  *             dropdown: options: ['Full time', …] or [{ id, name }]  —or—  table: 'departments'
+ *             autocomplete: suggestFrom: 'productSuggestions' (event "suggest"), minChars?
  *             READY-MADE: `type` may be a preset key — 'email', 'phone', 'url', 'linkedin',
  *             'age', 'dateOfBirth', 'gender', 'country', 'amount', 'percentage', 'yesNo',
  *             'postalCode' (presets.js) — or `preset: '<key>'`. A field with NO type and
@@ -214,6 +215,12 @@ function propsFromField(type, field, at, fromPreset) {
     if (props.data.source === 'table' && props.name === undefined && type !== 'multiselect') props.name = camelName(field.label) + 'Id'
   }
   else if (field.options || field.table || field.data) throw new Error(`screenFromSpec: ${at} — options/table/data only apply to ${CHOICE_TYPES.join(', ')}`)
+  if (type === 'autocomplete') {
+    if (!field.suggestFrom) throw new Error(`screenFromSpec: ${at} is an autocomplete — give it suggestFrom: "<a function registered for \"suggest\">"`)
+    ;['suggestFrom', 'minChars'].forEach((k) => { if (field[k] !== undefined) props[k] = field[k] })
+  } else if (field.suggestFrom !== undefined || field.minChars !== undefined) {
+    throw new Error(`screenFromSpec: ${at} — suggestFrom/minChars only apply to an autocomplete`)
+  }
   if (type === 'file') {
     ;['accept', 'maxSize'].forEach((k) => { if (field[k] !== undefined) props[k] = field[k] })
   } else if (field.accept !== undefined || field.maxSize !== undefined) {

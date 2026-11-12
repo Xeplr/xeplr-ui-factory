@@ -190,6 +190,7 @@ export function fieldError(node, value, loadedOptions) {
 
   switch (node.type) {
     case 'text':
+    case 'autocomplete':
     case 'textarea': {
       const s = String(value)
       if (v.minLength != null && s.length < v.minLength) return `${label} must be at least ${v.minLength} character${v.minLength === 1 ? '' : 's'}`

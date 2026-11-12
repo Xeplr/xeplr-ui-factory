@@ -7,6 +7,7 @@ import { hookMethod } from './hooks.js'
 import { useUrlSteps, useUrlListQuery } from './useUrlPlaces.js'
 import { buttonShown, buttonDisabled, buttonPressed } from './buttons.js'
 import { resolveRange, rangePresets, dayOf } from './listRange.js'
+import { suggestionsOf, shouldSuggest, pickValues, MAX_SUGGEST_QUERY } from './suggest.js'
 
 // A saved screen, running. No JSX — designs/ScreenSample.jsx draws it.
 //
@@ -61,6 +62,7 @@ import { resolveRange, rangePresets, dayOf } from './listRange.js'
  * @param controls      the control registry (default: the built-ins)
  * @param hooks         a FactoryHooks (or an object with some of its methods) — get / save / delete / actions
  * @param fetchRows     async ({ screen, node, q, filter, kpi, from, to }) → { rows, counts, kpis } — a list whose rows a function works out (rowsFrom)
+ * @param suggest       async ({ screen, node, q }) → [{ value, label, sub?, image?, fill? }] — an autocomplete's suggestions (suggestFrom)
  * @param fetchRowDetails async ({ screen, node, column, id }) → [{ text, sub?, at?, open? }] — an activity cell's hover box
  * @param pressButton   async ({ screen, button, id, note, files, values }) → { message } — a button's press, run on the server
  * @param uploadButtonFile async (file, { screen, button }) → { path } — a file a button's `ask.file` takes, stored before the press
@@ -88,7 +90,7 @@ export function useFactoryScreen({
   document: doc, record, recordKey = 'id', onSave, fetchOptions, fetchRecords, fetchRecord, onDelete, onChange, screens, loadScreen, hooks, uploadFile, fileUrl, readFile,
   onOpenRecord, onDone, onDirtyChange, params, urlKey, previous,
   fetchRows, fetchRowDetails, pressButton, uploadButtonFile, onButtonDone, reloadKey,
-  link, onReady,
+  suggest, link, onReady,
   controls = CONTROLS
 } = {}) {
   const check = useMemo(() => validateDocument(doc, controls), [doc, controls])
@@ -564,6 +566,23 @@ export function useFactoryScreen({
     setStatus('pending')
   }, [optionsFor, setDirty])
 
+  // AN AUTOCOMPLETE: what it suggests for what was typed, and what picking
+  // one writes — the field, and the fields on this screen its `fill` names
+  // (suggest.js). Each is set as if typed, so it is checked and saved alike.
+  const suggestRef = useRef(suggest); suggestRef.current = suggest
+  const suggestFor = useCallback((node) => {
+    if (!suggestRef.current || !doc) return null
+    return async (q) => {
+      if (!shouldSuggest(node.props, q)) return []
+      return suggestionsOf(await suggestRef.current({ screen: doc.id, node: node.id, q: String(q).trim().slice(0, MAX_SUGGEST_QUERY) }))
+    }
+  }, [doc])
+  const pickSuggestion = useCallback((node, suggestion) => {
+    const writes = pickValues(doc, node, suggestion)
+    const byName = new Map(inputNodes(doc, controls).map((n) => [n.props.name, n]))
+    Object.keys(writes).forEach((name) => { const n = byName.get(name); if (n) setValue(n, writes[name]) })
+  }, [doc, controls, setValue])
+
   /** Leaving a field shows its message, even if nothing was typed. */
   const touch = useCallback((node) => {
     const name = node.props.name
@@ -928,6 +947,8 @@ export function useFactoryScreen({
     savedAt,
     setValue,
     touch,
+    suggestFor,
+    pickSuggestion,
     optionsFor,
     rowsFor,
     done: onDone || null,

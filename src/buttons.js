@@ -19,6 +19,7 @@
 //   listRows    the rows of a list that are worked out rather than read from
 //               one table: { rows, counts } for a search and a filter chip.
 //   rowDetails  what a list cell's hover box lists for one row.
+//   suggest     an autocomplete field's suggestions as the person types (suggest.js).
 //
 // Nothing here runs code. A document holds names and values only, so the same
 // screen can be drawn by anything that reads it, and what a button may do is
@@ -29,10 +30,12 @@
 // record the screen is about. Every rule must match.
 
 import { matches, OPERATORS } from '@xeplr/rules'
+import { SUGGEST_EVENT as SUGGEST } from './suggest.js'
 
 export const BUTTON_EVENT = 'button'
 export const LIST_ROWS_EVENT = 'listRows'
 export const ROW_DETAILS_EVENT = 'rowDetails'
+export { SUGGEST_EVENT } from './suggest.js'
 
 /** How a button looks: an ordinary one, the main one, or one that undoes or removes. */
 export const BUTTON_VARIANTS = ['default', 'primary', 'danger']
@@ -249,7 +252,7 @@ export function askFileProblem(button, files) {
 
 /**
  * The functions a screen's CONTROLS name, as [{ event, name, at }] — a list's
- * rows, a column's hover box, each button. `at` is where in the document, so
+ * rows, a column's hover box, an autocomplete's suggestions, each button. `at` is where in the document, so
  * a refusal says which one.
  */
 export function nodeFunctions(doc) {
@@ -261,6 +264,9 @@ export function nodeFunctions(doc) {
       ;(Array.isArray(p.columns) ? p.columns : []).forEach((c, j) => {
         if (c && typeof c.details === 'string' && c.details) out.push({ event: ROW_DETAILS_EVENT, name: c.details, at: `nodes[${i}].props.columns[${j}].details` })
       })
+    }
+    if (node.type === 'autocomplete' && typeof p.suggestFrom === 'string' && p.suggestFrom) {
+      out.push({ event: SUGGEST, name: p.suggestFrom, at: `nodes[${i}].props.suggestFrom` })
     }
     if (node.type === 'buttons') {
       ;(Array.isArray(p.buttons) ? p.buttons : []).forEach((b, j) => {

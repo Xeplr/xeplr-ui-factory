@@ -220,6 +220,8 @@ export default function ScreenSample({ ctrl, className, style, renderPopup, rend
               error={node.props?.name ? ctrl.errors[node.props.name] : undefined}
               options={CHOICE_TYPES.includes(node.type) ? ctrl.optionsFor(node) : undefined}
               upload={node.type === 'file' ? ctrl.upload : undefined}
+              suggest={node.type === 'autocomplete' && ctrl.suggestFor ? ctrl.suggestFor(node) : undefined}
+              onPick={node.type === 'autocomplete' && ctrl.pickSuggestion ? (s) => ctrl.pickSuggestion(node, s) : undefined}
               readFile={node.type === 'file' ? ctrl.readFile : undefined}
               rows={node.type === 'table' && ctrl.rowsFor ? ctrl.rowsFor(node) : undefined}
               stepper={node.type === 'stepper' ? {

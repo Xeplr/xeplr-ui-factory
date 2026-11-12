@@ -285,6 +285,7 @@ Rules you give merge over the ready-made ones (`"validation": { "max": 120 }`).
 | the request says | use |
 |---|---|
 | a name, title, code | `text` (add a `pattern` for a code format) |
+| a name picked from somewhere else as you type — a product from the shop, a customer | `autocomplete` with `suggestFrom`: a function registered for event `suggest` (README, "Text with suggestions") — still text, anything typed is kept |
 | notes, description, address, comments | `textarea` |
 | quantity, score, count | `number` (`integer: true` for counts) |
 | a date — birth, start, due | `date` |
