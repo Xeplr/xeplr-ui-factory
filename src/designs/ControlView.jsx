@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { tableColumns, LABEL_PRESETS } from '../controls.js'
 import { stepsOf } from '../document.js'
 import ListView from './ListView.jsx'
@@ -15,7 +15,7 @@ import { fieldStyle, labelStyle, boxStyle } from './styles.js'
 
 const ids = (node) => `xeplr-factory-${node.id}`
 
-export default function ControlView({ node, mode = 'live', value, error, options, onChange, onBlur, disabled, list, upload, readFile, stepper, subform, rows, buttons }) {
+export default function ControlView({ node, mode = 'live', value, error, options, onChange, onBlur, disabled, list, upload, readFile, stepper, subform, rows, buttons, suggest, onPick }) {
   const View = VIEWS[node.type]
   if (!View) {
     return <div className="xeplr-factory-unknown">Unknown control “{node.type}”</div>
@@ -39,6 +39,8 @@ export default function ControlView({ node, mode = 'live', value, error, options
       subform={subform}
       rows={rows}
       buttons={buttons}
+      suggest={suggest}
+      onPick={onPick}
     />
   )
 }
@@ -126,6 +128,97 @@ function TextView({ node, p, value, error, onChange, onBlur, disabled }) {
         onChange={(e) => onChange(e.target.value)}
         {...inputProps(node, p, error, disabled, onBlur)}
       />
+    </Field>
+  )
+}
+
+/** How long typing pauses before an autocomplete asks. */
+const SUGGEST_PAUSE_MS = 250
+
+/**
+ * TEXT WITH SUGGESTIONS (suggest.js). Typing asks `suggest(q)` after a pause;
+ * the answer drops down under the box — a picture, the name, a line under it.
+ * A click, or Enter on the highlighted one, picks it (`onPick`), which also
+ * fills the fields it names. Whatever is typed is kept either way.
+ */
+function AutocompleteView({ node, p, design, value, error, onChange, onBlur, disabled, suggest, onPick }) {
+  const [items, setItems] = useState([])
+  const [open, setOpen] = useState(false)
+  const [active, setActive] = useState(-1)
+  const [loading, setLoading] = useState(false)
+  const [asked, setAsked] = useState(null)
+  const asking = useRef(0)
+
+  useEffect(() => {
+    if (design || asked === null || !suggest) return undefined
+    const t = setTimeout(() => {
+      const mine = ++asking.current
+      setLoading(true)
+      Promise.resolve(suggest(asked))
+        .then((list) => { if (mine === asking.current) { setItems(list || []); setActive(-1); setOpen(true) } })
+        .catch(() => { if (mine === asking.current) setItems([]) })
+        .finally(() => { if (mine === asking.current) setLoading(false) })
+    }, SUGGEST_PAUSE_MS)
+    return () => clearTimeout(t)
+  }, [asked, suggest, design])
+
+  const pick = (s) => {
+    asking.current += 1
+    setOpen(false); setItems([]); setLoading(false)
+    if (onPick) onPick(s)
+    else onChange(s.value)
+  }
+  const onKey = (e) => {
+    if (!open || !items.length) return
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActive((i) => (i + 1) % items.length) }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((i) => (i <= 0 ? items.length - 1 : i - 1)) }
+    else if (e.key === 'Enter' && active >= 0) { e.preventDefault(); pick(items[active]) }
+    else if (e.key === 'Escape') setOpen(false)
+  }
+  const listId = `${ids(node)}-suggestions`
+  const shown = open && (items.length > 0 || (!loading && asked))
+  return (
+    <Field node={node} p={p} error={error}>
+      <div className="xeplr-factory-autocomplete">
+        <input
+          className="xeplr-factory-input"
+          type="text"
+          autoComplete="off"
+          role="combobox"
+          aria-expanded={shown ? true : false}
+          aria-controls={listId}
+          aria-autocomplete="list"
+          aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
+          placeholder={p.placeholder || ''}
+          value={value ?? ''}
+          onChange={(e) => { onChange(e.target.value); setAsked(e.target.value) }}
+          onKeyDown={onKey}
+          {...inputProps(node, p, error, disabled, () => { setTimeout(() => setOpen(false), 150); onBlur() })}
+        />
+        {loading && <span className="xeplr-factory-autocomplete-busy" aria-hidden="true" />}
+        {shown && (
+          <ul className="xeplr-factory-autocomplete-list" id={listId} role="listbox">
+            {items.length
+              ? items.map((s, i) => (
+                <li
+                  key={`${s.value}-${i}`}
+                  id={`${listId}-${i}`}
+                  role="option"
+                  aria-selected={i === active}
+                  className={'xeplr-factory-autocomplete-item' + (i === active ? ' is-active' : '')}
+                  onMouseDown={(e) => { e.preventDefault(); pick(s) }}
+                >
+                  {s.image && <img className="xeplr-factory-autocomplete-image" src={s.image} alt="" loading="lazy" />}
+                  <span className="xeplr-factory-autocomplete-text">
+                    <span className="xeplr-factory-autocomplete-label">{s.label || s.value}</span>
+                    {s.sub && <span className="xeplr-factory-autocomplete-sub">{s.sub}</span>}
+                  </span>
+                </li>
+              ))
+              : <li className="xeplr-factory-autocomplete-none">No suggestions — what you typed is kept.</li>}
+          </ul>
+        )}
+      </div>
     </Field>
   )
 }
@@ -510,6 +603,7 @@ function ListControl({ node, design, list }) {
 export const VIEWS = {
   id: IdView,
   text: TextView,
+  autocomplete: AutocompleteView,
   textarea: TextareaView,
   number: NumberView,
   date: DateView,

@@ -176,6 +176,10 @@ export function validateDocument(doc, controls = CONTROLS) {
       if (props.layout !== undefined && !LAYOUTS.includes(props.layout)) err(`${at}.props.layout`, `must be one of: ${LAYOUTS.join(', ')}`)
     }
     if (node.type === 'file') checkFile(props, at, err)
+    if (node.type === 'autocomplete') {
+      if (!(nonEmptyString(props.suggestFrom) && FUNCTION_NAME.test(props.suggestFrom))) err(`${at}.props.suggestFrom`, 'must be the name of a registered function (event "suggest"), e.g. "productSuggestions"')
+      if (props.minChars !== undefined && !(Number.isInteger(props.minChars) && props.minChars >= 1 && props.minChars <= 10)) err(`${at}.props.minChars`, 'must be a whole number from 1 to 10')
+    }
     if (node.type === 'stepper') checkSteps(props, at, err)
     checkStep(node, doc, at, err)
     if (node.type === 'list') checkList(props, doc, at, err)

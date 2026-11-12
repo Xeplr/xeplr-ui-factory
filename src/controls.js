@@ -257,6 +257,44 @@ export const CONTROLS = {
     ]
   },
 
+  // TEXT WITH SUGGESTIONS an app function works out as the person types
+  // (suggest.js): a product from the shop. Whatever is typed is saved — a
+  // suggestion helps, it does not decide — and picking one can fill other
+  // fields on the screen (its SKU, its picture).
+  autocomplete: {
+    type: 'autocomplete',
+    label: 'Autocomplete',
+    group: 'Inputs',
+    input: true,
+    valueType: 'string',
+    defaultSize: { w: 0.44, h: 0.08 },
+    defaults: { label: 'Search', placeholder: 'Type to search…' },
+    props: ['name', 'label', 'preset', 'placeholder', 'required', 'default', 'validation', 'suggestFrom', 'minChars', 'style'],
+    validation: ['minLength', 'maxLength'],
+    styles: INPUT_STYLES,
+    properties: [
+      FIELD_BASICS([PLACEHOLDER]),
+      {
+        key: 'suggest',
+        title: 'Suggestions',
+        fields: [
+          { path: 'props.suggestFrom', label: 'Suggestions from', type: 'function', event: 'suggest',
+            help: 'A function of the app that suggests as the person types. What it fills in goes to the fields on this screen with those names.' },
+          { path: 'props.minChars', label: 'Letters before asking', type: 'number', help: 'Blank → 2' }
+        ]
+      },
+      {
+        key: 'validation',
+        title: 'Validation',
+        fields: [
+          { path: 'props.validation.minLength', label: 'Min length', type: 'number' },
+          { path: 'props.validation.maxLength', label: 'Max length', type: 'number' }
+        ]
+      },
+      ...styleGroups(INPUT_STYLES)
+    ]
+  },
+
   number: {
     type: 'number',
     label: 'Number',

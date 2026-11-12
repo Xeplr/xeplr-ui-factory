@@ -69,6 +69,7 @@ export function columnForField(node) {
   const base = { name: p.name, label: p.label }
   switch (node.type) {
     case 'text':
+    case 'autocomplete':
       return { ...base, type: 'varchar', length: v.maxLength || TEXT_DEFAULT_LENGTH }
     // AN IDENTIFIER. The kind decides the column, which is the point of it
     // being a type: a counted number is the database's to assign (identity,

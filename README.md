@@ -381,7 +381,8 @@ next — and they hold whoever does the work.
    values — not eight functions, and never code in the document.
 3. **Rows that are worked out come from a function too** (`rowsFrom`, event
    `listRows`), and so does a cell's hover box (`details`, event
-   `rowDetails`). Formatting — times in the business zone, money, "2h ago" —
+   `rowDetails`), and an autocomplete's suggestions (`suggestFrom`, event
+   `suggest`). Formatting — times in the business zone, money, "2h ago" —
    is the function's: the screen shows the text it wrote.
 4. **When the document cannot say it**, say so first — "this needs a new
    control" — and add the control to this package, with its web view now
@@ -585,6 +586,47 @@ actions.register({ name: 'orderActivity', event: 'rowDetails', execute: async (c
 - **`rowOpen`** makes a click anywhere on a row open it (the first cell is also a button, for the keyboard); **`highlight`** marks rows whose field is true.
 - **Rows that are worked out are not a table's records**: no Delete, and Edit / New only with an `editScreen`.
 - Routes: `GET /factory/rows/:screen` (`?node=&q=&filter=&kpi=&from=&to=`) and `/factory/rows/:screen/details` (`?node=&column=&id=`) — see `@xeplr/factory`.
+
+## Text with suggestions — `autocomplete`
+
+A text field that suggests as the person types: a product from the shop, a
+customer by name. **Whatever is typed is saved** — a suggestion helps, it does
+not decide — so the column is text, like `text` (255 unless `maxLength`).
+
+```json
+{ "id": "n3", "type": "autocomplete", "props": { "name": "name", "label": "Product", "required": true,
+  "placeholder": "Type to search…", "suggestFrom": "productSuggestions", "minChars": 2 } }
+```
+
+In an entity spec: `{ "label": "Product", "name": "name", "type": "autocomplete", "suggestFrom": "productSuggestions" }`.
+
+The function is the app's, registered for event **`suggest`** and named in the
+screen (publishing refuses one nobody registered, or one written for another
+event). After `minChars` letters (default 2) and a pause, it is given
+`ctx.query.q` — the text, trimmed, at most 200 characters — and answers:
+
+```js
+actions.register({ name: 'productSuggestions', event: 'suggest', execute: async (ctx) =>
+  (await shop.searchProducts(ctx.query.q)).map((p) => ({
+    value: p.title,                    // what the field is set to
+    label: p.title, sub: p.sku,        // the line, and one under it
+    image: p.imageUrl,                 // a small picture beside it
+    fill: { sku: p.sku, productImage: p.imageUrl }   // other fields on THIS screen, by name
+  }))
+})
+```
+
+- At most 20 are shown; one without a `value` is dropped.
+- **Picking one** sets the field to `value`, and each field `fill` names that is
+  on the same screen — set as if typed, so it is checked and saved like the rest.
+  A name not on the screen is ignored, so one function serves several screens.
+- Arrow keys move through them, Enter picks, Escape closes. Nothing matched says
+  so, and keeps what was typed.
+- Route: `GET /factory/suggest/:screen?node=&q=` (same access as a list's rows)
+  — see `@xeplr/factory`. `createFactoryApi(...).suggest({ screen, node, q })`,
+  handed to `FactoryScreen` in `screenProps`.
+- **Web now**; a phone app's view follows — the document and the route are
+  already all it needs.
 
 ## Web-only pages — `ui/pages.json`
 
@@ -871,6 +913,7 @@ Both walk someone through something, and they answer different questions:
 |---|---|---|
 | `text` | string | `minLength`, `maxLength`, `pattern`, `patternMessage` — and `inputType` (`text`, `email`, `tel`, `url`): the phone keyboard and autofill |
 | `textarea` | string | `minLength`, `maxLength` |
+| `autocomplete` | string — whatever is typed | `minLength`, `maxLength`; `suggestFrom` (event `suggest`), `minChars` — see [Text with suggestions](#text-with-suggestions--autocomplete) |
 | `number` | number | `min`, `max`, `integer` |
 | `date` | `"YYYY-MM-DD"` | `min`, `max`, `notFuture` (on or before today, whenever it is filled in) |
 | `datetime` | `"YYYY-MM-DDTHH:MM"` | `min`, `max` |

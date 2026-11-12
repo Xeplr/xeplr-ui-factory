@@ -19,6 +19,8 @@ export {
   BUTTON_EVENT, LIST_ROWS_EVENT, ROW_DETAILS_EVENT, BUTTON_VARIANTS, COLUMN_DISPLAYS, LIST_LAYOUTS, BADGE_TONES, NOTE_INPUT, FILES_INPUT, CONDITION_OPERATORS,
   conditionMet, buttonShown, buttonDisabled, buttonPressed, screenButtons, buttonById, buttonInput, askFile, askFileProblem, askFields, askFieldStart, askFieldValues, askDayLimit, ASK_FIELD_TYPES, nodeFunctions, paramProblems, optionValues
 } from './buttons.js'
+// An autocomplete field's suggestions — what a suggest function may answer, and what picking one writes.
+export { SUGGEST_EVENT, MAX_SUGGESTIONS, DEFAULT_MIN_CHARS, MAX_SUGGEST_QUERY, suggestionsOf, shouldSuggest, pickValues } from './suggest.js'
 // Which pages are drawn from documents and which are web only (ui/pages.json).
 export { checkInventory, routesIn, pageWarnings, webOnlyMenus } from './pagesInventory.js'
 export { formSchema, initialValues, parseInput, validateValues, fieldError, sameId, optionValue, chooseable, saveState, recordValues, displayValue, fileLabel, isMultiFile, toDbValue, fromDbValue, listColumns, listSource } from './values.js'

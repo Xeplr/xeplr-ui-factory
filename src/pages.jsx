@@ -110,6 +110,7 @@ export function FactoryScreen(props) {
           uploadFile={props.uploadFile}
           fileUrl={props.fileUrl}
           readFile={props.readFile}
+          suggest={props.suggest}
           screens={props.screens}
           loadScreen={props.loadScreen}
           controls={props.controls}
@@ -150,6 +151,7 @@ export function FactoryScreen(props) {
               pressButton={props.pressButton}
               uploadButtonFile={props.uploadButtonFile}
               fetchRows={props.fetchRows}
+              suggest={props.suggest}
               fetchRowDetails={props.fetchRowDetails}
               onButtonDone={ctrl.popupPressed}
               screens={props.screens}
