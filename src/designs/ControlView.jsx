@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { tableColumns, LABEL_PRESETS } from '../controls.js'
 import { stepsOf } from '../document.js'
+import { addTag, removeTag, setTagQty, tagLimit } from '../suggest.js'
 import ListView from './ListView.jsx'
 import ButtonsView from './ButtonsView.jsx'
 import FileField from './FileField.jsx'
@@ -141,14 +142,21 @@ const SUGGEST_PAUSE_MS = 250
  * A click, or Enter on the highlighted one, picks it (`onPick`), which also
  * fills the fields it names. Whatever is typed is kept either way.
  */
-function AutocompleteView({ node, p, design, value, error, onChange, onBlur, disabled, suggest, onPick }) {
+function AutocompleteView(props) {
+  return props.p.multiple ? <TagsView {...props} /> : <SingleAutocompleteView {...props} />
+}
+
+/**
+ * Suggestions for what was typed, asked after a pause (both modes): the list
+ * shown, which is highlighted, and the keys that move through it.
+ */
+function useSuggestions({ suggest, design }) {
   const [items, setItems] = useState([])
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(-1)
   const [loading, setLoading] = useState(false)
   const [asked, setAsked] = useState(null)
   const asking = useRef(0)
-
   useEffect(() => {
     if (design || asked === null || !suggest) return undefined
     const t = setTimeout(() => {
@@ -161,22 +169,134 @@ function AutocompleteView({ node, p, design, value, error, onChange, onBlur, dis
     }, SUGGEST_PAUSE_MS)
     return () => clearTimeout(t)
   }, [asked, suggest, design])
+  const close = () => { asking.current += 1; setOpen(false); setItems([]); setLoading(false) }
+  return { items, open, setOpen, active, setActive, loading, asked, setAsked, close }
+}
 
+/** The drop-down under the box: a picture, the name, a line under it. */
+function SuggestionList({ listId, s: sg, onPick, none }) {
+  return (
+    <ul className="xeplr-factory-autocomplete-list" id={listId} role="listbox">
+      {sg.items.length
+        ? sg.items.map((s, i) => (
+          <li
+            key={`${s.value}-${i}`}
+            id={`${listId}-${i}`}
+            role="option"
+            aria-selected={i === sg.active}
+            className={'xeplr-factory-autocomplete-item' + (i === sg.active ? ' is-active' : '')}
+            onMouseDown={(e) => { e.preventDefault(); onPick(s) }}
+          >
+            {s.image && <img className="xeplr-factory-autocomplete-image" src={s.image} alt="" loading="lazy" />}
+            <span className="xeplr-factory-autocomplete-text">
+              <span className="xeplr-factory-autocomplete-label">{s.label || s.value}</span>
+              {s.sub && <span className="xeplr-factory-autocomplete-sub">{s.sub}</span>}
+            </span>
+          </li>
+        ))
+        : <li className="xeplr-factory-autocomplete-none">{none}</li>}
+    </ul>
+  )
+}
+
+/**
+ * SEVERAL VALUES, AS CHIPS (suggest.js, tag mode). A pick — or Enter on what
+ * was typed — adds a chip and empties the box for the next; the same value
+ * again adds one to its quantity. Each chip has its picture, its name, a
+ * quantity box (with `quantity`) and ×. The chips are the field's value; the
+ * screen's events keep them — the field has no column.
+ */
+function TagsView({ node, p, design, value, error, onChange, onBlur, disabled, suggest }) {
+  const tags = Array.isArray(value) ? value : []
+  const [typed, setTyped] = useState('')
+  const sg = useSuggestions({ suggest, design })
+  const full = tags.length >= tagLimit(p)
+  const add = (s) => {
+    sg.close()
+    setTyped('')
+    onChange(addTag(tags, s, Boolean(p.quantity)))
+  }
+  const onKey = (e) => {
+    if (e.key === 'ArrowDown' && sg.items.length) { e.preventDefault(); sg.setActive((i) => (i + 1) % sg.items.length) }
+    else if (e.key === 'ArrowUp' && sg.items.length) { e.preventDefault(); sg.setActive((i) => (i <= 0 ? sg.items.length - 1 : i - 1)) }
+    else if (e.key === 'Enter') {
+      e.preventDefault()
+      if (sg.open && sg.active >= 0 && sg.items[sg.active]) add(sg.items[sg.active])
+      else if (typed.trim()) add({ value: typed.trim() })
+    }
+    else if (e.key === 'Backspace' && !typed && tags.length) onChange(removeTag(tags, tags.length - 1))
+    else if (e.key === 'Escape') sg.setOpen(false)
+  }
+  const listId = `${ids(node)}-suggestions`
+  const shown = sg.open && (sg.items.length > 0 || (!sg.loading && sg.asked))
+  return (
+    <Field node={node} p={p} error={error}>
+      <div className={'xeplr-factory-tags' + (disabled ? ' is-disabled' : '')}>
+        {tags.length > 0 && (
+          <ul className="xeplr-factory-tags-chips" aria-label={`${p.label || p.name}: chosen`}>
+            {tags.map((t, i) => (
+              <li key={`${t.value}-${i}`} className="xeplr-factory-tag">
+                {t.image && <img className="xeplr-factory-tag-image" src={t.image} alt="" loading="lazy" />}
+                <span className="xeplr-factory-tag-text" title={t.sub || undefined}>{t.label || t.value}</span>
+                {p.quantity && (
+                  <input
+                    className="xeplr-factory-tag-qty"
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    step={1}
+                    aria-label={`How many ${t.label || t.value}`}
+                    value={t.qty ?? 1}
+                    disabled={disabled || design}
+                    onChange={(e) => onChange(setTagQty(tags, i, e.target.value === '' ? '' : Number(e.target.value)))}
+                  />
+                )}
+                <button type="button" className="xeplr-factory-tag-remove" aria-label={`Remove ${t.label || t.value}`} disabled={disabled || design}
+                  onClick={() => onChange(removeTag(tags, i))}>×</button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="xeplr-factory-autocomplete">
+          <input
+            className="xeplr-factory-input"
+            type="text"
+            autoComplete="off"
+            role="combobox"
+            aria-expanded={shown ? true : false}
+            aria-controls={listId}
+            aria-autocomplete="list"
+            aria-activedescendant={sg.active >= 0 ? `${listId}-${sg.active}` : undefined}
+            placeholder={full ? `At most ${tagLimit(p)}` : (p.placeholder || '')}
+            value={typed}
+            onChange={(e) => { setTyped(e.target.value); sg.setAsked(e.target.value) }}
+            onKeyDown={onKey}
+            {...inputProps(node, p, error, disabled || full, () => { setTimeout(() => sg.setOpen(false), 150); onBlur() })}
+          />
+          {sg.loading && <span className="xeplr-factory-autocomplete-busy" aria-hidden="true" />}
+          {shown && <SuggestionList listId={listId} s={sg} onPick={add} none="No suggestions — Enter adds what you typed." />}
+        </div>
+      </div>
+    </Field>
+  )
+}
+
+function SingleAutocompleteView({ node, p, design, value, error, onChange, onBlur, disabled, suggest, onPick }) {
+  const sg = useSuggestions({ suggest, design })
   const pick = (s) => {
-    asking.current += 1
-    setOpen(false); setItems([]); setLoading(false)
+    sg.close()
     if (onPick) onPick(s)
     else onChange(s.value)
   }
   const onKey = (e) => {
-    if (!open || !items.length) return
-    if (e.key === 'ArrowDown') { e.preventDefault(); setActive((i) => (i + 1) % items.length) }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((i) => (i <= 0 ? items.length - 1 : i - 1)) }
-    else if (e.key === 'Enter' && active >= 0) { e.preventDefault(); pick(items[active]) }
-    else if (e.key === 'Escape') setOpen(false)
+    if (!sg.open || !sg.items.length) return
+    if (e.key === 'ArrowDown') { e.preventDefault(); sg.setActive((i) => (i + 1) % sg.items.length) }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); sg.setActive((i) => (i <= 0 ? sg.items.length - 1 : i - 1)) }
+    else if (e.key === 'Enter' && sg.active >= 0) { e.preventDefault(); pick(sg.items[sg.active]) }
+    else if (e.key === 'Escape') sg.setOpen(false)
   }
   const listId = `${ids(node)}-suggestions`
-  const shown = open && (items.length > 0 || (!loading && asked))
+  const shown = sg.open && (sg.items.length > 0 || (!sg.loading && sg.asked))
   return (
     <Field node={node} p={p} error={error}>
       <div className="xeplr-factory-autocomplete">
@@ -188,36 +308,15 @@ function AutocompleteView({ node, p, design, value, error, onChange, onBlur, dis
           aria-expanded={shown ? true : false}
           aria-controls={listId}
           aria-autocomplete="list"
-          aria-activedescendant={active >= 0 ? `${listId}-${active}` : undefined}
+          aria-activedescendant={sg.active >= 0 ? `${listId}-${sg.active}` : undefined}
           placeholder={p.placeholder || ''}
           value={value ?? ''}
-          onChange={(e) => { onChange(e.target.value); setAsked(e.target.value) }}
+          onChange={(e) => { onChange(e.target.value); sg.setAsked(e.target.value) }}
           onKeyDown={onKey}
-          {...inputProps(node, p, error, disabled, () => { setTimeout(() => setOpen(false), 150); onBlur() })}
+          {...inputProps(node, p, error, disabled, () => { setTimeout(() => sg.setOpen(false), 150); onBlur() })}
         />
-        {loading && <span className="xeplr-factory-autocomplete-busy" aria-hidden="true" />}
-        {shown && (
-          <ul className="xeplr-factory-autocomplete-list" id={listId} role="listbox">
-            {items.length
-              ? items.map((s, i) => (
-                <li
-                  key={`${s.value}-${i}`}
-                  id={`${listId}-${i}`}
-                  role="option"
-                  aria-selected={i === active}
-                  className={'xeplr-factory-autocomplete-item' + (i === active ? ' is-active' : '')}
-                  onMouseDown={(e) => { e.preventDefault(); pick(s) }}
-                >
-                  {s.image && <img className="xeplr-factory-autocomplete-image" src={s.image} alt="" loading="lazy" />}
-                  <span className="xeplr-factory-autocomplete-text">
-                    <span className="xeplr-factory-autocomplete-label">{s.label || s.value}</span>
-                    {s.sub && <span className="xeplr-factory-autocomplete-sub">{s.sub}</span>}
-                  </span>
-                </li>
-              ))
-              : <li className="xeplr-factory-autocomplete-none">No suggestions — what you typed is kept.</li>}
-          </ul>
-        )}
+        {sg.loading && <span className="xeplr-factory-autocomplete-busy" aria-hidden="true" />}
+        {shown && <SuggestionList listId={listId} s={sg} onPick={pick} none="No suggestions — what you typed is kept." />}
       </div>
     </Field>
   )

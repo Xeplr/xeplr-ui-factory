@@ -82,3 +82,98 @@ export function pickValues(doc, node, suggestion) {
   })
   return out
 }
+
+// ── tag mode: several values, each with a quantity ──────────────────────────
+//
+//   { type: 'autocomplete', props: { name: 'addProducts', suggestFrom: 'productSuggestions',
+//     multiple: true, quantity: true, maxTags?: 50 } }
+//
+// Each pick (or Enter on typed text) adds a CHIP; the same value again adds to
+// its quantity. The value is a list — [{ value, label?, sub?, image?, fill?, qty? }]
+// (qty only with `quantity`) — handed to the screen's events (ctx.values) and
+// never written: a tag field has no column. What the app keeps of it is its own.
+
+/** Most chips a tag field holds, whatever maxTags says. */
+export const MAX_TAGS = 100
+
+/** Largest quantity on one chip. */
+export const MAX_TAG_QTY = 100000
+
+/** Longest chip value. */
+export const MAX_TAG_VALUE = 255
+
+/** A tag field: an autocomplete holding several values, with no column of its own. */
+export function isTagField(node) {
+  return Boolean(node && node.type === 'autocomplete' && node.props && node.props.multiple)
+}
+
+/** How many chips this field takes. */
+export function tagLimit(props) {
+  const n = props && props.maxTags
+  return Number.isInteger(n) && n >= 1 && n <= MAX_TAGS ? n : MAX_TAGS
+}
+
+/**
+ * The chips after picking `suggestion` (or typing its value): a new chip, or
+ * the same value's quantity one more. `withQty`: chips carry a qty.
+ */
+export function addTag(list, suggestion, withQty) {
+  const tags = Array.isArray(list) ? list : []
+  const value = text(suggestion && suggestion.value).trim()
+  if (!value) return tags
+  const at = tags.findIndex((t) => t && t.value === value)
+  if (at !== -1) {
+    if (!withQty) return tags
+    return tags.map((t, i) => (i === at ? { ...t, qty: Math.min(MAX_TAG_QTY, (Number(t.qty) || 1) + 1) } : t))
+  }
+  const one = suggestionsOf([suggestion])[0] || { value, label: value }
+  return [...tags, withQty ? { ...one, qty: 1 } : one]
+}
+
+/** The chips with one chip's quantity set (typed text: kept as typed; checked on save). */
+export function setTagQty(list, index, qty) {
+  return (Array.isArray(list) ? list : []).map((t, i) => (i === index ? { ...t, qty } : t))
+}
+
+/** The chips without one. */
+export function removeTag(list, index) {
+  return (Array.isArray(list) ? list : []).filter((_, i) => i !== index)
+}
+
+/**
+ * A tag field's value, checked: { tags, error }. Both sides use it — the form
+ * before Save, the server before the screen's events see it. `tags` is the
+ * clean list (text trimmed, qty a whole number with `quantity`, without it
+ * none); `error` says what is wrong, or is null.
+ */
+export function tagsOf(node, value) {
+  const p = (node && node.props) || {}
+  const label = p.label || p.name || 'This field'
+  if (value === undefined || value === null || value === '') value = []
+  if (!Array.isArray(value)) return { tags: [], error: `${label} must be a list` }
+  const limit = tagLimit(p)
+  if (value.length > limit) return { tags: [], error: `${label}: at most ${limit}` }
+  const tags = []
+  for (let i = 0; i < value.length; i++) {
+    const t = value[i]
+    if (!t || typeof t !== 'object' || Array.isArray(t)) return { tags: [], error: `${label}: entry ${i + 1} is not a value` }
+    const v = text(t.value).trim()
+    if (!v) return { tags: [], error: `${label}: entry ${i + 1} has no value` }
+    if (v.length > MAX_TAG_VALUE) return { tags: [], error: `${label}: "${v.slice(0, 40)}…" is longer than ${MAX_TAG_VALUE} characters` }
+    if (t.fill !== undefined && t.fill !== null) {
+      if (typeof t.fill !== 'object' || Array.isArray(t.fill) || Object.values(t.fill).some((x) => x !== null && typeof x === 'object')) {
+        return { tags: [], error: `${label}: "${v}" fills in something that is not a plain value` }
+      }
+    }
+    const one = suggestionsOf([{ ...t, value: v }])[0]
+    if (p.quantity) {
+      const raw = t.qty === undefined || t.qty === null || t.qty === '' ? 1 : t.qty
+      const q = typeof raw === 'number' ? raw : Number(String(raw).trim())
+      if (!Number.isInteger(q) || q < 1 || q > MAX_TAG_QTY) return { tags: [], error: `${label}: how many of "${v}" must be a whole number from 1 to ${MAX_TAG_QTY}` }
+      one.qty = q
+    }
+    tags.push(one)
+  }
+  if (!tags.length && p.required) return { tags, error: `${label}: add at least one` }
+  return { tags, error: null }
+}

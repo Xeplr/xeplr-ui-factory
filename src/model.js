@@ -17,10 +17,10 @@ export { SCREEN_EVENTS, SCREEN_EVENT_KEYS, DECIDE_EVENT, FUNCTION_NAME, screenFu
 // Buttons and lists whose rows a function works out — names and values only.
 export {
   BUTTON_EVENT, LIST_ROWS_EVENT, ROW_DETAILS_EVENT, BUTTON_VARIANTS, COLUMN_DISPLAYS, LIST_LAYOUTS, BADGE_TONES, NOTE_INPUT, FILES_INPUT, CONDITION_OPERATORS,
-  conditionMet, buttonShown, buttonDisabled, buttonPressed, screenButtons, buttonById, buttonInput, askFile, askFileProblem, askFields, askFieldStart, askFieldValues, askDayLimit, ASK_FIELD_TYPES, nodeFunctions, paramProblems, optionValues
+  conditionMet, buttonShown, buttonDisabled, buttonPressed, screenButtons, buttonById, buttonInput, askFile, askFileProblem, askFields, askFieldStart, askFieldValues, askDayLimit, ASK_FIELD_TYPES, BUTTON_OPTIONS_EVENT, MAX_CHECKLIST_OPTIONS, checklistOptionsOf, checklistFields, nodeFunctions, paramProblems, optionValues
 } from './buttons.js'
 // An autocomplete field's suggestions — what a suggest function may answer, and what picking one writes.
-export { SUGGEST_EVENT, MAX_SUGGESTIONS, DEFAULT_MIN_CHARS, MAX_SUGGEST_QUERY, suggestionsOf, shouldSuggest, pickValues } from './suggest.js'
+export { SUGGEST_EVENT, MAX_SUGGESTIONS, DEFAULT_MIN_CHARS, MAX_SUGGEST_QUERY, suggestionsOf, shouldSuggest, pickValues, MAX_TAGS, MAX_TAG_QTY, isTagField, tagLimit, addTag, setTagQty, removeTag, tagsOf } from './suggest.js'
 // Which pages are drawn from documents and which are web only (ui/pages.json).
 export { checkInventory, routesIn, pageWarnings, webOnlyMenus } from './pagesInventory.js'
 export { formSchema, initialValues, parseInput, validateValues, fieldError, sameId, optionValue, chooseable, saveState, recordValues, displayValue, fileLabel, isMultiFile, toDbValue, fromDbValue, listColumns, listSource } from './values.js'
@@ -30,7 +30,7 @@ export { getAtPath, setAtPath } from './propertyPath.js'
 export { createFactoryApi } from './remote.js'
 export {
   STANDARD_COLUMNS, RESERVED_COLUMNS, MAX_IDENTIFIER,
-  columnForField, tableForScreen, columnSql, widening, diffTables, migrationFor, nextMigrationName,
+  columnForField, storedNodes, tableForScreen, columnSql, widening, diffTables, migrationFor, nextMigrationName,
   createStatements, addStatements, alterStatement, dropStatement, columnFromDatabase, planTableChange, conversionFor
 } from './tableSchema.js'
 // A value with a {params.x} token is a binding; a plain value is a literal.

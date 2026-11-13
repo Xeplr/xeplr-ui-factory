@@ -979,5 +979,29 @@ button.xeplr-factory-activity-item:hover, button.xeplr-factory-activity-item:foc
 .xeplr-factory-autocomplete-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .xeplr-factory-autocomplete-sub { font-size: 0.85em; color: var(--xf-muted, #6b7280); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .xeplr-factory-autocomplete-none { padding: 8px 12px; color: var(--xf-muted, #6b7280); font-size: 0.9em; }
+/* A checklist in a button's popup: a tick per entry, with its picture. */
+.xeplr-factory-ask-checklist { grid-column: 1 / -1; border: 0; margin: 0; padding: 0; min-width: 0; }
+.xeplr-factory-ask-checks { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow-y: auto; border: 1px solid var(--xf-border, #d1d5db); border-radius: 8px; }
+.xeplr-factory-ask-checks li + li { border-top: 1px solid var(--xf-border, #d1d5db); }
+.xeplr-factory-ask-check { display: flex; align-items: center; gap: 10px; padding: 6px 10px; min-height: 44px; cursor: pointer; }
+.xeplr-factory-ask-check input { width: 18px; height: 18px; flex: none; }
+.xeplr-factory-ask-check-image { width: 36px; height: 36px; object-fit: cover; border-radius: 6px; flex: none; }
+.xeplr-factory-ask-check-text { display: flex; flex-direction: column; min-width: 0; }
+.xeplr-factory-ask-check-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xeplr-factory-ask-check-sub { font-size: 0.85em; color: var(--xf-muted, #6b7280); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Tag mode: the chips, then the box for the next one. The chips scroll in their own space. */
+.xeplr-factory-tags { display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 0; }
+.xeplr-factory-tags-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; overflow-y: auto; min-height: 0; }
+.xeplr-factory-tag {
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 2px 4px 2px 8px;
+  background: var(--xf-hover, #f0f0ee); border: 1px solid var(--xf-border, #d1d5db); border-radius: 999px; font-size: .92em;
+}
+.xeplr-factory-tag-image { width: 22px; height: 22px; object-fit: cover; border-radius: 50%; flex: none; margin-left: -4px; }
+.xeplr-factory-tag-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.xeplr-factory-tag-qty { width: 4.2em; padding: 2px 4px; border: 1px solid var(--xf-border, #d1d5db); border-radius: 6px; font: inherit; background: var(--xf-field-bg, #fff); color: inherit; }
+.xeplr-factory-tag-remove { border: 0; background: none; color: var(--xf-muted, #6b7280); font-size: 1.1em; line-height: 1; padding: 2px 6px; cursor: pointer; border-radius: 50%; min-width: 28px; min-height: 28px; }
+.xeplr-factory-tag-remove:hover { background: var(--xf-border, #d1d5db); color: var(--xf-ink, #111); }
+.xeplr-factory-tags.is-disabled .xeplr-factory-tag { opacity: .6; }
 /* Its suggestions drop over the fields below it, never under them. */
 .xeplr-factory-node--autocomplete:focus-within { z-index: 40; }

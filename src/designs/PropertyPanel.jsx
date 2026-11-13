@@ -1028,6 +1028,7 @@ function ButtonsEditor({ value, onChange, functions }) {
                   : fn && <div className="xeplr-factory-prop-help">{fn.name} takes no note.</div>}
                 <AskFieldsEditor
                   value={b.ask.fields}
+                  optionFunctions={functions && functions.forEvent ? functions.forEvent('buttonOptions') : []}
                   inputs={schema.filter((f) => f.name !== NOTE_INPUT && f.name !== FILES_INPUT && !(b.params && Object.prototype.hasOwnProperty.call(b.params, f.name)))}
                   onChange={(fields) => edit(i, { ask: clean({ ...b.ask, fields }) })}
                 />
@@ -1058,7 +1059,7 @@ const VARIANT_LABELS = { default: 'Ordinary', primary: 'Main', danger: 'Undo / r
  * The values a button's press asks for (`ask.fields`) — a parcel's size before
  * Packed. Each is one of the function's inputs the screen does not give.
  */
-function AskFieldsEditor({ value, inputs, onChange }) {
+function AskFieldsEditor({ value, inputs, onChange, optionFunctions = [] }) {
   const fields = Array.isArray(value) ? value : []
   const set = (next) => onChange(next.length ? next : undefined)
   const edit = (j, patch) => set(fields.map((f, k) => {
@@ -1068,7 +1069,8 @@ function AskFieldsEditor({ value, inputs, onChange }) {
     return next
   }))
   const free = inputs.filter((f) => !fields.some((a) => a.name === f.name))
-  const typeOf = (f) => (f && f.type === 'number' ? 'number' : 'text')
+  // An input that takes a list is a checklist: what to tick, worked out for the record.
+  const typeOf = (f) => (f && f.type === 'number' ? 'number' : f && f.type === 'array' ? 'checklist' : 'text')
   if (!inputs.length && !fields.length) return null
   return (
     <div className="xeplr-factory-rows-editor">
@@ -1079,13 +1081,22 @@ function AskFieldsEditor({ value, inputs, onChange }) {
           <RowTools i={j} count={fields.length} onMove={(to) => set(move(fields, j, to))} onRemove={() => set(fields.filter((_, k) => k !== j))} />
           <MiniField label="Input"><input className="xeplr-factory-prop-input" value={f.name} readOnly /></MiniField>
           <MiniField label="Label"><input className="xeplr-factory-prop-input" value={f.label || ''} onChange={(e) => edit(j, { label: e.target.value })} /></MiniField>
-          {f.type !== 'number' && (
+          {f.type === 'checklist' && (
+            <MiniField label="Entries from" help='A function of the app (event "buttonOptions") listing what can be ticked for this record'>
+              <select className="xeplr-factory-prop-input" value={f.optionsFrom || ''} onChange={(e) => edit(j, { optionsFrom: e.target.value })}>
+                <option value="">Choose a function…</option>
+                {optionFunctions.map((fn) => <option key={fn.name} value={fn.name}>{fn.name}</option>)}
+                {f.optionsFrom && !optionFunctions.some((fn) => fn.name === f.optionsFrom) && <option value={f.optionsFrom}>{f.optionsFrom} (not registered)</option>}
+              </select>
+            </MiniField>
+          )}
+          {f.type !== 'number' && f.type !== 'checklist' && (
             <MiniField label="Kind"><select className="xeplr-factory-prop-input" value={f.type === 'date' ? 'date' : 'text'} onChange={(e) => edit(j, e.target.value === 'date' ? { type: 'date', unit: undefined } : { type: 'text', min: undefined, max: undefined })}>
               <option value="text">Text</option>
               <option value="date">Date</option>
             </select></MiniField>
           )}
-          {f.type !== 'date' && (
+          {f.type !== 'date' && f.type !== 'checklist' && (
             <MiniField label="Unit" help='e.g. "in", "kg"'><input className="xeplr-factory-prop-input" value={f.unit || ''} maxLength={12} onChange={(e) => edit(j, { unit: e.target.value })} /></MiniField>
           )}
           {f.type === 'date' && (
@@ -1097,7 +1108,7 @@ function AskFieldsEditor({ value, inputs, onChange }) {
           {f.type === 'number' && (
             <MiniField label="At least"><input className="xeplr-factory-prop-input" type="number" value={f.min ?? ''} onChange={(e) => edit(j, { min: e.target.value === '' ? undefined : Number(e.target.value) })} /></MiniField>
           )}
-          <MiniField label="Starts from" help="A field of the record — asked again, it shows the last value"><input className="xeplr-factory-prop-input" value={f.fill || ''} onChange={(e) => edit(j, { fill: e.target.value })} /></MiniField>
+          {f.type !== 'checklist' && <MiniField label="Starts from" help="A field of the record — asked again, it shows the last value"><input className="xeplr-factory-prop-input" value={f.fill || ''} onChange={(e) => edit(j, { fill: e.target.value })} /></MiniField>}
           <label className="xeplr-factory-toggle">
             <input type="checkbox" checked={Boolean(f.required)} onChange={(e) => edit(j, { required: e.target.checked })} />
             <span>Required</span>

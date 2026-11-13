@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { boxStyle, fieldStyle } from './styles.js'
 import FileField from './FileField.jsx'
-import { askFields, askFieldStart, askFieldValues, askDayLimit } from '../buttons.js'
+import { askFields, askFieldStart, askFieldValues, askDayLimit, checklistOptionsOf } from '../buttons.js'
 
 // A PANEL OF BUTTONS. Each runs a function of the app on the server, with the
 // parameters the screen gives it; which ones show, and which are greyed out,
@@ -63,6 +63,7 @@ export default function ButtonsView({ node, design, panel }) {
           error={note && note.kind === 'error' && note.button === asking.id ? note.text : null}
           onCancel={() => { setAsking(null); panel.clearNote() }}
           upload={(file) => panel.upload(file, asking)}
+          options={panel.options ? (field) => panel.options(asking, field) : null}
           readFile={panel.readFile}
           record={panel.record}
           onConfirm={async (typed, files, values) => { if (await panel.press(asking, typed, files, values)) setAsking(null) }}
@@ -73,7 +74,7 @@ export default function ButtonsView({ node, design, panel }) {
 }
 
 /** "Change status to Packed?" — the button's message, its fields, a note and files when it takes them. */
-function AskDialog({ button, busy, error, onCancel, onConfirm, upload, readFile, record }) {
+function AskDialog({ button, busy, error, onCancel, onConfirm, upload, readFile, record, options }) {
   const ask = button.ask || {}
   const file = ask.file && typeof ask.file === 'object' ? ask.file : null
   const fields = askFields(button)
@@ -82,8 +83,28 @@ function AskDialog({ button, busy, error, onCancel, onConfirm, upload, readFile,
   // Each asked value starts from the record (`fill`): asked again, it shows what was given last.
   const [given, setGiven] = useState(() => Object.fromEntries(fields.map((f) => [f.name, askFieldStart(f, record)])))
   const [shown, setShown] = useState({})          // field → message, after a try
+  // A CHECKLIST's entries, asked for when the dialog opens: field → { loading, list, error }.
+  const [offered, setOffered] = useState({})
+  useEffect(() => {
+    let live = true
+    fields.filter((f) => f.type === 'checklist').forEach((f) => {
+      if (!options) { setOffered((o) => ({ ...o, [f.name]: { list: [], error: 'No buttonOptions was provided, so this list cannot be loaded' } })); return }
+      setOffered((o) => ({ ...o, [f.name]: { loading: true, list: [] } }))
+      Promise.resolve(options(f.name))
+        .then((list) => { if (live) setOffered((o) => ({ ...o, [f.name]: { list: checklistOptionsOf(list) } })) })
+        .catch((err) => { if (live) setOffered((o) => ({ ...o, [f.name]: { list: [], error: err.message || 'Could not load the list' } })) })
+    })
+    return () => { live = false }
+  }, [button.id])                                                    // eslint-disable-line react-hooks/exhaustive-deps
+  const tick = (name, id, on) => {
+    setGiven((g) => {
+      const now = Array.isArray(g[name]) ? g[name] : []
+      return { ...g, [name]: on ? [...now, id] : now.filter((x) => x !== id) }
+    })
+    setShown((m) => ({ ...m, [name]: undefined }))
+  }
   const confirm = () => {
-    const out = askFieldValues(button, given)
+    const out = askFieldValues(button, given, undefined, Object.fromEntries(Object.entries(offered).map(([k, v]) => [k, (v.list || []).map((o) => o.id)])))
     if (out.errors.length) { setShown(Object.fromEntries(out.errors.map((e) => [e.field, e.message]))); return }
     setShown({})
     onConfirm(typed, files, out.values)
@@ -111,6 +132,35 @@ function AskDialog({ button, busy, error, onCancel, onConfirm, upload, readFile,
             <div className="xeplr-factory-ask-fields">
               {fields.map((f) => {
                 const fid = `${titleId}-${f.name}`
+                if (f.type === 'checklist') {
+                  const o = offered[f.name] || { loading: true, list: [] }
+                  const ticked = Array.isArray(given[f.name]) ? given[f.name] : []
+                  return (
+                    <fieldset key={f.name} className="xeplr-factory-ask-field xeplr-factory-ask-checklist" aria-describedby={shown[f.name] ? `${fid}-error` : undefined}>
+                      <legend className="xeplr-factory-ask-label">{f.label}{f.required ? ' *' : ''}</legend>
+                      {o.loading && <span className="xeplr-factory-hint">Loading…</span>}
+                      {o.error && <span className="xeplr-factory-ask-field-error" role="alert">{o.error}</span>}
+                      {!o.loading && !o.error && !o.list.length && <span className="xeplr-factory-hint">Nothing to choose</span>}
+                      {o.list.length > 0 && (
+                        <ul className="xeplr-factory-ask-checks">
+                          {o.list.map((opt) => (
+                            <li key={opt.id}>
+                              <label className="xeplr-factory-ask-check">
+                                <input type="checkbox" checked={ticked.includes(opt.id)} disabled={busy} onChange={(e) => tick(f.name, opt.id, e.target.checked)} />
+                                {opt.image && <img className="xeplr-factory-ask-check-image" src={opt.image} alt="" loading="lazy" />}
+                                <span className="xeplr-factory-ask-check-text">
+                                  <span className="xeplr-factory-ask-check-label">{opt.label}</span>
+                                  {opt.sub && <span className="xeplr-factory-ask-check-sub">{opt.sub}</span>}
+                                </span>
+                              </label>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {shown[f.name] && <span className="xeplr-factory-ask-field-error" id={`${fid}-error`} role="alert">{shown[f.name]}</span>}
+                    </fieldset>
+                  )
+                }
                 return (
                   <div key={f.name} className="xeplr-factory-ask-field">
                     <label className="xeplr-factory-ask-label" htmlFor={fid}>{f.label}{f.required ? ' *' : ''}</label>

@@ -148,6 +148,12 @@ export function createFactoryApi({ fetch: doFetch, fetchFile, base = '' } = {}) 
       id, ...(note ? { note } : {}), ...(Array.isArray(files) && files.length ? { files } : {}),
       ...(values && Object.keys(values).length ? { values } : {})
     })),
+    // What a checklist in a button's popup offers for one record: [{ id, label, sub?, image? }].
+    // The function is the screen's (the field's optionsFrom); the request names the record and the field.
+    buttonOptions: async ({ screen, button, id, field }) => {
+      const out = await call('GET', `/buttons/${enc(screen)}/${enc(button)}/options${query({ id, field })}`)
+      return Array.isArray(out) ? out : []
+    },
     // A file a button's ask.file takes, stored before the press; the press
     // then names it by the path this answers with.
     uploadButtonFile: async (file, { screen, button }) => {
@@ -168,7 +174,7 @@ export function createFactoryApi({ fetch: doFetch, fetchFile, base = '' } = {}) 
     readFile: typeof fetchFile === 'function' ? (path) => fetchFile(api.fileUrl(path)) : undefined
   }
   api.screenProps = { loadScreen: api.loadScreen, onSave: api.onSave, fetchRecords: api.fetchRecords, fetchRecord: api.fetchRecord, onDelete: api.onDelete, fetchOptions: api.fetchOptions, uploadFile: api.uploadFile, fileUrl: api.fileUrl, readFile: api.readFile,
-    fetchRows: api.fetchRows, fetchRowDetails: api.fetchRowDetails, suggest: api.suggest, pressButton: api.pressButton, uploadButtonFile: api.uploadButtonFile }
+    fetchRows: api.fetchRows, fetchRowDetails: api.fetchRowDetails, suggest: api.suggest, pressButton: api.pressButton, uploadButtonFile: api.uploadButtonFile, buttonOptions: api.buttonOptions }
   // makeChildTable: a list on a form can make the table it is about to point
   // at — rows belonging to this record — without leaving the designer. A
   // server act, which is why the builder is given it rather than doing it.

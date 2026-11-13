@@ -241,7 +241,7 @@ A button is **a registered function and its parameters** — never code. Several
 ] } }
 ```
 
-A button that needs values typed first (a parcel's size before Packed) gets `ask.fields` — `[{ name, label, type: "number" | "text" | "date", unit, required, min, max, fill }]` (a date's `min` / `max`: a day or `"today"`) — and its function takes each `name`. A list with KPI cards over it gets `kpis: [{ key, label, tone? }]` and `dateRange: { label, default: "last30" }`; its `listRows` function returns `kpis: { key: count }` and reads `ctx.query.kpi`, `from`, `to`.
+A button that needs values typed first (a parcel's size before Packed) gets `ask.fields` — `[{ name, label, type: "number" | "text" | "date" | "checklist", unit, required, min, max, fill, optionsFrom }]` (a date's `min` / `max`: a day or `"today"`) — and its function takes each `name`. A `checklist` ticks entries worked out for the record by a function registered for event `buttonOptions` (named in `optionsFrom`); its value is the ids ticked, and the server refuses one the function did not offer. A list with KPI cards over it gets `kpis: [{ key, label, tone? }]` and `dateRange: { label, default: "last30" }`; its `listRows` function returns `kpis: { key: count }` and reads `ctx.query.kpi`, `from`, `to`.
 
 Register the function with `event: 'button'` and an `inputSchema` (with `options` for the values allowed, a `note` input if a button asks for one, and a `files` input if its `ask.file` takes photos or documents — `{ "accept": ".png,.jpg,.jpeg", "multiple": true, "source": "any" }`, the same rules as a file field). `when` / `disabledWhen` are `@xeplr/rules` rules on the record. Publishing refuses parameters the function does not take. See the README's "Buttons".
 
@@ -286,6 +286,7 @@ Rules you give merge over the ready-made ones (`"validation": { "max": 120 }`).
 |---|---|
 | a name, title, code | `text` (add a `pattern` for a code format) |
 | a name picked from somewhere else as you type — a product from the shop, a customer | `autocomplete` with `suggestFrom`: a function registered for event `suggest` (README, "Text with suggestions") — still text, anything typed is kept |
+| several of them at once, each with how many — products sent out in one batch | `autocomplete` with `multiple: true` (and `quantity: true`): chips, **no column** — the screen's `afterSave` keeps them as rows of a table of its own |
 | notes, description, address, comments | `textarea` |
 | quantity, score, count | `number` (`integer: true` for counts) |
 | a date — birth, start, due | `date` |

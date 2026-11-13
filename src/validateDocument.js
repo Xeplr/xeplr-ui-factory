@@ -179,6 +179,12 @@ export function validateDocument(doc, controls = CONTROLS) {
     if (node.type === 'autocomplete') {
       if (!(nonEmptyString(props.suggestFrom) && FUNCTION_NAME.test(props.suggestFrom))) err(`${at}.props.suggestFrom`, 'must be the name of a registered function (event "suggest"), e.g. "productSuggestions"')
       if (props.minChars !== undefined && !(Number.isInteger(props.minChars) && props.minChars >= 1 && props.minChars <= 10)) err(`${at}.props.minChars`, 'must be a whole number from 1 to 10')
+      if (props.multiple !== undefined && typeof props.multiple !== 'boolean') err(`${at}.props.multiple`, 'must be true or false')
+      if (props.quantity !== undefined && typeof props.quantity !== 'boolean') err(`${at}.props.quantity`, 'must be true or false')
+      else if (props.quantity && !props.multiple) err(`${at}.props.quantity`, 'is for several values — set "multiple" too')
+      if (props.maxTags !== undefined && !(Number.isInteger(props.maxTags) && props.maxTags >= 1 && props.maxTags <= 100)) err(`${at}.props.maxTags`, 'must be a whole number from 1 to 100')
+      else if (props.maxTags !== undefined && !props.multiple) err(`${at}.props.maxTags`, 'is for several values — set "multiple" too')
+      if (props.multiple && props.default !== undefined) err(`${at}.props.default`, 'several values start empty — remove the default')
     }
     if (node.type === 'stepper') checkSteps(props, at, err)
     checkStep(node, doc, at, err)
@@ -603,7 +609,7 @@ const ASK_FILE_KEYS = ['label', 'required', 'accept', 'maxSize', 'multiple', 'ma
  * server checks the names against what is registered when the screen is
  * published (functionProblems). Here: the shape.
  */
-const ASK_FIELD_KEYS = ['name', 'label', 'type', 'unit', 'required', 'min', 'max', 'fill']
+const ASK_FIELD_KEYS = ['name', 'label', 'type', 'unit', 'required', 'min', 'max', 'fill', 'optionsFrom']
 
 /** A button's `ask.fields`: the values a press asks for, each reaching the function under its name. */
 function checkAskFields(fields, params, at, err) {
@@ -623,6 +629,15 @@ function checkAskFields(fields, params, at, err) {
     if (!ASK_FIELD_TYPES.includes(f.type)) err(`${p}.type`, `must be one of: ${ASK_FIELD_TYPES.join(', ')}`)
     if (f.unit !== undefined && !(typeof f.unit === 'string' && f.unit.length <= 12)) err(`${p}.unit`, 'must be a short text, e.g. "in" or "kg"')
     if (f.required !== undefined && typeof f.required !== 'boolean') err(`${p}.required`, 'must be true or false')
+    if (f.type === 'checklist') {
+      if (!(nonEmptyString(f.optionsFrom) && FUNCTION_NAME.test(f.optionsFrom))) err(`${p}.optionsFrom`, 'must be the name of a registered function (event "buttonOptions") that lists what to tick, e.g. "movementItemsOut"')
+      ;['min', 'max'].forEach((k) => { if (f[k] !== undefined && !(Number.isInteger(f[k]) && f[k] >= 0)) err(`${p}.${k}`, 'must be how many, a whole number') })
+      if (Number.isInteger(f.min) && Number.isInteger(f.max) && f.min > f.max) err(`${p}.min`, 'is more than max')
+      if (f.unit !== undefined) err(`${p}.unit`, 'is for a number or text field')
+      if (f.fill !== undefined) err(`${p}.fill`, 'is for a number, text or date field — a checklist starts empty')
+      return
+    }
+    if (f.optionsFrom !== undefined) err(`${p}.optionsFrom`, 'is for a checklist')
     ;['min', 'max'].forEach((k) => {
       if (f[k] === undefined) return
       if (f.type === 'date') { if (!isAskDayLimit(f[k])) err(`${p}.${k}`, 'must be a day, "YYYY-MM-DD", or "today"') }
