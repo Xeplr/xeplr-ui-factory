@@ -140,7 +140,7 @@ export default function FedList({ node, list, query, onOpen, rowDetails, recordK
       {rows.length === 0
         ? !list.loading && !list.error && <div className="xeplr-factory-list-empty">{query.q || query.kpi || (range && range.from) ? 'Nothing matches.' : 'Nothing here yet.'}</div>
         : p.layout === 'cards'
-          ? <Cards rows={rows} columns={columns} pageSize={pageSize} open={open} highlight={p.highlight} />
+          ? <Cards rows={rows} columns={columns} pageSize={pageSize} open={open} highlight={p.highlight} dim={p.dim} />
           : (
           <div className={'xeplr-factory-fed-table' + (open ? ' is-openable' : '')} onClick={openFromRow}>
             <XeplrTable
@@ -151,7 +151,7 @@ export default function FedList({ node, list, query, onOpen, rowDetails, recordK
               pageSize={pageSize}
               enablePagination={rows.length > pageSize}
               rowActions={rowActions.length ? rowActions : undefined}
-              rowClassName={(row) => (p.highlight && row && row[p.highlight] ? 'xeplr-factory-row-marked' : null)}
+              rowClassName={(row) => [p.highlight && row && row[p.highlight] ? 'xeplr-factory-row-marked' : '', p.dim && row && row[p.dim] ? 'xeplr-factory-row-dim' : ''].filter(Boolean).join(' ') || null}
             />
           </div>
         )}
@@ -258,7 +258,7 @@ function itemsOf(value) {
  * detail and how many; the other columns are lines under their labels. The
  * first `pageSize` cards, then "Show more".
  */
-function Cards({ rows, columns, pageSize, open, highlight }) {
+function Cards({ rows, columns, pageSize, open, highlight, dim }) {
   const [shown, setShown] = useState(pageSize)
   const [head, ...rest] = columns
   const onCard = (e, row) => {
@@ -273,7 +273,7 @@ function Cards({ rows, columns, pageSize, open, highlight }) {
         return (
           <article
             key={row.id || i}
-            className={'xeplr-factory-card' + (open ? ' is-openable' : '') + (highlight && row[highlight] ? ' is-marked' : '')}
+            className={'xeplr-factory-card' + (open ? ' is-openable' : '') + (highlight && row[highlight] ? ' is-marked' : '') + (dim && row[dim] ? ' is-dim' : '')}
             onClick={(e) => onCard(e, row)}
           >
             <header className="xeplr-factory-card-head">
