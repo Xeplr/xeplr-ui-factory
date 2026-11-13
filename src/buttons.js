@@ -20,6 +20,8 @@
 //               one table: { rows, counts } for a search and a filter chip.
 //   rowDetails  what a list cell's hover box lists for one row.
 //   suggest     an autocomplete field's suggestions as the person types (suggest.js).
+//   buttonOptions  what a button's checklist offers, worked out for the record
+//               it is pressed on: the products still out on this movement.
 //
 // Nothing here runs code. A document holds names and values only, so the same
 // screen can be drawn by anything that reads it, and what a button may do is
@@ -35,6 +37,10 @@ import { SUGGEST_EVENT as SUGGEST } from './suggest.js'
 export const BUTTON_EVENT = 'button'
 export const LIST_ROWS_EVENT = 'listRows'
 export const ROW_DETAILS_EVENT = 'rowDetails'
+export const BUTTON_OPTIONS_EVENT = 'buttonOptions'
+
+/** Most entries a checklist offers. */
+export const MAX_CHECKLIST_OPTIONS = 200
 export { SUGGEST_EVENT } from './suggest.js'
 
 /** How a button looks: an ordinary one, the main one, or one that undoes or removes. */
@@ -132,7 +138,39 @@ export function buttonInput(button, note, files, values) {
 }
 
 /** The kinds of value a button's `ask.fields` can ask for. */
-export const ASK_FIELD_TYPES = ['number', 'text', 'date']
+export const ASK_FIELD_TYPES = ['number', 'text', 'date', 'checklist']
+
+/**
+ * A CHECKLIST in a button's popup: a tick per entry, the entries worked out
+ * for the record by a function (event "buttonOptions", named in `optionsFrom`):
+ *
+ *   { "name": "back", "label": "Came back fine", "type": "checklist", "optionsFrom": "movementItemsOut" }
+ *
+ * The function returns [{ id, label?, sub?, image? }]. The value is the ids
+ * ticked; `required` is at least one, `min` / `max` how many. The server asks
+ * the function again on the press and refuses an id it did not offer.
+ */
+export function checklistOptionsOf(out) {
+  if (!Array.isArray(out)) return []
+  const list = []
+  const seen = new Set()
+  out.forEach((o) => {
+    if (list.length >= MAX_CHECKLIST_OPTIONS || !o || typeof o !== 'object') return
+    const id = o.id === undefined || o.id === null ? '' : String(o.id).trim()
+    if (!id || seen.has(id)) return
+    seen.add(id)
+    const one = { id, label: (o.label === undefined || o.label === null ? '' : String(o.label).trim()) || id }
+    if (o.sub !== undefined && o.sub !== null && String(o.sub).trim()) one.sub = String(o.sub).trim()
+    if (typeof o.image === 'string' && o.image.trim()) one.image = o.image.trim()
+    list.push(one)
+  })
+  return list
+}
+
+/** The checklist fields a button asks for. */
+export function checklistFields(button) {
+  return askFields(button).filter((f) => f.type === 'checklist')
+}
 
 const ASK_DAY = /^\d{4}-\d{2}-\d{2}$/
 
@@ -186,6 +224,7 @@ export function askFields(button) {
 
 /** What the dialog starts each field with: the record's `fill` field, or empty. A date field takes the day of a date-and-time. */
 export function askFieldStart(field, record) {
+  if (field.type === 'checklist') return []
   const v = field.fill && record ? record[field.fill] : undefined
   if (v === undefined || v === null) return ''
   if (field.type === 'date') {
@@ -202,13 +241,27 @@ export function askFieldStart(field, record) {
  * a number. Anything not asked for is dropped. Both the dialog and the server
  * use it, so a value refused in one is refused in the other.
  */
-export function askFieldValues(button, given, now) {
+export function askFieldValues(button, given, now, offered) {
   const values = {}
   const errors = []
   const raw = given && typeof given === 'object' && !Array.isArray(given) ? given : {}
   askFields(button).forEach((f) => {
     const label = f.label || f.name
     const v = raw[f.name]
+    // A CHECKLIST: the ids ticked, each one the function offered (`offered`:
+    // { field: [ids] }, when known — always on the server).
+    if (f.type === 'checklist') {
+      if (v !== undefined && v !== null && !Array.isArray(v)) { errors.push({ field: f.name, message: `${label} must be a list` }); return }
+      const ids = [...new Set((v || []).map((x) => (x === undefined || x === null ? '' : String(x).trim())).filter(Boolean))]
+      if (!ids.length) { if (f.required) errors.push({ field: f.name, message: `${label}: tick at least one` }); values[f.name] = []; return }
+      const allowed = offered && Array.isArray(offered[f.name]) ? offered[f.name].map(String) : null
+      const stray = allowed ? ids.filter((x) => !allowed.includes(x)) : []
+      if (stray.length) { errors.push({ field: f.name, message: `${label}: ${stray.length === 1 ? 'one ticked entry is' : `${stray.length} ticked entries are`} no longer offered — reopen to see them as they are` }); return }
+      if (Number.isInteger(f.min) && ids.length < f.min) { errors.push({ field: f.name, message: `${label}: tick at least ${f.min}` }); return }
+      if (Number.isInteger(f.max) && ids.length > f.max) { errors.push({ field: f.name, message: `${label}: tick at most ${f.max}` }); return }
+      values[f.name] = ids
+      return
+    }
     const empty = v === undefined || v === null || String(v).trim() === ''
     if (empty) {
       if (f.required) errors.push({ field: f.name, message: `${label} is required` })
@@ -271,6 +324,12 @@ export function nodeFunctions(doc) {
     if (node.type === 'buttons') {
       ;(Array.isArray(p.buttons) ? p.buttons : []).forEach((b, j) => {
         if (b && typeof b.action === 'string' && b.action) out.push({ event: BUTTON_EVENT, name: b.action, at: `nodes[${i}].props.buttons[${j}].action`, button: b })
+        if (!b) return
+        askFields(b).forEach((f, k) => {
+          if (f.type === 'checklist' && typeof f.optionsFrom === 'string' && f.optionsFrom) {
+            out.push({ event: BUTTON_OPTIONS_EVENT, name: f.optionsFrom, at: `nodes[${i}].props.buttons[${j}].ask.fields[${k}].optionsFrom` })
+          }
+        })
       })
     }
   })
@@ -305,8 +364,8 @@ export function paramProblems(button, inputSchema) {
   askFields(button).forEach((a) => {
     const f = byName.get(a.name)
     if (!f) { problems.push(`asks for "${a.name}", but takes no "${a.name}"`); return }
-    const want = a.type === 'number' ? 'number' : 'string'
-    if (f.type && f.type !== want) problems.push(`asks for "${a.name}" as ${a.type === 'number' ? 'a number' : a.type === 'date' ? 'a date' : 'text'}, but it takes ${f.type}`)
+    const want = a.type === 'number' ? 'number' : a.type === 'checklist' ? 'array' : 'string'
+    if (f.type && f.type !== want) problems.push(`asks for "${a.name}" as ${a.type === 'number' ? 'a number' : a.type === 'date' ? 'a date' : a.type === 'checklist' ? 'a list of ticked ids' : 'text'}, but it takes ${f.type}`)
   })
   return problems
 }

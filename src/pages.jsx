@@ -150,6 +150,7 @@ export function FactoryScreen(props) {
               // presses on the server like one on the page.
               pressButton={props.pressButton}
               uploadButtonFile={props.uploadButtonFile}
+              buttonOptions={props.buttonOptions}
               fetchRows={props.fetchRows}
               suggest={props.suggest}
               fetchRowDetails={props.fetchRowDetails}

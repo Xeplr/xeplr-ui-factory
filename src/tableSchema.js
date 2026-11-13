@@ -68,8 +68,11 @@ export function columnForField(node) {
   const v = p.validation || {}
   const base = { name: p.name, label: p.label }
   switch (node.type) {
-    case 'text':
     case 'autocomplete':
+      // Several values (tag mode) are the screen's events' to keep: no column.
+      if (p.multiple) return null
+      return { ...base, type: 'varchar', length: v.maxLength || TEXT_DEFAULT_LENGTH }
+    case 'text':
       return { ...base, type: 'varchar', length: v.maxLength || TEXT_DEFAULT_LENGTH }
     // AN IDENTIFIER. The kind decides the column, which is the point of it
     // being a type: a counted number is the database's to assign (identity,
@@ -117,6 +120,15 @@ export function columnForField(node) {
  * The table an edit screen saves to.
  * @returns {{ table, columns }} — columns are the fields, in reading order
  */
+/**
+ * The fields that are columns — every input but those that keep nothing of
+ * their own (a table's ticked rows, a tag field's chips). What the server
+ * reads and writes; the others reach the screen's events only.
+ */
+export function storedNodes(doc, controls = CONTROLS) {
+  return inputNodes(doc, controls).filter((n) => Boolean(columnForField(n)))
+}
+
 export function tableForScreen(doc, controls = CONTROLS) {
   if (!doc || !doc.source) throw new Error('The screen has no "source" — which table does it save to?')
   const columns = inputNodes(doc, controls).map(columnForField).filter(Boolean)

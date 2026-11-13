@@ -13,6 +13,7 @@
 
 import { CONTROLS, MULTI_SEPARATOR } from './controls.js'
 import { inputNodes } from './document.js'
+import { isTagField, tagsOf } from './suggest.js'
 
 /** schema-handler field schema for the screen's inputs, in reading order. */
 export function formSchema(doc, controls = CONTROLS) {
@@ -20,7 +21,9 @@ export function formSchema(doc, controls = CONTROLS) {
     const def = controls[node.type]
     const p = node.props
     const field = { name: p.name }
-    if (def.valueType) field.type = isMultiFile(node) ? 'array' : def.valueType
+    if (def.valueType) field.type = isMultiFile(node) || isTagField(node) ? 'array' : def.valueType
+    // A tag field's chips are checked by tagsOf, on both sides — not by length rules meant for text.
+    if (isTagField(node)) { if (p.label) field.description = p.label; return field }
     if (p.label) field.description = p.label
     if (p.required) field.required = true
     if (p.default !== undefined) field.default = p.default
@@ -119,7 +122,7 @@ export function initialValues(doc, provided = {}, controls = CONTROLS, previous 
 export function parseInput(node, raw) {
   if (node.type === 'checkbox') return Boolean(raw)
   if (node.type === 'multiselect' || isMultiFile(node)) return Array.isArray(raw) ? raw : fromDbValue(node, raw) || []
-  if (node.type === 'table') return Array.isArray(raw) ? raw : []
+  if (node.type === 'table' || isTagField(node)) return Array.isArray(raw) ? raw : []
   if (raw === undefined || raw === null || raw === '') return undefined
   if (node.type === 'number') {
     const n = typeof raw === 'number' ? raw : Number(String(raw).trim())
@@ -168,6 +171,9 @@ export function fieldError(node, value, loadedOptions) {
     if (v.maxItems != null && ticked.length > v.maxItems) return `${label}: tick at most ${v.maxItems}`
     return null
   }
+  // A TAG FIELD'S CHIPS: required is at least one; each a value, with a whole quantity.
+  if (isTagField(node)) return tagsOf(node, value).error
+
   // SEVERAL FILES: required is at least one, and no more than it holds.
   if (isMultiFile(node)) {
     const files = Array.isArray(value) ? value : []
@@ -359,9 +365,9 @@ export function isMultiFile(node) {
   return Boolean(node && node.type === 'file' && node.props && node.props.multiple)
 }
 
-/** A field whose value is a list: a multi-select, a table's ticked rows, several files. */
+/** A field whose value is a list: a multi-select, a table's ticked rows, several files, a tag field's chips. */
 function listValued(node) {
-  return node.type === 'multiselect' || node.type === 'table' || isMultiFile(node)
+  return node.type === 'multiselect' || node.type === 'table' || isMultiFile(node) || isTagField(node)
 }
 
 /** The name at the end of a stored file path, without the id that keeps it apart. */

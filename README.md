@@ -472,6 +472,40 @@ Packed asks for the parcel's size, for the courier:
 - Publishing refuses a field the function does not take, or takes as another type. A required input the button asks for is not "missing" from its `params`.
 - In the builder: **Asks for** under the button's Ask first, listing the function's inputs the button does not already give.
 
+#### A checklist — entries worked out for the record
+
+`"type": "checklist"` is a tick per entry, and the entries are worked out **for
+the record the button is pressed on** by a function of the app — the products
+still out on this movement:
+
+```json
+{ "id": "receive", "label": "Receive", "action": "receiveMovementItems",
+  "ask": { "title": "Products back at the warehouse", "note": "Note (optional)",
+           "file": { "label": "Photos", "accept": ".jpg,.jpeg,.png,.webp", "maxSize": 10, "multiple": true, "maxFiles": 10 },
+           "fields": [
+             { "name": "back", "label": "Came back fine", "type": "checklist", "optionsFrom": "movementItemsOut" },
+             { "name": "broken", "label": "Came back broken", "type": "checklist", "optionsFrom": "movementItemsOut" }
+           ] } }
+```
+
+```js
+actions.register({ name: 'movementItemsOut', event: 'buttonOptions',
+  // ctx: what a press gets — record, id, user, access, button, db, knex, tenant, reject — and field (the ask field)
+  execute: async (ctx) => (await ctx.db('movement_items').where({ movementId: ctx.id, returnStatus: 'out' }))
+    .map((i) => ({ id: i.id, label: i.name, sub: '× ' + i.quantity, image: i.productImage })) })
+
+actions.register({ name: 'receiveMovementItems', event: 'button',
+  inputSchema: [{ name: 'back', type: 'array' }, { name: 'broken', type: 'array' }, { name: 'note', type: 'string' }, { name: 'files', type: 'array' }],
+  execute: async ({ input, system }) => { /* input.back, input.broken: the ids ticked */ } })
+```
+
+- The value is the **ids ticked** (an array); the function takes it as an `array` input — publishing refuses one that does not, and an `optionsFrom` nobody registered for `buttonOptions`.
+- `required` is at least one ticked; `min` / `max` how many. No `unit`, no `fill`: a checklist starts empty.
+- The popup asks `GET /factory/buttons/:screen/:button/options?id=&field=` when it opens (`createFactoryApi(...).buttonOptions`, in `screenProps`). Nothing to tick shows "Nothing to choose".
+- **The server asks the function again on the press** and refuses an id it did not offer (400 on that field) — a browser cannot tick a product that is already back.
+- At most 200 entries; one without an `id` is dropped; `label` falls back to the id.
+- **Web now**; a phone view follows.
+
 ### A button that takes files — `ask.file`
 
 A press can carry photos or documents: the button's `ask` gets a file picker,
@@ -627,6 +661,31 @@ actions.register({ name: 'productSuggestions', event: 'suggest', execute: async 
   handed to `FactoryScreen` in `screenProps`.
 - **Web now**; a phone app's view follows — the document and the route are
   already all it needs.
+
+### Several values, as chips — `multiple`
+
+```json
+{ "id": "n4", "type": "autocomplete", "props": { "name": "addProducts", "label": "Add products",
+  "suggestFrom": "productSuggestions", "multiple": true, "quantity": true, "maxTags": 50, "placeholder": "Type a product…" } }
+```
+
+- Each pick — or Enter on what was typed — adds a **chip** (its picture, its
+  name, ×) and empties the box for the next. The same value again adds one to
+  its quantity. Backspace in an empty box removes the last chip.
+- `quantity: true` puts a quantity box on each chip (a whole number from 1).
+- **It adds no column.** The value is a list, `[{ value, label, sub?, image?, fill?, qty? }]`
+  (`qty` with `quantity`), handed to the screen's events as `ctx.values.addProducts`
+  — `beforeSave` and `afterSave` both see it — and never written. What the app
+  keeps of it (a row per product in a table of its own) is the app's to do.
+  `fill` rides along on the chip; it is not written into other fields.
+- After a successful Save the box is empty again: a record opened later shows
+  no chips, because none are stored.
+- The server checks the list before the events see it — at most `maxTags`
+  (default and most 100), each `value` text of at most 255, each `qty` a whole
+  number from 1 to 100000, `fill` plain values only — and answers 400 on that
+  field otherwise. `required` is at least one chip.
+- In an entity spec: `{ "label": "Add products", "name": "addProducts", "type": "autocomplete", "suggestFrom": "productSuggestions", "multiple": true, "quantity": true }`.
+  A list generated from the spec leaves it out of its columns.
 
 ## Web-only pages — `ui/pages.json`
 
@@ -913,7 +972,7 @@ Both walk someone through something, and they answer different questions:
 |---|---|---|
 | `text` | string | `minLength`, `maxLength`, `pattern`, `patternMessage` — and `inputType` (`text`, `email`, `tel`, `url`): the phone keyboard and autofill |
 | `textarea` | string | `minLength`, `maxLength` |
-| `autocomplete` | string — whatever is typed | `minLength`, `maxLength`; `suggestFrom` (event `suggest`), `minChars` — see [Text with suggestions](#text-with-suggestions--autocomplete) |
+| `autocomplete` | string — whatever is typed; with `multiple`, a list of chips and **no column** | `minLength`, `maxLength`; `suggestFrom` (event `suggest`), `minChars`; `multiple`, `quantity`, `maxTags` — see [Text with suggestions](#text-with-suggestions--autocomplete) |
 | `number` | number | `min`, `max`, `integer` |
 | `date` | `"YYYY-MM-DD"` | `min`, `max`, `notFuture` (on or before today, whenever it is filled in) |
 | `datetime` | `"YYYY-MM-DDTHH:MM"` | `min`, `max` |

@@ -269,7 +269,7 @@ export const CONTROLS = {
     valueType: 'string',
     defaultSize: { w: 0.44, h: 0.08 },
     defaults: { label: 'Search', placeholder: 'Type to search…' },
-    props: ['name', 'label', 'preset', 'placeholder', 'required', 'default', 'validation', 'suggestFrom', 'minChars', 'style'],
+    props: ['name', 'label', 'preset', 'placeholder', 'required', 'default', 'validation', 'suggestFrom', 'minChars', 'multiple', 'quantity', 'maxTags', 'style'],
     validation: ['minLength', 'maxLength'],
     styles: INPUT_STYLES,
     properties: [
@@ -280,7 +280,11 @@ export const CONTROLS = {
         fields: [
           { path: 'props.suggestFrom', label: 'Suggestions from', type: 'function', event: 'suggest',
             help: 'A function of the app that suggests as the person types. What it fills in goes to the fields on this screen with those names.' },
-          { path: 'props.minChars', label: 'Letters before asking', type: 'number', help: 'Blank → 2' }
+          { path: 'props.minChars', label: 'Letters before asking', type: 'number', help: 'Blank → 2' },
+          { path: 'props.multiple', label: 'Several (as chips)', type: 'checkbox',
+            help: 'Each pick adds a chip. Chips are handed to this screen\'s events and not saved as a column — the app keeps them.' },
+          { path: 'props.quantity', label: 'A quantity on each chip', type: 'checkbox', help: 'With several: how many of each' },
+          { path: 'props.maxTags', label: 'Most chips', type: 'number', help: 'With several. Blank → 100' }
         ]
       },
       {

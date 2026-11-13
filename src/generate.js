@@ -27,6 +27,7 @@ import { CONTROLS, CHOICE_TYPES } from './controls.js'
 import { createScreen, addControl, MARGIN, GAP, slugify, camelName, stepsOf } from './document.js'
 import { assertValidDocument } from './validateDocument.js'
 import { presetFor, presetProps, suggestPreset } from './presets.js'
+import { isTagField } from './suggest.js'
 
 /** Heights by control, as page fractions (a page is as tall as it is wide). */
 export const SPEC_HEIGHTS = {
@@ -46,7 +47,7 @@ export const SPEC_HEIGHTS = {
  */
 export const ROW_GAP = 0.04
 
-const FIELD_KEYS = ['type', 'preset', 'label', 'name', 'required', 'placeholder', 'default', 'validation', 'data', 'options', 'table', 'layout', 'accept', 'maxSize', 'suggestFrom', 'minChars', 'step', 'steps', 'showNumbers', 'width', 'text', 'variant', 'style']
+const FIELD_KEYS = ['type', 'preset', 'label', 'name', 'required', 'placeholder', 'default', 'validation', 'data', 'options', 'table', 'layout', 'accept', 'maxSize', 'multiple', 'maxFiles', 'suggestFrom', 'minChars', 'quantity', 'maxTags', 'step', 'steps', 'showNumbers', 'width', 'text', 'variant', 'style']
 const SPEC_KEYS = ['name', 'id', 'source', 'columns', 'heading', 'fields', 'list', 'aspect', 'width', 'style']
 const LIST_KEYS = ['title', 'source', 'columns', 'pageSize', 'actions', 'style']
 
@@ -59,7 +60,9 @@ const LIST_KEYS = ['title', 'source', 'columns', 'pageSize', 'actions', 'style']
  *   fields    in reading order. Each: { label, type?='text', name?, required?, placeholder?,
  *             default?, validation?, width?: 'half'|'full' }
  *             dropdown: options: ['Full time', …] or [{ id, name }]  —or—  table: 'departments'
- *             autocomplete: suggestFrom: 'productSuggestions' (event "suggest"), minChars?
+ *             autocomplete: suggestFrom: 'productSuggestions' (event "suggest"), minChars?,
+ *               multiple? (chips, no column), quantity? (a qty on each), maxTags?
+ *             file: accept, maxSize?, multiple?, maxFiles?
  *             READY-MADE: `type` may be a preset key — 'email', 'phone', 'url', 'linkedin',
  *             'age', 'dateOfBirth', 'gender', 'country', 'amount', 'percentage', 'yesNo',
  *             'postalCode' (presets.js) — or `preset: '<key>'`. A field with NO type and
@@ -217,14 +220,19 @@ function propsFromField(type, field, at, fromPreset) {
   else if (field.options || field.table || field.data) throw new Error(`screenFromSpec: ${at} — options/table/data only apply to ${CHOICE_TYPES.join(', ')}`)
   if (type === 'autocomplete') {
     if (!field.suggestFrom) throw new Error(`screenFromSpec: ${at} is an autocomplete — give it suggestFrom: "<a function registered for \"suggest\">"`)
-    ;['suggestFrom', 'minChars'].forEach((k) => { if (field[k] !== undefined) props[k] = field[k] })
-  } else if (field.suggestFrom !== undefined || field.minChars !== undefined) {
-    throw new Error(`screenFromSpec: ${at} — suggestFrom/minChars only apply to an autocomplete`)
+    ;['suggestFrom', 'minChars', 'multiple', 'quantity', 'maxTags'].forEach((k) => { if (field[k] !== undefined) props[k] = field[k] })
+  } else if (field.suggestFrom !== undefined || field.minChars !== undefined || field.quantity !== undefined || field.maxTags !== undefined) {
+    throw new Error(`screenFromSpec: ${at} — suggestFrom/minChars/quantity/maxTags only apply to an autocomplete`)
   }
   if (type === 'file') {
-    ;['accept', 'maxSize'].forEach((k) => { if (field[k] !== undefined) props[k] = field[k] })
+    ;['accept', 'maxSize', 'multiple', 'maxFiles'].forEach((k) => { if (field[k] !== undefined) props[k] = field[k] })
   } else if (field.accept !== undefined || field.maxSize !== undefined) {
     throw new Error(`screenFromSpec: ${at} — accept/maxSize only apply to a file`)
+  } else if (field.maxFiles !== undefined) {
+    throw new Error(`screenFromSpec: ${at} — maxFiles only applies to a file`)
+  }
+  if (field.multiple !== undefined && type !== 'file' && type !== 'autocomplete') {
+    throw new Error(`screenFromSpec: ${at} — multiple only applies to a file or an autocomplete`)
   }
   return props
 }
@@ -246,6 +254,8 @@ function dataFromField(field, at, type) {
 function heightOf(type, props) {
   const h = SPEC_HEIGHTS[type]
   if (type === 'label') return h[props.variant] || h.text
+  // Chips sit above the box: room for a row or two of them.
+  if (type === 'autocomplete' && props.multiple) return 0.18
   // A group of options grows with them: the label, then a line per option
   // (or one line for all of them, side by side).
   if (type === 'radio' || type === 'multiselect') {
@@ -311,7 +321,8 @@ export function screensFromSpec(spec, controls = CONTROLS) {
     aspect: spec.aspect
   }, controls)
 
-  const fieldNodes = edit.nodes.filter((n) => controls[n.type]?.input)
+  // A list shows columns: a field that keeps nothing (a tag field's chips) is not one.
+  const fieldNodes = edit.nodes.filter((n) => controls[n.type]?.input && !isTagField(n))
   const byName = Object.fromEntries(fieldNodes.map((n) => [n.props.name, n]))
   let listColumns
   if (Array.isArray(spec.listColumns) && spec.listColumns.length) {
