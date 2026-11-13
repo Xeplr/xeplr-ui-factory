@@ -51,9 +51,10 @@ export const BUTTON_VARIANTS = ['default', 'primary', 'danger']
  * "items" is a row's things, each a picture with its name, a detail line and
  * how many: [{ src, name, detail, qty }] — on a card, the pictures are large.
  * "chip" is the text as a rounded pill in the column's tone (or the cell's,
- * toneFrom) — a neutral grey one when it is 0 or empty.
+ * toneFrom) — a neutral grey one when it is 0 or empty; with iconFrom, an icon
+ * in it. "steps" is a journey, [{ label, at, done, tone? }], as a stepper.
  */
-export const COLUMN_DISPLAYS = ['text', 'images', 'activity', 'items', 'chip']
+export const COLUMN_DISPLAYS = ['text', 'images', 'activity', 'items', 'chip', 'steps']
 
 /**
  * How a function-fed list lays its rows out: a table, or a card each — for

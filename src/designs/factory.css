@@ -1038,3 +1038,56 @@ button.xeplr-factory-activity-item:hover, button.xeplr-factory-activity-item:foc
 .xeplr-factory-tags.is-disabled .xeplr-factory-tag { opacity: .6; }
 /* Its suggestions drop over the fields below it, never under them. */
 .xeplr-factory-node--autocomplete:focus-within { z-index: 40; }
+
+/* ── a journey across a cell (display "steps") ─────────────────────────────
+   A dot per step joined by a line, the label and its time under it. The line
+   INTO a step takes that step's colour: green up to where it got, red into a
+   late step, grey after. On a narrow screen it scrolls sideways inside its
+   cell rather than wrapping, so the steps stay in one line, in order. */
+.xeplr-factory-journey { overflow-x: auto; max-width: 100%; padding: 2px 0 4px; scrollbar-width: thin; }
+.xeplr-factory-journey ol { display: flex; list-style: none; margin: 0; padding: 0; min-width: max-content; }
+.xeplr-factory-journey-step {
+  --step: var(--xf-border);
+  position: relative; flex: 1 0 96px; min-width: 96px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 2px;
+}
+.xeplr-factory-journey-step.is-success { --step: var(--xf-good); }
+.xeplr-factory-journey-step.is-danger { --step: var(--xf-danger); }
+.xeplr-factory-journey-step.is-warning { --step: var(--xf-warn); }
+.xeplr-factory-journey-step.is-accent { --step: var(--xf-accent); }
+.xeplr-factory-journey-step.is-info { --step: var(--xf-info); }
+.xeplr-factory-journey-step.is-violet { --step: var(--xf-violet); }
+.xeplr-factory-journey-step.is-muted { --step: var(--xf-border); }
+.xeplr-factory-journey-step::before {
+  content: ''; position: absolute; top: 10px; right: 50%; width: 100%; height: 2px;
+  background: var(--step); z-index: 0;
+}
+.xeplr-factory-journey-step:not(.is-done)::before { background: var(--xf-border); }
+.xeplr-factory-journey-step:first-child::before { display: none; }
+.xeplr-factory-journey-dot {
+  position: relative; z-index: 1; display: grid; place-items: center; box-sizing: border-box;
+  width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--xf-border); background: var(--xf-surface); color: #fff;
+}
+.xeplr-factory-journey-step.is-done .xeplr-factory-journey-dot { background: var(--step); border-color: var(--step); }
+.xeplr-factory-journey-label { margin-top: 4px; font-size: 12.5px; line-height: 1.25; color: var(--xf-muted); white-space: nowrap; }
+.xeplr-factory-journey-step.is-done .xeplr-factory-journey-label { color: var(--xf-ink); font-weight: 600; }
+.xeplr-factory-journey-at { font-size: 11.5px; line-height: 1.25; color: var(--xf-muted); white-space: nowrap; font-variant-numeric: tabular-nums; min-height: 1.25em; }
+.xeplr-factory-journey-step.is-danger .xeplr-factory-journey-at, .xeplr-factory-journey-step.is-danger.is-done .xeplr-factory-journey-label { color: var(--xf-danger); }
+.xeplr-factory-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ── the "…" at the end of a row (the list's rowMenu) ───────────────────── */
+.xeplr-factory-rowmenu-btn {
+  display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; border-radius: 8px;
+  color: var(--xf-muted); background: transparent; border: 1px solid transparent; cursor: pointer;
+}
+.xeplr-factory-rowmenu-btn:hover, .xeplr-factory-rowmenu-btn[aria-expanded="true"] { color: var(--xf-ink); background: var(--xf-hover); border-color: var(--xf-border); }
+.xeplr-factory-rowmenu-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--xf-accent) 35%, transparent); }
+.xeplr-factory-rowmenu {
+  position: fixed; z-index: 1000; min-width: 180px; padding: 4px; display: grid;
+  background: var(--xeplr-bg-secondary, #ffffff); color: var(--xeplr-text-primary, #1a1a19);
+  border: 1px solid var(--xeplr-border-primary, #d9d8d0); border-radius: 10px; box-shadow: var(--xeplr-shadow-lg, 0 10px 30px rgba(0,0,0,.18));
+}
+.xeplr-factory-rowmenu-item {
+  font: inherit; font-size: 14px; text-align: left; padding: 8px 12px; border: 0; border-radius: 7px;
+  color: inherit; background: transparent; cursor: pointer; white-space: nowrap;
+}
+.xeplr-factory-rowmenu-item:hover, .xeplr-factory-rowmenu-item:focus-visible { outline: none; background: var(--xeplr-bg-hover, #f0f0ee); }
