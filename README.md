@@ -618,7 +618,7 @@ actions.register({ name: 'orderActivity', event: 'rowDetails', execute: async (c
 - **A screen of buttons in the popup** — a row's `editScreen` may be a screen of buttons (`examples/packing-actions.screen.json`: just Packed, asking the parcel's size). They press on the server as on a page, the list behind refreshes after a press, and the popup's title names the row from its first column (`Pack an order · #GA1025`).
 - **`refreshEvery`** (seconds, 10–3600) asks again — for text that changes with time. **`reloadKey`** on `<FactoryScreen>` reloads every list when it changes (the host heard something happen).
 - **`grow`** (a list that is its screen's **one** control) lets the page grow with the rows on a desktop, instead of the list scrolling inside the box it was placed in — a full-page list like Orders. Phones always flow.
-- **`rowOpen`** makes a click anywhere on a row open it (the first cell is also a button, for the keyboard); **`highlight`** marks rows whose field is true.
+- **`rowOpen`** makes a click anywhere on a row open it (the first cell is also a button, for the keyboard); **`highlight`** marks rows whose field is true; **`dim`** fades them (cancelled orders: there, but not to be looked at — clearer on hover).
 - **Rows that are worked out are not a table's records**: no Delete, and Edit / New only with an `editScreen`.
 - Routes: `GET /factory/rows/:screen` (`?node=&q=&filter=&kpi=&from=&to=`) and `/factory/rows/:screen/details` (`?node=&column=&id=`) — see `@xeplr/factory`.
 

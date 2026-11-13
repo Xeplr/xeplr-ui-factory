@@ -572,6 +572,7 @@ function checkFedList(props, fed, at, err) {
     if ((props.actions.includes('edit') || props.actions.includes('new')) && !props.editScreen) err(`${at}.props.actions`, 'Edit and New need "Edit in" (editScreen) — the screen they open')
   }
   if (props.highlight !== undefined && !(nonEmptyString(props.highlight) && FIELD_NAME.test(props.highlight))) err(`${at}.props.highlight`, 'must be a field of the row, e.g. "isNew"')
+  if (props.dim !== undefined && !(nonEmptyString(props.dim) && FIELD_NAME.test(props.dim))) err(`${at}.props.dim`, 'must be a field of the row, e.g. "isCancelled" — rows where it is true are faded')
 }
 
 function checkFedColumn(c, p, err) {

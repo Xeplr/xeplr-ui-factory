@@ -32,6 +32,10 @@ console.log('\na cell\'s tone')
 check('a column may take its tone from the row', errs(list({ columns: [{ field: 'shippedAt', label: 'Shipped', text: 'shippedText', toneFrom: 'shippedTone' }] })) === '')
 check('toneFrom must be a field name', /toneFrom: must be a field of the row/.test(errs(list({ columns: [{ field: 'shippedAt', label: 'Shipped', toneFrom: 'red tone' }] }))))
 
+console.log('\nfaded rows')
+check('dim names a field of the row', errs(list({ dim: 'isCancelled' })) === '')
+check('dim that is not a field name is refused', /dim: must be a field of the row/.test(errs(list({ dim: 'is cancelled' }))))
+
 console.log('\nthe example screens')
 for (const file of ['packing-board', 'packing-actions']) {
   const doc = JSON.parse(readFileSync(new URL(`../examples/${file}.screen.json`, import.meta.url)))
