@@ -28,6 +28,10 @@ check('an unknown layout is refused, naming the ones there are', /layout: must b
 check('a table\'s records have no layout to choose: refused', /a layout needs "rowsFrom"/.test(errs(list({ layout: 'cards' }, false))), errs(list({ layout: 'cards' }, false)))
 check('"more" is for pictures, not items', /only means something on an "images" column/.test(errs(list({ columns: [{ field: 'items', display: 'items', more: 'moreItems' }] }))))
 
+console.log('\na cell\'s tone')
+check('a column may take its tone from the row', errs(list({ columns: [{ field: 'shippedAt', label: 'Shipped', text: 'shippedText', toneFrom: 'shippedTone' }] })) === '')
+check('toneFrom must be a field name', /toneFrom: must be a field of the row/.test(errs(list({ columns: [{ field: 'shippedAt', label: 'Shipped', toneFrom: 'red tone' }] }))))
+
 console.log('\nthe example screens')
 for (const file of ['packing-board', 'packing-actions']) {
   const doc = JSON.parse(readFileSync(new URL(`../examples/${file}.screen.json`, import.meta.url)))

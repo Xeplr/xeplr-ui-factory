@@ -595,6 +595,7 @@ actions.register({ name: 'orderActivity', event: 'rowDetails', execute: async (c
 | `badges` | `[{ field, label, tone }]` after the text, where `field` is true. Tones: `accent`, `success`, `warning`, `danger`, `muted` |
 | `display` | `text` (default), `images` (`[{ src, name }]`, plus `more`: how many others), `activity` (a line with a hover box), `items` (`[{ src, name, detail, qty }]` — each thing with its picture, name, a detail line such as the variant, and how many) |
 | `details` | for `activity`: the function (event `rowDetails`) whose entries the hover box lists; an entry with `open` opens the row at that place (passed to `onOpenRecord` as `params`) |
+| `toneFrom` | the row field naming this cell's tone — `accent`, `success`, `warning`, `danger` or `muted` (blank: none). The function decides, per row: a step done late is `"danger"` |
 | `sortable` | `false` for a column whose header should not sort |
 
 - **The search and the chip live in the URL** under the screen's `urlKey` (`<urlKey>Q`, `<urlKey>Filter`), so a refresh shows the same rows. The search waits for a pause in typing.

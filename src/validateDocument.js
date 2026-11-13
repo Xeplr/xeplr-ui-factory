@@ -490,7 +490,7 @@ function checkList(props, doc, at, err) {
 // (`field`), the text shown for it (`text`, else the value), a second line,
 // how it is drawn, badges after it, how many more pictures, and the function
 // its hover box lists from.
-const FED_COLUMN_KEYS = ['field', 'label', 'text', 'sub', 'display', 'badges', 'more', 'details', 'sortable']
+const FED_COLUMN_KEYS = ['field', 'label', 'text', 'sub', 'display', 'badges', 'more', 'details', 'sortable', 'toneFrom']
 
 /** The settings only a function-fed list has. */
 function checkFedList(props, fed, at, err) {
@@ -585,6 +585,7 @@ function checkFedColumn(c, p, err) {
     else if (c.display !== 'activity') err(`${p}.details`, 'is what an "activity" column\'s hover box lists — set display to "activity"')
   }
   if (c.sortable !== undefined && typeof c.sortable !== 'boolean') err(`${p}.sortable`, 'must be true or false')
+  if (c.toneFrom !== undefined && !(nonEmptyString(c.toneFrom) && FIELD_NAME.test(c.toneFrom))) err(`${p}.toneFrom`, `must be a field of the row holding the cell's tone (${BADGE_TONES.join(', ')}) or nothing`)
   if (c.badges !== undefined) {
     if (!Array.isArray(c.badges)) { err(`${p}.badges`, 'must be an array of { field, label, tone? }'); return }
     c.badges.forEach((b, k) => {

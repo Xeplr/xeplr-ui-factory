@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { XeplrTable } from '@xeplr/ui-table'
 import { boxStyle, fieldStyle } from './styles.js'
 import { rangePresets, customRange, isDay } from '../listRange.js'
+import { BADGE_TONES } from '../buttons.js'
 
 // A LIST WHOSE ROWS A FUNCTION WORKS OUT (rowsFrom) — live, in @xeplr/ui-table.
 //
@@ -199,6 +200,7 @@ function Cell({ column: c, row, index, first, open, details, onOpenAt }) {
   const shown = c.text ? row[c.text] : value
   const badges = (c.badges || []).filter((b) => row[b.field])
   const marker = first ? { 'data-xf-row': index } : {}
+  const tone = c.toneFrom && BADGE_TONES.includes(row[c.toneFrom]) ? ' xeplr-factory-cell--' + row[c.toneFrom] : ''
 
   if (c.display === 'images') {
     const pics = Array.isArray(value) ? value.filter((x) => x && x.src) : []
@@ -238,9 +240,9 @@ function Cell({ column: c, row, index, first, open, details, onOpenAt }) {
   )
   // The first cell of a row that opens is a button: the keyboard's way in.
   if (first && open) {
-    return <button type="button" className="xeplr-factory-cell xeplr-factory-cell-open" onClick={(e) => { e.stopPropagation(); open(row) }} {...marker}>{body}</button>
+    return <button type="button" className={'xeplr-factory-cell xeplr-factory-cell-open' + tone} onClick={(e) => { e.stopPropagation(); open(row) }} {...marker}>{body}</button>
   }
-  return <span className="xeplr-factory-cell" {...marker}>{body}</span>
+  return <span className={'xeplr-factory-cell' + tone} {...marker}>{body}</span>
 }
 
 /** An "items" value: [{ src, name, detail, qty }], anything else dropped. */
