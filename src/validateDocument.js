@@ -17,6 +17,7 @@ import { DATE_PRESET_VALUES } from './listRange.js'
 import { RESERVED_COLUMNS, MAX_IDENTIFIER } from './tableSchema.js'
 import { FIELD_PRESETS, INPUT_TYPES, presetFor } from './presets.js'
 import { isBinding } from './values.js'
+import { ROW_MENU_ACTIONS } from './listRows.js'
 import { BUTTON_VARIANTS, COLUMN_DISPLAYS, LIST_LAYOUTS, BADGE_TONES, COLUMN_ICONS, CONDITION_OPERATORS, ASK_FIELD_TYPES, NOTE_INPUT, FILES_INPUT, isAskDayLimit } from './buttons.js'
 
 const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
@@ -490,7 +491,7 @@ function checkList(props, doc, at, err) {
 // (`field`), the text shown for it (`text`, else the value), a second line,
 // how it is drawn, badges after it, how many more pictures, and the function
 // its hover box lists from.
-const FED_COLUMN_KEYS = ['field', 'label', 'text', 'sub', 'display', 'badges', 'more', 'details', 'sortable', 'toneFrom', 'tone', 'icon', 'bold']
+const FED_COLUMN_KEYS = ['field', 'label', 'text', 'sub', 'display', 'badges', 'more', 'details', 'sortable', 'toneFrom', 'tone', 'icon', 'bold', 'iconFrom']
 
 /** The settings only a function-fed list has. */
 function checkFedList(props, fed, at, err) {
@@ -572,6 +573,19 @@ function checkFedList(props, fed, at, err) {
     if ((props.actions.includes('edit') || props.actions.includes('new')) && !props.editScreen) err(`${at}.props.actions`, 'Edit and New need "Edit in" (editScreen) — the screen they open')
   }
   if (props.highlight !== undefined && !(nonEmptyString(props.highlight) && FIELD_NAME.test(props.highlight))) err(`${at}.props.highlight`, 'must be a field of the row, e.g. "isNew"')
+  if (props.rowMenu !== undefined) {
+    if (!Array.isArray(props.rowMenu)) err(`${at}.props.rowMenu`, 'must be a list of { label, action, field? } — the "…" at the end of each row')
+    else props.rowMenu.forEach((m, k) => {
+      const mp = `${at}.props.rowMenu[${k}]`
+      if (!m || typeof m !== 'object') { err(mp, 'must be { label, action, field? }'); return }
+      if (!nonEmptyString(m.label)) err(`${mp}.label`, 'must be the entry\'s text, e.g. "Open in Shopify"')
+      if (!ROW_MENU_ACTIONS.includes(m.action)) err(`${mp}.action`, `must be one of: ${ROW_MENU_ACTIONS.join(', ')}`)
+      if ((m.action === 'link' || m.action === 'copy') && !(nonEmptyString(m.field) && FIELD_NAME.test(m.field))) err(`${mp}.field`, `must be a field of the row — the ${m.action === 'link' ? 'address it opens' : 'text it copies'}`)
+      if (m.action === 'open' && !props.rowOpen && !(Array.isArray(props.actions) && props.actions.includes('edit'))) err(`${mp}.action`, '"open" needs rows that open (rowOpen)')
+      const extra = Object.keys(m).filter((x) => !['label', 'action', 'field'].includes(x))
+      if (extra.length) err(mp, `only "label", "action" and "field" are used — remove: ${extra.join(', ')}`)
+    })
+  }
   if (props.dim !== undefined && !(nonEmptyString(props.dim) && FIELD_NAME.test(props.dim))) err(`${at}.props.dim`, 'must be a field of the row, e.g. "isCancelled" — rows where it is true are faded')
 }
 
@@ -589,6 +603,8 @@ function checkFedColumn(c, p, err) {
   if (c.tone !== undefined && !BADGE_TONES.includes(c.tone)) err(`${p}.tone`, `must be one of: ${BADGE_TONES.join(', ')}`)
   if (c.icon !== undefined && !COLUMN_ICONS.includes(c.icon)) err(`${p}.icon`, `must be one of: ${COLUMN_ICONS.join(', ')}`)
   if (c.bold !== undefined && typeof c.bold !== 'boolean') err(`${p}.bold`, 'must be true or false')
+  if (c.iconFrom !== undefined && !(nonEmptyString(c.iconFrom) && FIELD_NAME.test(c.iconFrom))) err(`${p}.iconFrom`, `must be a field of the row naming its icon (${COLUMN_ICONS.join(', ')})`)
+  else if (c.iconFrom !== undefined && c.display !== 'chip') err(`${p}.iconFrom`, 'is the icon in a chip — set display to "chip"')
   if (c.toneFrom !== undefined && !(nonEmptyString(c.toneFrom) && FIELD_NAME.test(c.toneFrom))) err(`${p}.toneFrom`, `must be a field of the row holding the cell's tone (${BADGE_TONES.join(', ')}) or nothing`)
   if (c.badges !== undefined) {
     if (!Array.isArray(c.badges)) { err(`${p}.badges`, 'must be an array of { field, label, tone? }'); return }

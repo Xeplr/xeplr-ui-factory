@@ -4,7 +4,7 @@
 //
 // Plain script: prints its checks, exits non-zero on failure. No framework.
 import { readFileSync } from 'node:fs'
-import { validateDocument, createScreen, addControl, setNodeProperty, LIST_LAYOUTS, COLUMN_DISPLAYS, BADGE_TONES, COLUMN_ICONS } from '../src/model.js'
+import { validateDocument, createScreen, addControl, setNodeProperty, LIST_LAYOUTS, COLUMN_DISPLAYS, BADGE_TONES, COLUMN_ICONS, journeyOf, menuItemsFor } from '../src/model.js'
 
 const results = []
 const check = (name, cond, detail) => { results.push([name, cond]); console.log((cond ? '  ok   ' : '  FAIL ') + name + (!cond && detail ? ' — ' + detail : '')) }
@@ -44,6 +44,22 @@ check('"chip" is a display, info and violet are tones', COLUMN_DISPLAYS.includes
 check('an unknown icon is refused, naming the ones there are', new RegExp('icon: must be one of: ' + COLUMN_ICONS.join(', ')).test(errs(list({ columns: [{ field: 'a', label: 'A', icon: 'rocket' }] }))))
 check('an unknown tone is refused', /tone: must be one of/.test(errs(list({ columns: [{ field: 'a', label: 'A', tone: 'pink' }] }))))
 check('bold is true or false', /bold: must be true or false/.test(errs(list({ columns: [{ field: 'a', label: 'A', bold: 'yes' }] }))))
+
+console.log('\na journey (steps), a chip\'s icon, the row menu')
+const sameJ = (a, b) => JSON.stringify(a) === JSON.stringify(b)
+check('"steps" is a display', COLUMN_DISPLAYS.includes('steps'))
+check('steps: done is success unless it says (late: danger), not done is muted; no label, no step', sameJ(journeyOf([{ label: 'Placed', at: '13 Nov', done: true }, { label: 'Shipped', at: '15 Nov', done: true, tone: 'danger' }, { label: 'Delivered', done: false }, { at: 'x' }, null]),
+  [{ label: 'Placed', at: '13 Nov', done: true, tone: 'success' }, { label: 'Shipped', at: '15 Nov', done: true, tone: 'danger' }, { label: 'Delivered', at: '', done: false, tone: 'muted' }]))
+check('steps: not a list, none', sameJ(journeyOf('x'), []))
+const STATUS = [{ field: 'statusLabel', label: 'Status', display: 'chip', toneFrom: 'statusTone', iconFrom: 'statusIcon' }, { field: 'progress', label: 'Progress', display: 'steps', sortable: false }]
+check('a chip may take its icon from the row; a steps column', errs(list({ columns: STATUS })) === '', errs(list({ columns: STATUS })))
+check('iconFrom is for chips', /iconFrom: is the icon in a chip/.test(errs(list({ columns: [{ field: 'a', label: 'A', iconFrom: 'aIcon' }] }))))
+const MENU = [{ label: 'Open order', action: 'open' }, { label: 'Open in Shopify', action: 'link', field: 'shopifyUrl' }, { label: 'Copy order number', action: 'copy', field: 'orderLabel' }]
+check('a row menu: open (rows that open), link and copy a row field', errs(list({ rowOpen: true, editScreen: 'order_actions', rowMenu: MENU })) === '', errs(list({ rowOpen: true, editScreen: 'order_actions', rowMenu: MENU })))
+check('open needs rows that open', /"open" needs rows that open/.test(errs(list({ rowMenu: [{ label: 'Open', action: 'open' }] }))))
+check('link needs its field; an unknown action is refused', /field: must be a field of the row — the address it opens/.test(errs(list({ rowMenu: [{ label: 'x', action: 'link' }] }))) && /action: must be one of: open, link, copy/.test(errs(list({ rowMenu: [{ label: 'x', action: 'delete' }] }))))
+check('a row is offered only what it has', sameJ(menuItemsFor({ orderLabel: '#GA1', shopifyUrl: '' }, MENU, true).map((m) => m.label), ['Open order', 'Copy order number'])
+  && sameJ(menuItemsFor({ orderLabel: '#GA1', shopifyUrl: 'https://x' }, MENU, false).map((m) => m.label), ['Open in Shopify', 'Copy order number']))
 
 console.log('\nfaded rows')
 check('dim names a field of the row', errs(list({ dim: 'isCancelled' })) === '')

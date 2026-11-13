@@ -575,7 +575,10 @@ console.log('\nthe stylesheet')
     'xeplr-factory-modal-title', 'xeplr-factory-modal-close',
     // ONE LIST, TWO VIEWS: a table's records (ListView) and rows a function
     // works out (FedList) are the same card, with the same title and states.
-    'xeplr-factory-list', 'xeplr-factory-list-title', 'xeplr-factory-list-empty', 'xeplr-factory-error-inline'
+    'xeplr-factory-list', 'xeplr-factory-list-title', 'xeplr-factory-list-empty', 'xeplr-factory-error-inline',
+    // A FED LIST'S CELL, drawn by FedList and by its extra column kinds
+    // (listExtras: the journey, the row menu) — one cell, two files.
+    'xeplr-factory-cell'
   ]
   const clashes = [...used.entries()].filter(([c, fs2]) => fs2.size > 1 && !SHARED.includes(c)).map(([c]) => c)
   check('no class is used by two components that did not agree to share it', clashes.length === 0, clashes.join(', '))

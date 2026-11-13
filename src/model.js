@@ -12,6 +12,7 @@ export {
   steppers, stepsOf, stepOf, setNodeStep, nodesForSteps, resolveStep, reachableStep, nextOpenStep
 } from './document.js'
 export { validateDocument, assertValidDocument } from './validateDocument.js'
+export { ROW_MENU_ACTIONS, journeyOf, menuItemsFor } from './listRows.js'
 // A screen's events: functions picked by name, run on the server.
 export { SCREEN_EVENTS, SCREEN_EVENT_KEYS, DECIDE_EVENT, FUNCTION_NAME, screenFunctions, missingFunctions, functionProblems, setEvent, functionsFor } from './events.js'
 // Buttons and lists whose rows a function works out — names and values only.

@@ -593,11 +593,12 @@ actions.register({ name: 'orderActivity', event: 'rowDetails', execute: async (c
 | `text` | the field holding what is **shown** — written by the function, in the app's words and time zone. Blank → the value |
 | `sub` | a second line, smaller |
 | `badges` | `[{ field, label, tone }]` after the text, where `field` is true. Tones: `accent`, `success`, `warning`, `danger`, `muted` |
-| `display` | `text` (default), `images` (`[{ src, name }]`, plus `more`: how many others), `activity` (a line with a hover box), `items` (`[{ src, name, detail, qty }]` — each thing with its picture, name, a detail line such as the variant, and how many), `chip` (the text as a rounded pill in the column's `tone`, or the cell's `toneFrom`; a neutral grey one when the value is 0 or empty — counts by stage) |
+| `display` | `text` (default), `images` (`[{ src, name }]`, plus `more`: how many others), `activity` (a line with a hover box), `items` (`[{ src, name, detail, qty }]` — each thing with its picture, name, a detail line such as the variant, and how many), `chip` (the text as a rounded pill in the column's `tone`, or the cell's `toneFrom`; a neutral grey one when the value is 0 or empty — counts by stage), `steps` (a journey: `[{ label, at, done, tone? }]` as a stepper — a dot per step, filled with a check when done, joined by a line, the label and its time under it; tone `success` when done unless the step says `danger` (late) or another, `muted` when not; on a narrow screen it scrolls sideways inside its cell) |
 | `details` | for `activity`: the function (event `rowDetails`) whose entries the hover box lists; an entry with `open` opens the row at that place (passed to `onOpenRecord` as `params`) |
 | `icon` | an icon before the header's label: `file`, `clock`, `box`, `layers`, `truck`, `check-circle`, `return`, `warehouse`, `x-circle`, `rupee`, `calendar`, `user` |
 | `tone` | the column's colour, for `display: "chip"` (and its badges' default): `accent`, `success`, `warning`, `danger`, `muted`, `info`, `violet` |
 | `bold` | `true`: the cell's text in bold (a total) |
+| `iconFrom` | for `display: "chip"`: the row field naming an icon (from `icon`'s set) drawn in the chip — a status with its picture |
 | `toneFrom` | the row field naming this cell's tone — `accent`, `success`, `warning`, `danger` or `muted` (blank: none). The function decides, per row: a step done late is `"danger"` |
 | `sortable` | `false` for a column whose header should not sort |
 
@@ -621,7 +622,7 @@ actions.register({ name: 'orderActivity', event: 'rowDetails', execute: async (c
 - **A screen of buttons in the popup** — a row's `editScreen` may be a screen of buttons (`examples/packing-actions.screen.json`: just Packed, asking the parcel's size). They press on the server as on a page, the list behind refreshes after a press, and the popup's title names the row from its first column (`Pack an order · #GA1025`).
 - **`refreshEvery`** (seconds, 10–3600) asks again — for text that changes with time. **`reloadKey`** on `<FactoryScreen>` reloads every list when it changes (the host heard something happen).
 - **`grow`** (a list that is its screen's **one** control) lets the page grow with the rows on a desktop, instead of the list scrolling inside the box it was placed in — a full-page list like Orders. Phones always flow.
-- **`rowOpen`** makes a click anywhere on a row open it (the first cell is also a button, for the keyboard); **`highlight`** marks rows whose field is true (tinted, the first cell in the accent — today's row); **`dim`** fades them (cancelled orders: there, but not to be looked at — clearer on hover).
+- **`rowOpen`** makes a click anywhere on a row open it (the first cell is also a button, for the keyboard); **`highlight`** marks rows whose field is true (tinted, the first cell in the accent — today's row); **`rowMenu`** — `[{ label, action, field? }]` — is the "…" at the end of each row: `open` (the row, as a click on it; needs `rowOpen`), `link` (the URL in `field`, in a new tab), `copy` (the text in `field`); an entry whose field is empty on a row is not offered there. **`dim`** fades them (cancelled orders: there, but not to be looked at — clearer on hover).
 - **Rows that are worked out are not a table's records**: no Delete, and Edit / New only with an `editScreen`.
 - Routes: `GET /factory/rows/:screen` (`?node=&q=&filter=&kpi=&from=&to=`) and `/factory/rows/:screen/details` (`?node=&column=&id=`) — see `@xeplr/factory`.
 

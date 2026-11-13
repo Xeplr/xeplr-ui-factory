@@ -5,6 +5,8 @@ import { boxStyle, fieldStyle } from './styles.js'
 import { rangePresets, customRange, isDay } from '../listRange.js'
 import { BADGE_TONES } from '../buttons.js'
 import { Icon } from './icons.jsx'
+import { Steps, RowMenu } from './listExtras.jsx'
+import { COLUMN_ICONS } from '../buttons.js'
 
 // A LIST WHOSE ROWS A FUNCTION WORKS OUT (rowsFrom) — live, in @xeplr/ui-table.
 //
@@ -63,7 +65,11 @@ export default function FedList({ node, list, query, onOpen, rowDetails, recordK
                 details={c.display === 'activity' && c.details ? () => rowDetails(node, c, row.original[recordKey]) : null}
                 onOpenAt={open ? (where) => open(row.original, where) : null} />
         )
-      }))
+      })).concat(Array.isArray(p.rowMenu) && p.rowMenu.length ? [{
+        // The "…" at the end of each row: the screen's rowMenu.
+        accessor: '__menu', header: '', headerText: '', enableSorting: false,
+        cell: ({ row }) => <RowMenu row={row.original} menu={p.rowMenu} onOpen={open} />
+      }] : [])
     }
   }
 
@@ -207,10 +213,13 @@ function Cell({ column: c, row, index, first, open, details, onOpenAt }) {
   const tone = cellTone && c.display !== 'chip' ? ' xeplr-factory-cell--' + cellTone : ''
   const bold = c.bold ? ' is-bold' : ''
 
+  if (c.display === 'steps') return <Steps value={value} marker={marker} />
+
   if (c.display === 'chip') {
     const zero = isNothing(value) && isNothing(shown)
     const t = zero ? 'zero' : (cellTone || c.tone || 'accent')
-    const pill = <span className={'xeplr-factory-pill xeplr-factory-pill--' + t + bold}>{text(shown)}</span>
+    const icon = c.iconFrom && COLUMN_ICONS.includes(row[c.iconFrom]) ? <Icon name={row[c.iconFrom]} size={14} /> : null
+    const pill = <span className={'xeplr-factory-pill xeplr-factory-pill--' + t + bold}>{icon}{text(shown)}</span>
     if (first && open) return <button type="button" className="xeplr-factory-cell xeplr-factory-cell-open" onClick={(e) => { e.stopPropagation(); open(row) }} {...marker}>{pill}</button>
     return <span className="xeplr-factory-cell" {...marker}>{pill}</span>
   }
