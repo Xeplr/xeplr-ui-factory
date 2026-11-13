@@ -50,8 +50,10 @@ export const BUTTON_VARIANTS = ['default', 'primary', 'danger']
  * What a list column can be drawn as. Every one shows text the server wrote.
  * "items" is a row's things, each a picture with its name, a detail line and
  * how many: [{ src, name, detail, qty }] — on a card, the pictures are large.
+ * "chip" is the text as a rounded pill in the column's tone (or the cell's,
+ * toneFrom) — a neutral grey one when it is 0 or empty.
  */
-export const COLUMN_DISPLAYS = ['text', 'images', 'activity', 'items']
+export const COLUMN_DISPLAYS = ['text', 'images', 'activity', 'items', 'chip']
 
 /**
  * How a function-fed list lays its rows out: a table, or a card each — for
@@ -60,8 +62,11 @@ export const COLUMN_DISPLAYS = ['text', 'images', 'activity', 'items']
  */
 export const LIST_LAYOUTS = ['table', 'cards']
 
-/** A badge's colour. */
-export const BADGE_TONES = ['accent', 'success', 'warning', 'danger', 'muted']
+/** A badge's colour — and a column's, a cell's (toneFrom) and a chip's. */
+export const BADGE_TONES = ['accent', 'success', 'warning', 'danger', 'muted', 'info', 'violet']
+
+/** The icons a list column's header may show before its label (designs/icons.jsx draws them). */
+export const COLUMN_ICONS = ['file', 'clock', 'box', 'layers', 'truck', 'check-circle', 'return', 'warehouse', 'x-circle', 'rupee', 'calendar', 'user']
 
 /** The name a button's note reaches its function under. */
 export const NOTE_INPUT = 'note'

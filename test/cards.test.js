@@ -4,7 +4,7 @@
 //
 // Plain script: prints its checks, exits non-zero on failure. No framework.
 import { readFileSync } from 'node:fs'
-import { validateDocument, createScreen, addControl, setNodeProperty, LIST_LAYOUTS, COLUMN_DISPLAYS } from '../src/model.js'
+import { validateDocument, createScreen, addControl, setNodeProperty, LIST_LAYOUTS, COLUMN_DISPLAYS, BADGE_TONES, COLUMN_ICONS } from '../src/model.js'
 
 const results = []
 const check = (name, cond, detail) => { results.push([name, cond]); console.log((cond ? '  ok   ' : '  FAIL ') + name + (!cond && detail ? ' — ' + detail : '')) }
@@ -31,6 +31,19 @@ check('"more" is for pictures, not items', /only means something on an "images" 
 console.log('\na cell\'s tone')
 check('a column may take its tone from the row', errs(list({ columns: [{ field: 'shippedAt', label: 'Shipped', text: 'shippedText', toneFrom: 'shippedTone' }] })) === '')
 check('toneFrom must be a field name', /toneFrom: must be a field of the row/.test(errs(list({ columns: [{ field: 'shippedAt', label: 'Shipped', toneFrom: 'red tone' }] }))))
+
+console.log('\nicons, chips, tones, bold')
+const STAGES = [
+  { field: 'day', label: 'Placed on', icon: 'calendar' },
+  { field: 'placed', label: 'Orders', icon: 'file', bold: true },
+  { field: 'packed', label: 'Packed', icon: 'box', display: 'chip', tone: 'info' },
+  { field: 'rto', label: 'RTO', icon: 'return', display: 'chip', tone: 'danger', toneFrom: 'rtoTone' }
+]
+check('a column may have an icon, a tone, be bold, be drawn as chips', errs(list({ columns: STAGES })) === '', errs(list({ columns: STAGES })))
+check('"chip" is a display, info and violet are tones', COLUMN_DISPLAYS.includes('chip') && BADGE_TONES.includes('info') && BADGE_TONES.includes('violet'))
+check('an unknown icon is refused, naming the ones there are', new RegExp('icon: must be one of: ' + COLUMN_ICONS.join(', ')).test(errs(list({ columns: [{ field: 'a', label: 'A', icon: 'rocket' }] }))))
+check('an unknown tone is refused', /tone: must be one of/.test(errs(list({ columns: [{ field: 'a', label: 'A', tone: 'pink' }] }))))
+check('bold is true or false', /bold: must be true or false/.test(errs(list({ columns: [{ field: 'a', label: 'A', bold: 'yes' }] }))))
 
 console.log('\nfaded rows')
 check('dim names a field of the row', errs(list({ dim: 'isCancelled' })) === '')
