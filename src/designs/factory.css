@@ -42,6 +42,8 @@
   --xf-good: var(--xeplr-success, #1d7a4c);
   --xf-warn: var(--xeplr-warning, #a86a00);
   --xf-danger: var(--xeplr-danger, #c2372e);
+  --xf-info: var(--xeplr-info, #0284c7);
+  --xf-violet: var(--xeplr-violet, #7c5cf0);
 }
 
 /* ── the screen ───────────────────────────────────────────────────────────
@@ -409,7 +411,8 @@
 .xeplr-factory-chip:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--xf-accent) 35%, transparent); }
 .xeplr-factory-chip-count { font-size: .85em; opacity: .75; font-variant-numeric: tabular-nums; }
 .xeplr-factory-fed-table.is-openable tbody tr { cursor: pointer; }
-.xeplr-factory-list tr.xeplr-factory-row-marked td { background: color-mix(in srgb, var(--xf-accent) 6%, transparent); }
+.xeplr-factory-list tr.xeplr-factory-row-marked td { background: color-mix(in srgb, var(--xf-accent) 11%, transparent); }
+.xeplr-factory-list tr.xeplr-factory-row-marked td:first-child .xeplr-factory-cell-main { color: var(--xf-accent); font-weight: 700; }
 .xeplr-factory-list tr.xeplr-factory-row-dim td { opacity: .45; background: var(--xf-hover); }
 .xeplr-factory-list tr.xeplr-factory-row-dim:hover td { opacity: .8; }
 .xeplr-factory-list tr.xeplr-factory-row-marked td:first-child { box-shadow: inset 3px 0 0 var(--xf-accent); }
@@ -422,6 +425,24 @@
 .xeplr-factory-cell--warning { color: var(--xf-warn); background: color-mix(in srgb, var(--xf-warn) 14%, transparent); }
 .xeplr-factory-cell--danger { color: var(--xf-danger); background: color-mix(in srgb, var(--xf-danger) 12%, transparent); }
 .xeplr-factory-cell--muted { color: var(--xf-muted); }
+.xeplr-factory-cell--info { color: var(--xf-info); background: color-mix(in srgb, var(--xf-info) 12%, transparent); }
+.xeplr-factory-cell--violet { color: var(--xf-violet); background: color-mix(in srgb, var(--xf-violet) 12%, transparent); }
+.xeplr-factory-cell.is-bold .xeplr-factory-cell-main, .xeplr-factory-pill.is-bold { font-weight: 650; }
+/* A header with an icon before its label (a column's `icon`). */
+.xeplr-factory-col-head { display: inline-flex; align-items: center; gap: 6px; }
+.xeplr-factory-col-head .xeplr-factory-icon { flex: none; opacity: .85; }
+/* A column drawn as chips (display "chip"): a rounded pill in its tone; 0 or empty a neutral one. */
+.xeplr-factory-pill {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 3.4em; box-sizing: border-box;
+  padding: 3px 12px; border-radius: 8px; font-variant-numeric: tabular-nums; font-weight: 600; line-height: 1.35; white-space: nowrap;
+  color: var(--xf-accent); background: color-mix(in srgb, var(--xf-accent) 16%, transparent);
+}
+.xeplr-factory-pill--success { color: var(--xf-good); background: color-mix(in srgb, var(--xf-good) 16%, transparent); }
+.xeplr-factory-pill--warning { color: var(--xf-warn); background: color-mix(in srgb, var(--xf-warn) 18%, transparent); }
+.xeplr-factory-pill--danger { color: var(--xf-danger); background: color-mix(in srgb, var(--xf-danger) 15%, transparent); }
+.xeplr-factory-pill--info { color: var(--xf-info); background: color-mix(in srgb, var(--xf-info) 15%, transparent); }
+.xeplr-factory-pill--violet { color: var(--xf-violet); background: color-mix(in srgb, var(--xf-violet) 16%, transparent); }
+.xeplr-factory-pill--muted, .xeplr-factory-pill--zero { color: var(--xf-muted); background: var(--xf-hover); font-weight: 500; }
 .xeplr-factory-cell--accent { color: var(--xf-accent); background: color-mix(in srgb, var(--xf-accent) 10%, transparent); }
 [class*="xeplr-factory-cell--"] .xeplr-factory-cell-sub { color: inherit; opacity: .8; }
 .xeplr-factory-cell-sub { flex-basis: 100%; font-size: .88em; color: var(--xf-muted); }
@@ -433,6 +454,8 @@
 .xeplr-factory-badge--warning { color: var(--xf-warn); background: color-mix(in srgb, var(--xf-warn) 16%, transparent); }
 .xeplr-factory-badge--danger { color: var(--xf-danger); background: color-mix(in srgb, var(--xf-danger) 14%, transparent); }
 .xeplr-factory-badge--muted { color: var(--xf-muted); background: var(--xf-hover); }
+.xeplr-factory-badge--info { color: var(--xf-info); background: color-mix(in srgb, var(--xf-info) 14%, transparent); }
+.xeplr-factory-badge--violet { color: var(--xf-violet); background: color-mix(in srgb, var(--xf-violet) 14%, transparent); }
 .xeplr-factory-thumbs { display: inline-flex; align-items: center; gap: 4px; }
 .xeplr-factory-thumbs img { width: 36px; height: 36px; object-fit: cover; border-radius: 6px; border: 1px solid var(--xf-border); background: var(--xf-plane); }
 .xeplr-factory-thumbs small { color: var(--xf-muted); }

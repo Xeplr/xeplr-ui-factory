@@ -4,6 +4,7 @@ import { XeplrTable } from '@xeplr/ui-table'
 import { boxStyle, fieldStyle } from './styles.js'
 import { rangePresets, customRange, isDay } from '../listRange.js'
 import { BADGE_TONES } from '../buttons.js'
+import { Icon } from './icons.jsx'
 
 // A LIST WHOSE ROWS A FUNCTION WORKS OUT (rowsFrom) — live, in @xeplr/ui-table.
 //
@@ -53,7 +54,9 @@ export default function FedList({ node, list, query, onOpen, rowDetails, recordK
       key: node.id,
       columns: columns.map((c, i) => ({
         accessor: c.field,
-        header: c.label,
+        // An icon before the label makes the header an element; its width is measured by the label.
+        header: c.icon ? () => <span className="xeplr-factory-col-head"><Icon name={c.icon} />{c.label}</span> : c.label,
+        headerText: c.label,
         enableSorting: c.sortable !== false,
         cell: ({ row }) => (
           <Cell column={c} row={row.original} index={row.index} first={i === 0} open={open}
@@ -200,7 +203,17 @@ function Cell({ column: c, row, index, first, open, details, onOpenAt }) {
   const shown = c.text ? row[c.text] : value
   const badges = (c.badges || []).filter((b) => row[b.field])
   const marker = first ? { 'data-xf-row': index } : {}
-  const tone = c.toneFrom && BADGE_TONES.includes(row[c.toneFrom]) ? ' xeplr-factory-cell--' + row[c.toneFrom] : ''
+  const cellTone = c.toneFrom && BADGE_TONES.includes(row[c.toneFrom]) ? row[c.toneFrom] : null
+  const tone = cellTone && c.display !== 'chip' ? ' xeplr-factory-cell--' + cellTone : ''
+  const bold = c.bold ? ' is-bold' : ''
+
+  if (c.display === 'chip') {
+    const zero = isNothing(value) && isNothing(shown)
+    const t = zero ? 'zero' : (cellTone || c.tone || 'accent')
+    const pill = <span className={'xeplr-factory-pill xeplr-factory-pill--' + t + bold}>{text(shown)}</span>
+    if (first && open) return <button type="button" className="xeplr-factory-cell xeplr-factory-cell-open" onClick={(e) => { e.stopPropagation(); open(row) }} {...marker}>{pill}</button>
+    return <span className="xeplr-factory-cell" {...marker}>{pill}</span>
+  }
 
   if (c.display === 'images') {
     const pics = Array.isArray(value) ? value.filter((x) => x && x.src) : []
@@ -240,9 +253,14 @@ function Cell({ column: c, row, index, first, open, details, onOpenAt }) {
   )
   // The first cell of a row that opens is a button: the keyboard's way in.
   if (first && open) {
-    return <button type="button" className={'xeplr-factory-cell xeplr-factory-cell-open' + tone} onClick={(e) => { e.stopPropagation(); open(row) }} {...marker}>{body}</button>
+    return <button type="button" className={'xeplr-factory-cell xeplr-factory-cell-open' + tone + bold} onClick={(e) => { e.stopPropagation(); open(row) }} {...marker}>{body}</button>
   }
-  return <span className={'xeplr-factory-cell' + tone} {...marker}>{body}</span>
+  return <span className={'xeplr-factory-cell' + tone + bold} {...marker}>{body}</span>
+}
+
+/** 0, empty or nothing: a chip with no tone. */
+function isNothing(v) {
+  return v === null || v === undefined || v === '' || v === 0 || v === '0'
 }
 
 /** An "items" value: [{ src, name, detail, qty }], anything else dropped. */

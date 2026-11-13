@@ -16,7 +16,7 @@ export { validateDocument, assertValidDocument } from './validateDocument.js'
 export { SCREEN_EVENTS, SCREEN_EVENT_KEYS, DECIDE_EVENT, FUNCTION_NAME, screenFunctions, missingFunctions, functionProblems, setEvent, functionsFor } from './events.js'
 // Buttons and lists whose rows a function works out — names and values only.
 export {
-  BUTTON_EVENT, LIST_ROWS_EVENT, ROW_DETAILS_EVENT, BUTTON_VARIANTS, COLUMN_DISPLAYS, LIST_LAYOUTS, BADGE_TONES, NOTE_INPUT, FILES_INPUT, CONDITION_OPERATORS,
+  BUTTON_EVENT, LIST_ROWS_EVENT, ROW_DETAILS_EVENT, BUTTON_VARIANTS, COLUMN_DISPLAYS, LIST_LAYOUTS, BADGE_TONES, COLUMN_ICONS, NOTE_INPUT, FILES_INPUT, CONDITION_OPERATORS,
   conditionMet, buttonShown, buttonDisabled, buttonPressed, screenButtons, buttonById, buttonInput, askFile, askFileProblem, askFields, askFieldStart, askFieldValues, askDayLimit, ASK_FIELD_TYPES, BUTTON_OPTIONS_EVENT, MAX_CHECKLIST_OPTIONS, checklistOptionsOf, checklistFields, nodeFunctions, paramProblems, optionValues
 } from './buttons.js'
 // An autocomplete field's suggestions — what a suggest function may answer, and what picking one writes.

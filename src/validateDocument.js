@@ -17,7 +17,7 @@ import { DATE_PRESET_VALUES } from './listRange.js'
 import { RESERVED_COLUMNS, MAX_IDENTIFIER } from './tableSchema.js'
 import { FIELD_PRESETS, INPUT_TYPES, presetFor } from './presets.js'
 import { isBinding } from './values.js'
-import { BUTTON_VARIANTS, COLUMN_DISPLAYS, LIST_LAYOUTS, BADGE_TONES, CONDITION_OPERATORS, ASK_FIELD_TYPES, NOTE_INPUT, FILES_INPUT, isAskDayLimit } from './buttons.js'
+import { BUTTON_VARIANTS, COLUMN_DISPLAYS, LIST_LAYOUTS, BADGE_TONES, COLUMN_ICONS, CONDITION_OPERATORS, ASK_FIELD_TYPES, NOTE_INPUT, FILES_INPUT, isAskDayLimit } from './buttons.js'
 
 const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 const TABLE_NAME = /^[A-Za-z_][A-Za-z0-9_.$-]*$/
@@ -490,7 +490,7 @@ function checkList(props, doc, at, err) {
 // (`field`), the text shown for it (`text`, else the value), a second line,
 // how it is drawn, badges after it, how many more pictures, and the function
 // its hover box lists from.
-const FED_COLUMN_KEYS = ['field', 'label', 'text', 'sub', 'display', 'badges', 'more', 'details', 'sortable', 'toneFrom']
+const FED_COLUMN_KEYS = ['field', 'label', 'text', 'sub', 'display', 'badges', 'more', 'details', 'sortable', 'toneFrom', 'tone', 'icon', 'bold']
 
 /** The settings only a function-fed list has. */
 function checkFedList(props, fed, at, err) {
@@ -586,6 +586,9 @@ function checkFedColumn(c, p, err) {
     else if (c.display !== 'activity') err(`${p}.details`, 'is what an "activity" column\'s hover box lists — set display to "activity"')
   }
   if (c.sortable !== undefined && typeof c.sortable !== 'boolean') err(`${p}.sortable`, 'must be true or false')
+  if (c.tone !== undefined && !BADGE_TONES.includes(c.tone)) err(`${p}.tone`, `must be one of: ${BADGE_TONES.join(', ')}`)
+  if (c.icon !== undefined && !COLUMN_ICONS.includes(c.icon)) err(`${p}.icon`, `must be one of: ${COLUMN_ICONS.join(', ')}`)
+  if (c.bold !== undefined && typeof c.bold !== 'boolean') err(`${p}.bold`, 'must be true or false')
   if (c.toneFrom !== undefined && !(nonEmptyString(c.toneFrom) && FIELD_NAME.test(c.toneFrom))) err(`${p}.toneFrom`, `must be a field of the row holding the cell's tone (${BADGE_TONES.join(', ')}) or nothing`)
   if (c.badges !== undefined) {
     if (!Array.isArray(c.badges)) { err(`${p}.badges`, 'must be an array of { field, label, tone? }'); return }
