@@ -414,6 +414,13 @@
 .xeplr-factory-cell-open { font: inherit; color: inherit; background: none; border: none; padding: 0; text-align: left; cursor: pointer; }
 .xeplr-factory-cell-open .xeplr-factory-cell-main { font-weight: 600; color: var(--xf-accent); }
 .xeplr-factory-cell-open:focus-visible { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--xf-accent) 35%, transparent); border-radius: 4px; }
+.xeplr-factory-cell[class*="xeplr-factory-cell--"] { padding: 2px 6px; margin: -2px -6px; border-radius: 4px; }
+.xeplr-factory-cell--success { color: var(--xf-good); background: color-mix(in srgb, var(--xf-good) 12%, transparent); }
+.xeplr-factory-cell--warning { color: var(--xf-warn); background: color-mix(in srgb, var(--xf-warn) 14%, transparent); }
+.xeplr-factory-cell--danger { color: var(--xf-danger); background: color-mix(in srgb, var(--xf-danger) 12%, transparent); }
+.xeplr-factory-cell--muted { color: var(--xf-muted); }
+.xeplr-factory-cell--accent { color: var(--xf-accent); background: color-mix(in srgb, var(--xf-accent) 10%, transparent); }
+[class*="xeplr-factory-cell--"] .xeplr-factory-cell-sub { color: inherit; opacity: .8; }
 .xeplr-factory-cell-sub { flex-basis: 100%; font-size: .88em; color: var(--xf-muted); }
 .xeplr-factory-badge {
   font-size: .75em; font-weight: 600; padding: 1px 7px; border-radius: 999px; white-space: nowrap;
