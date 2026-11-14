@@ -509,6 +509,8 @@ button.xeplr-factory-activity-item:hover, button.xeplr-factory-activity-item:foc
 .xeplr-factory-buttons-note--error { color: var(--xf-danger); background: color-mix(in srgb, var(--xf-danger) 10%, transparent); }
 .xeplr-factory-buttons-note-close { font: inherit; font-size: 1.1em; line-height: 1; color: inherit; background: none; border: none; cursor: pointer; padding: 2px 4px; }
 .xeplr-factory-ask { --xf-modal-w: min(440px, 96vw); }
+.xeplr-factory-ask-wide { --xf-modal-w: min(720px, 96vw); }
+.xeplr-factory-ask-fields[data-columns] { grid-template-columns: repeat(var(--xf-ask-columns), minmax(0, 1fr)); }
 .xeplr-factory-ask .xeplr-factory-modal-body { padding: 4px 18px 8px; display: flex; flex-direction: column; gap: 10px; }
 .xeplr-factory-ask-message { margin: 0; color: var(--xf-muted); }
 .xeplr-factory-ask-field { display: flex; flex-direction: column; gap: 4px; }
@@ -975,6 +977,8 @@ button.xeplr-factory-activity-item:hover, button.xeplr-factory-activity-item:foc
 @media (max-width: 640px) {
   .xeplr-factory-list-search, .xeplr-factory-ask-note, .xeplr-factory-ask-input { font-size: max(16px, 1em); min-height: 44px; }
   .xeplr-factory-ask-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* A popup laid out in more than two columns still has two on a phone. */
+  .xeplr-factory-ask-fields[data-columns]:not([data-columns="1"]) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .xeplr-factory-list-search { flex-basis: 100%; max-width: none; }
   .xeplr-factory-ask-foot button { flex: 1; min-height: 44px; }
   .xeplr-factory-chips { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; padding-bottom: 2px; }

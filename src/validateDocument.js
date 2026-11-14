@@ -630,7 +630,10 @@ const ASK_FILE_KEYS = ['label', 'required', 'accept', 'maxSize', 'multiple', 'ma
  * server checks the names against what is registered when the screen is
  * published (functionProblems). Here: the shape.
  */
-const ASK_FIELD_KEYS = ['name', 'label', 'type', 'unit', 'required', 'min', 'max', 'fill', 'optionsFrom', 'options']
+const ASK_FIELD_KEYS = ['name', 'label', 'type', 'unit', 'required', 'min', 'max', 'fill', 'optionsFrom', 'options', 'newRow']
+// How the popup is laid out: wider, and how many fields to a line.
+const ASK_LAYOUT_KEYS = ['wide', 'columns']
+export const MAX_ASK_COLUMNS = 4
 
 /** A button's `ask.fields`: the values a press asks for, each reaching the function under its name. */
 function checkAskFields(fields, params, at, err) {
@@ -650,6 +653,7 @@ function checkAskFields(fields, params, at, err) {
     if (!ASK_FIELD_TYPES.includes(f.type)) err(`${p}.type`, `must be one of: ${ASK_FIELD_TYPES.join(', ')}`)
     if (f.unit !== undefined && !(typeof f.unit === 'string' && f.unit.length <= 12)) err(`${p}.unit`, 'must be a short text, e.g. "in" or "kg"')
     if (f.required !== undefined && typeof f.required !== 'boolean') err(`${p}.required`, 'must be true or false')
+    if (f.newRow !== undefined && typeof f.newRow !== 'boolean') err(`${p}.newRow`, 'must be true or false — starts a new line of fields')
     if (f.type === 'checklist') {
       if (!(nonEmptyString(f.optionsFrom) && FUNCTION_NAME.test(f.optionsFrom))) err(`${p}.optionsFrom`, 'must be the name of a registered function (event "buttonOptions") that lists what to tick, e.g. "movementItemsOut"')
       ;['min', 'max'].forEach((k) => { if (f[k] !== undefined && !(Number.isInteger(f[k]) && f[k] >= 0)) err(`${p}.${k}`, 'must be how many, a whole number') })
@@ -717,8 +721,11 @@ function checkButtons(props, at, err, ids) {
     if (b.ask !== undefined) {
       if (!b.ask || typeof b.ask !== 'object' || Array.isArray(b.ask)) err(`${p}.ask`, 'must be { title?, message?, note? } — what the person is asked before it runs')
       else {
-        const bad = Object.keys(b.ask).filter((k) => !ASK_KEYS.includes(k) && k !== 'file' && k !== 'fields')
-        if (bad.length) err(`${p}.ask`, `only ${[...ASK_KEYS, 'file', 'fields'].map((k) => `"${k}"`).join(', ')} are used — remove: ${bad.join(', ')}`)
+        const bad = Object.keys(b.ask).filter((k) => !ASK_KEYS.includes(k) && !ASK_LAYOUT_KEYS.includes(k) && k !== 'file' && k !== 'fields')
+        if (bad.length) err(`${p}.ask`, `only ${[...ASK_KEYS, ...ASK_LAYOUT_KEYS, 'file', 'fields'].map((k) => `"${k}"`).join(', ')} are used — remove: ${bad.join(', ')}`)
+        if (b.ask.wide !== undefined && typeof b.ask.wide !== 'boolean') err(`${p}.ask.wide`, 'must be true or false — a wider popup')
+        if (b.ask.columns !== undefined && !(Number.isInteger(b.ask.columns) && b.ask.columns >= 1 && b.ask.columns <= MAX_ASK_COLUMNS)) err(`${p}.ask.columns`, `must be how many fields to a line, 1 to ${MAX_ASK_COLUMNS}`)
+        if ((b.ask.wide !== undefined || b.ask.columns !== undefined) && !(Array.isArray(b.ask.fields) && b.ask.fields.length)) err(`${p}.ask`, '"wide" and "columns" lay out the fields — this asks for none')
         ASK_KEYS.forEach((k) => { if (b.ask[k] !== undefined && typeof b.ask[k] !== 'string') err(`${p}.ask.${k}`, 'must be a string') })
         if (b.ask.file !== undefined) checkAskFile(b.ask.file, `${p}.ask.file`, err)
         if (b.ask.fields !== undefined) checkAskFields(b.ask.fields, b.params, `${p}.ask.fields`, err)
