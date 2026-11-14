@@ -479,9 +479,12 @@ function checkList(props, doc, at, err) {
       else if (seen.has(c.field)) err(`${p}.field`, `"${c.field}" appears twice`)
       else seen.add(c.field)
       if (!nonEmptyString(c.label)) err(`${p}.label`, 'must be a non-empty string — the column heading')
-      const allowed = fed ? FED_COLUMN_KEYS : ['field', 'label']
+      const allowed = fed ? FED_COLUMN_KEYS : ['field', 'label', 'action']
       const extra = Object.keys(c).filter((k) => !allowed.includes(k))
-      if (extra.length) err(p, fed ? `has keys a column does not use — remove: ${extra.join(', ')}` : `only "field" and "label" are used — remove: ${extra.join(', ')} (the rest need "rowsFrom")`)
+      if (extra.length) err(p, fed ? `has keys a column does not use — remove: ${extra.join(', ')}` : `only "field", "label" and "action" are used — remove: ${extra.join(', ')} (the rest need "rowsFrom")`)
+      // A cell that runs one of the row's actions when clicked: "edit", or the
+      // id of one the page's hooks add (actions(ctx) → { id, label, onClick }).
+      if (!fed && c.action !== undefined && !(nonEmptyString(c.action) && /^[A-Za-z][A-Za-z0-9_-]{0,62}$/.test(c.action))) err(`${p}.action`, 'must be "edit" or the id of a row action the page adds, e.g. "open-order"')
       if (fed) checkFedColumn(c, p, err)
     })
   }

@@ -96,8 +96,9 @@ export class FactoryHooks {
 
   /**
    * Extra buttons on each row, beside Edit and Delete:
-   *   [{ label: 'Mark done', onClick: (record, ctx) => … }]
-   * ctx.refresh() reloads the list.
+   *   [{ id: 'mark-done', label: 'Mark done', onClick: (record, ctx) => … }]
+   * ctx.refresh() reloads the list. A column naming an action's `id` in its
+   * `action` makes its cell a link that runs it (the order number opens the order).
    */
   actions(ctx) {
     return []
