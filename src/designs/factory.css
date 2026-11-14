@@ -510,6 +510,10 @@ button.xeplr-factory-activity-item:hover, button.xeplr-factory-activity-item:foc
 .xeplr-factory-buttons-note-close { font: inherit; font-size: 1.1em; line-height: 1; color: inherit; background: none; border: none; cursor: pointer; padding: 2px 4px; }
 .xeplr-factory-ask { --xf-modal-w: min(440px, 96vw); }
 .xeplr-factory-ask-wide { --xf-modal-w: min(720px, 96vw); }
+/* A tick box takes the whole line, so what it means reads beside it. */
+.xeplr-factory-ask-checkbox { grid-column: 1 / -1; }
+.xeplr-factory-ask-checkbox .xeplr-factory-ask-check { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.xeplr-factory-ask-checkbox input { width: 18px; height: 18px; margin: 0; }
 .xeplr-factory-ask-fields[data-columns] { grid-template-columns: repeat(var(--xf-ask-columns), minmax(0, 1fr)); }
 .xeplr-factory-ask .xeplr-factory-modal-body { padding: 4px 18px 8px; display: flex; flex-direction: column; gap: 10px; }
 .xeplr-factory-ask-message { margin: 0; color: var(--xf-muted); }

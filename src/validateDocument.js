@@ -663,6 +663,11 @@ function checkAskFields(fields, params, at, err) {
       return
     }
     if (f.optionsFrom !== undefined) err(`${p}.optionsFrom`, 'is for a checklist')
+    if (f.type === 'checkbox') {
+      ;['min', 'max', 'unit', 'options', 'optionsFrom'].forEach((k) => { if (f[k] !== undefined) err(`${p}.${k}`, 'is not for a checkbox') })
+      if (f.fill !== undefined && !(nonEmptyString(f.fill) && /^[A-Za-z_][A-Za-z0-9_]*$/.test(f.fill))) err(`${p}.fill`, 'must be a field of the record, e.g. "localDelivery"')
+      return
+    }
     if (f.type === 'choice') {
       const list = Array.isArray(f.options) ? f.options : null
       const values = (list || []).map((o) => (o && typeof o === 'object' && !Array.isArray(o) ? o.value : o))
