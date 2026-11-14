@@ -144,7 +144,7 @@ export function buttonInput(button, note, files, values) {
 }
 
 /** The kinds of value a button's `ask.fields` can ask for. */
-export const ASK_FIELD_TYPES = ['number', 'text', 'date', 'checklist', 'choice']
+export const ASK_FIELD_TYPES = ['number', 'text', 'date', 'checklist', 'choice', 'checkbox']
 
 /**
  * A CHECKLIST in a button's popup: a tick per entry, the entries worked out
@@ -251,6 +251,8 @@ export function askFields(button) {
 export function askFieldStart(field, record) {
   if (field.type === 'checklist') return []
   const v = field.fill && record ? record[field.fill] : undefined
+  // A CHECKBOX: ticked or not — from the record's field when it says so.
+  if (field.type === 'checkbox') return v === true || v === 'true' || v === 1 || v === '1'
   if (v === undefined || v === null) return ''
   // A choice starts from the record's value only when it is still one of the options.
   if (field.type === 'choice') return askChoiceOptions(field).some((o) => o.value === String(v)) ? String(v) : ''
@@ -277,6 +279,13 @@ export function askFieldValues(button, given, now, offered) {
     const v = raw[f.name]
     // A CHECKLIST: the ids ticked, each one the function offered (`offered`:
     // { field: [ids] }, when known — always on the server).
+    // A CHECKBOX: always sent, true or false; `required` means it must be ticked.
+    if (f.type === 'checkbox') {
+      const on = v === true || v === 'true' || v === 1 || v === '1' || v === 'on'
+      if (f.required && !on) { errors.push({ field: f.name, message: `${label} must be ticked` }); return }
+      values[f.name] = on
+      return
+    }
     if (f.type === 'checklist') {
       if (v !== undefined && v !== null && !Array.isArray(v)) { errors.push({ field: f.name, message: `${label} must be a list` }); return }
       const ids = [...new Set((v || []).map((x) => (x === undefined || x === null ? '' : String(x).trim())).filter(Boolean))]
@@ -397,8 +406,8 @@ export function paramProblems(button, inputSchema) {
   askFields(button).forEach((a) => {
     const f = byName.get(a.name)
     if (!f) { problems.push(`asks for "${a.name}", but takes no "${a.name}"`); return }
-    const want = a.type === 'number' ? 'number' : a.type === 'checklist' ? 'array' : 'string'
-    if (f.type && f.type !== want) problems.push(`asks for "${a.name}" as ${a.type === 'number' ? 'a number' : a.type === 'date' ? 'a date' : a.type === 'checklist' ? 'a list of ticked ids' : 'text'}, but it takes ${f.type}`)
+    const want = a.type === 'number' ? 'number' : a.type === 'checklist' ? 'array' : a.type === 'checkbox' ? 'boolean' : 'string'
+    if (f.type && f.type !== want) problems.push(`asks for "${a.name}" as ${a.type === 'number' ? 'a number' : a.type === 'date' ? 'a date' : a.type === 'checklist' ? 'a list of ticked ids' : a.type === 'checkbox' ? 'a tick (true or false)' : 'text'}, but it takes ${f.type}`)
     // A choice offers only what the function takes, when it lists what it takes.
     const takes = optionValues(f.options).map(String)
     if (a.type === 'choice' && takes.length) {

@@ -1071,7 +1071,7 @@ function AskFieldsEditor({ value, inputs, onChange, optionFunctions = [] }) {
   const free = inputs.filter((f) => !fields.some((a) => a.name === f.name))
   // An input that takes a list is a checklist: what to tick, worked out for the record.
   // An input that lists what it takes (options) is a choice: a dropdown of those.
-  const typeOf = (f) => (f && f.type === 'number' ? 'number' : f && f.type === 'array' ? 'checklist' : f && Array.isArray(f.options) && f.options.length ? 'choice' : 'text')
+  const typeOf = (f) => (f && f.type === 'number' ? 'number' : f && f.type === 'array' ? 'checklist' : f && f.type === 'boolean' ? 'checkbox' : f && Array.isArray(f.options) && f.options.length ? 'choice' : 'text')
   if (!inputs.length && !fields.length) return null
   return (
     <div className="xeplr-factory-rows-editor">

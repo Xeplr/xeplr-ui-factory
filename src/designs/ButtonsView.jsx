@@ -172,6 +172,19 @@ function AskDialog({ button, busy, error, onCancel, onConfirm, upload, readFile,
                     </fieldset>
                   )
                 }
+                if (f.type === 'checkbox') {
+                  return (
+                    <div key={f.name} style={rowStart(f)} className="xeplr-factory-ask-field xeplr-factory-ask-checkbox">
+                      <label className="xeplr-factory-ask-check" htmlFor={fid}>
+                        <input id={fid} type="checkbox" checked={given[f.name] === true} disabled={busy}
+                          aria-invalid={shown[f.name] ? true : undefined} aria-describedby={shown[f.name] ? `${fid}-error` : undefined}
+                          onChange={(e) => { const on = e.target.checked; setGiven((g) => ({ ...g, [f.name]: on })); setShown((m) => ({ ...m, [f.name]: undefined })) }} />
+                        <span className="xeplr-factory-ask-label">{f.label}{f.required ? ' *' : ''}</span>
+                      </label>
+                      {shown[f.name] && <span className="xeplr-factory-ask-field-error" id={`${fid}-error`} role="alert">{shown[f.name]}</span>}
+                    </div>
+                  )
+                }
                 if (f.type === 'choice') {
                   return (
                     <div key={f.name} style={rowStart(f)} className="xeplr-factory-ask-field">
