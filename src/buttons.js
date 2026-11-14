@@ -144,7 +144,7 @@ export function buttonInput(button, note, files, values) {
 }
 
 /** The kinds of value a button's `ask.fields` can ask for. */
-export const ASK_FIELD_TYPES = ['number', 'text', 'date', 'checklist']
+export const ASK_FIELD_TYPES = ['number', 'text', 'date', 'checklist', 'choice']
 
 /**
  * A CHECKLIST in a button's popup: a tick per entry, the entries worked out
@@ -171,6 +171,25 @@ export function checklistOptionsOf(out) {
     list.push(one)
   })
   return list
+}
+
+/**
+ * A CHOICE in a button's popup: one of a fixed list, picked from a dropdown —
+ * why an order came back:
+ *
+ *   { "name": "rtoType", "label": "RTO type", "type": "choice",
+ *     "options": [{ "value": "not_accepted", "label": "Customer did not accept" }, "Other"] }
+ *
+ * `options` are plain values or { value, label }; the value reaches the
+ * function as a string, and one not in the list is refused on both sides.
+ * @returns {{ value: string, label: string }[]}
+ */
+export function askChoiceOptions(field) {
+  return (Array.isArray(field && field.options) ? field.options : []).map((o) => {
+    const value = o && typeof o === 'object' ? o.value : o
+    const label = o && typeof o === 'object' && o.label !== undefined && o.label !== null && String(o.label).trim() ? String(o.label).trim() : String(value)
+    return { value: value === undefined || value === null ? '' : String(value), label }
+  }).filter((o) => o.value !== '')
 }
 
 /** The checklist fields a button asks for. */
@@ -233,6 +252,8 @@ export function askFieldStart(field, record) {
   if (field.type === 'checklist') return []
   const v = field.fill && record ? record[field.fill] : undefined
   if (v === undefined || v === null) return ''
+  // A choice starts from the record's value only when it is still one of the options.
+  if (field.type === 'choice') return askChoiceOptions(field).some((o) => o.value === String(v)) ? String(v) : ''
   if (field.type === 'date') {
     const day = v instanceof Date ? localDay(v) : String(v).slice(0, 10)
     return isAskDay(day) ? day : ''
@@ -279,6 +300,12 @@ export function askFieldValues(button, given, now, offered) {
       if (f.min !== undefined && n < f.min) { errors.push({ field: f.name, message: `${label} must be at least ${f.min}` }); return }
       if (f.max !== undefined && n > f.max) { errors.push({ field: f.name, message: `${label} must be at most ${f.max}` }); return }
       values[f.name] = n
+      return
+    }
+    if (f.type === 'choice') {
+      const picked = String(v).trim()
+      if (!askChoiceOptions(f).some((o) => o.value === picked)) { errors.push({ field: f.name, message: `${label}: choose one of the list` }); return }
+      values[f.name] = picked
       return
     }
     if (f.type === 'date') {
@@ -372,6 +399,12 @@ export function paramProblems(button, inputSchema) {
     if (!f) { problems.push(`asks for "${a.name}", but takes no "${a.name}"`); return }
     const want = a.type === 'number' ? 'number' : a.type === 'checklist' ? 'array' : 'string'
     if (f.type && f.type !== want) problems.push(`asks for "${a.name}" as ${a.type === 'number' ? 'a number' : a.type === 'date' ? 'a date' : a.type === 'checklist' ? 'a list of ticked ids' : 'text'}, but it takes ${f.type}`)
+    // A choice offers only what the function takes, when it lists what it takes.
+    const takes = optionValues(f.options).map(String)
+    if (a.type === 'choice' && takes.length) {
+      const stray = askChoiceOptions(a).map((o) => o.value).filter((v) => !takes.includes(v))
+      if (stray.length) problems.push(`offers ${stray.map((v) => `"${v}"`).join(', ')} for "${a.name}", but it takes only: ${takes.join(', ')}`)
+    }
   })
   return problems
 }

@@ -18,7 +18,7 @@ export { SCREEN_EVENTS, SCREEN_EVENT_KEYS, DECIDE_EVENT, FUNCTION_NAME, screenFu
 // Buttons and lists whose rows a function works out — names and values only.
 export {
   BUTTON_EVENT, LIST_ROWS_EVENT, ROW_DETAILS_EVENT, BUTTON_VARIANTS, COLUMN_DISPLAYS, LIST_LAYOUTS, BADGE_TONES, COLUMN_ICONS, NOTE_INPUT, FILES_INPUT, CONDITION_OPERATORS,
-  conditionMet, buttonShown, buttonDisabled, buttonPressed, screenButtons, buttonById, buttonInput, askFile, askFileProblem, askFields, askFieldStart, askFieldValues, askDayLimit, ASK_FIELD_TYPES, BUTTON_OPTIONS_EVENT, MAX_CHECKLIST_OPTIONS, checklistOptionsOf, checklistFields, nodeFunctions, paramProblems, optionValues
+  conditionMet, buttonShown, buttonDisabled, buttonPressed, screenButtons, buttonById, buttonInput, askFile, askFileProblem, askFields, askFieldStart, askFieldValues, askChoiceOptions, askDayLimit, ASK_FIELD_TYPES, BUTTON_OPTIONS_EVENT, MAX_CHECKLIST_OPTIONS, checklistOptionsOf, checklistFields, nodeFunctions, paramProblems, optionValues
 } from './buttons.js'
 // An autocomplete field's suggestions — what a suggest function may answer, and what picking one writes.
 export { SUGGEST_EVENT, MAX_SUGGESTIONS, DEFAULT_MIN_CHARS, MAX_SUGGEST_QUERY, suggestionsOf, shouldSuggest, pickValues, MAX_TAGS, MAX_TAG_QTY, isTagField, tagLimit, addTag, setTagQty, removeTag, tagsOf } from './suggest.js'

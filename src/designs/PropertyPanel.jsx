@@ -1070,7 +1070,8 @@ function AskFieldsEditor({ value, inputs, onChange, optionFunctions = [] }) {
   }))
   const free = inputs.filter((f) => !fields.some((a) => a.name === f.name))
   // An input that takes a list is a checklist: what to tick, worked out for the record.
-  const typeOf = (f) => (f && f.type === 'number' ? 'number' : f && f.type === 'array' ? 'checklist' : 'text')
+  // An input that lists what it takes (options) is a choice: a dropdown of those.
+  const typeOf = (f) => (f && f.type === 'number' ? 'number' : f && f.type === 'array' ? 'checklist' : f && Array.isArray(f.options) && f.options.length ? 'choice' : 'text')
   if (!inputs.length && !fields.length) return null
   return (
     <div className="xeplr-factory-rows-editor">
@@ -1090,13 +1091,18 @@ function AskFieldsEditor({ value, inputs, onChange, optionFunctions = [] }) {
               </select>
             </MiniField>
           )}
-          {f.type !== 'number' && f.type !== 'checklist' && (
+          {f.type === 'choice' && (
+            <MiniField label="Choices" help="What the function takes; the dropdown shows them in this order">
+              <span className="xeplr-factory-hint">{(f.options || []).map((o) => (o && typeof o === 'object' ? o.label || o.value : o)).join(' · ')}</span>
+            </MiniField>
+          )}
+          {f.type !== 'number' && f.type !== 'checklist' && f.type !== 'choice' && (
             <MiniField label="Kind"><select className="xeplr-factory-prop-input" value={f.type === 'date' ? 'date' : 'text'} onChange={(e) => edit(j, e.target.value === 'date' ? { type: 'date', unit: undefined } : { type: 'text', min: undefined, max: undefined })}>
               <option value="text">Text</option>
               <option value="date">Date</option>
             </select></MiniField>
           )}
-          {f.type !== 'date' && f.type !== 'checklist' && (
+          {f.type !== 'date' && f.type !== 'checklist' && f.type !== 'choice' && (
             <MiniField label="Unit" help='e.g. "in", "kg"'><input className="xeplr-factory-prop-input" value={f.unit || ''} maxLength={12} onChange={(e) => edit(j, { unit: e.target.value })} /></MiniField>
           )}
           {f.type === 'date' && (
@@ -1118,7 +1124,7 @@ function AskFieldsEditor({ value, inputs, onChange, optionFunctions = [] }) {
       {free.length > 0 && (
         <select className="xeplr-factory-prop-input" value="" aria-label="Ask for another input" onChange={(e) => {
           const f = free.find((x) => x.name === e.target.value)
-          if (f) set([...fields, { name: f.name, label: f.label || f.name, type: typeOf(f) }])
+          if (f) set([...fields, Object.assign({ name: f.name, label: f.label || f.name, type: typeOf(f) }, typeOf(f) === 'choice' ? { options: f.options } : {})])
         }}>
           <option value="">+ Ask for…</option>
           {free.map((f) => <option key={f.name} value={f.name}>{f.label || f.name}</option>)}
