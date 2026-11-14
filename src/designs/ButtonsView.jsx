@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { boxStyle, fieldStyle } from './styles.js'
 import FileField from './FileField.jsx'
-import { askFields, askFieldStart, askFieldValues, askDayLimit, checklistOptionsOf } from '../buttons.js'
+import { askFields, askFieldStart, askFieldValues, askDayLimit, checklistOptionsOf, askChoiceOptions } from '../buttons.js'
 
 // A PANEL OF BUTTONS. Each runs a function of the app on the server, with the
 // parameters the screen gives it; which ones show, and which are greyed out,
@@ -159,6 +159,26 @@ function AskDialog({ button, busy, error, onCancel, onConfirm, upload, readFile,
                       )}
                       {shown[f.name] && <span className="xeplr-factory-ask-field-error" id={`${fid}-error`} role="alert">{shown[f.name]}</span>}
                     </fieldset>
+                  )
+                }
+                if (f.type === 'choice') {
+                  return (
+                    <div key={f.name} className="xeplr-factory-ask-field">
+                      <label className="xeplr-factory-ask-label" htmlFor={fid}>{f.label}{f.required ? ' *' : ''}</label>
+                      <select
+                        id={fid}
+                        className="xeplr-factory-ask-input"
+                        value={given[f.name] ?? ''}
+                        disabled={busy}
+                        aria-invalid={shown[f.name] ? true : undefined}
+                        aria-describedby={shown[f.name] ? `${fid}-error` : undefined}
+                        onChange={(e) => { const v = e.target.value; setGiven((g) => ({ ...g, [f.name]: v })); setShown((m) => ({ ...m, [f.name]: undefined })) }}
+                      >
+                        <option value="">Choose…</option>
+                        {askChoiceOptions(f).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      </select>
+                      {shown[f.name] && <span className="xeplr-factory-ask-field-error" id={`${fid}-error`} role="alert">{shown[f.name]}</span>}
+                    </div>
                   )
                 }
                 return (

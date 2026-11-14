@@ -630,11 +630,11 @@ const ASK_FILE_KEYS = ['label', 'required', 'accept', 'maxSize', 'multiple', 'ma
  * server checks the names against what is registered when the screen is
  * published (functionProblems). Here: the shape.
  */
-const ASK_FIELD_KEYS = ['name', 'label', 'type', 'unit', 'required', 'min', 'max', 'fill', 'optionsFrom']
+const ASK_FIELD_KEYS = ['name', 'label', 'type', 'unit', 'required', 'min', 'max', 'fill', 'optionsFrom', 'options']
 
 /** A button's `ask.fields`: the values a press asks for, each reaching the function under its name. */
 function checkAskFields(fields, params, at, err) {
-  if (!Array.isArray(fields)) { err(at, 'must be a list of { name, label, type, unit?, required?, min?, max?, fill? }'); return }
+  if (!Array.isArray(fields)) { err(at, 'must be a list of { name, label, type, unit?, required?, min?, max?, fill?, options? }'); return }
   const seen = new Set()
   fields.forEach((f, i) => {
     const p = `${at}[${i}]`
@@ -659,6 +659,17 @@ function checkAskFields(fields, params, at, err) {
       return
     }
     if (f.optionsFrom !== undefined) err(`${p}.optionsFrom`, 'is for a checklist')
+    if (f.type === 'choice') {
+      const list = Array.isArray(f.options) ? f.options : null
+      const values = (list || []).map((o) => (o && typeof o === 'object' && !Array.isArray(o) ? o.value : o))
+      if (!list || !list.length) err(`${p}.options`, 'must list what can be chosen: values, or { value, label }')
+      else if (values.some((v) => !(typeof v === 'string' && v.trim()) && !(typeof v === 'number' && Number.isFinite(v)))) err(`${p}.options`, 'each must be a value, or { value, label } with a value')
+      else if (new Set(values.map(String)).size !== values.length) err(`${p}.options`, 'a value is listed twice')
+      ;['min', 'max', 'unit'].forEach((k) => { if (f[k] !== undefined) err(`${p}.${k}`, 'is not for a choice') })
+      if (f.fill !== undefined && !(nonEmptyString(f.fill) && /^[A-Za-z_][A-Za-z0-9_]*$/.test(f.fill))) err(`${p}.fill`, 'must be a field of the record, e.g. "rtoType"')
+      return
+    }
+    if (f.options !== undefined) err(`${p}.options`, 'is for a choice')
     ;['min', 'max'].forEach((k) => {
       if (f[k] === undefined) return
       if (f.type === 'date') { if (!isAskDayLimit(f[k])) err(`${p}.${k}`, 'must be a day, "YYYY-MM-DD", or "today"') }

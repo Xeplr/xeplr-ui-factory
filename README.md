@@ -464,13 +464,28 @@ Packed asks for the parcel's size, for the courier:
 |---|---|
 | `name` | what the function receives it as — one of its `inputSchema` inputs, never one of the button's `params`, `note` or `files` |
 | `label`, `unit` | what the person sees: "Length", "in" |
-| `type` | `number` (a number keyboard on a phone; the value arrives as a number), `text`, or `date` (a calendar; the value arrives as `"YYYY-MM-DD"`) |
+| `type` | `number` (a number keyboard on a phone; the value arrives as a number), `text`, `date` (a calendar; the value arrives as `"YYYY-MM-DD"`), `choice` (a dropdown of `options`, below) or `checklist` (below) |
+| `options` | a `choice`'s list — plain values or `{ "value", "label" }`, in the order shown. The value arrives as a string; one not in the list is refused in the dialog and on the server, and publishing refuses an option the function's input does not list in its own `options` |
 | `required`, `min`, `max` | checked in the dialog **and on the server**, by the same `askFieldValues`. For a `date`, `min` / `max` are days or `"today"` — `"max": "today"` for something that has already happened ("today" is the day where the check runs) |
 | `fill` | a field of the record the dialog starts from — asked again, it shows what was given last time. A `date` takes the day of a date-and-time |
 
 - The press sends them as `values`; the server checks them against the **published** button and hands them to the function with its `params` — which always win, so a value typed cannot change what the screen says the button does.
 - Publishing refuses a field the function does not take, or takes as another type. A required input the button asks for is not "missing" from its `params`.
 - In the builder: **Asks for** under the button's Ask first, listing the function's inputs the button does not already give.
+
+#### A choice — one of a fixed list
+
+Why an order came back, picked from a dropdown, beside the reason typed:
+
+```json
+{ "name": "rtoType", "label": "RTO type", "type": "choice", "required": true, "fill": "rtoType",
+  "options": [{ "value": "not_accepted", "label": "Customer did not accept" }, { "value": "broken", "label": "Broken" }, { "value": "other", "label": "Other" }] }
+```
+
+The function takes it as a string input — give that input the same `options`
+and publishing checks the two agree. Asked again, it starts from the record's
+`fill` field when that is still one of the options. In the builder, an input
+with `options` is offered as a choice.
 
 #### A checklist — entries worked out for the record
 
