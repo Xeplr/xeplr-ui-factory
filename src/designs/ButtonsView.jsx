@@ -74,6 +74,17 @@ export default function ButtonsView({ node, design, panel }) {
 }
 
 /** "Change status to Packed?" — the button's message, its fields, a note and files when it takes them. */
+
+/** How many fields to a line in a button's popup (`ask.columns`), or none: as many as fit. */
+function askColumns(ask) {
+  return Number.isInteger(ask && ask.columns) && ask.columns >= 1 && ask.columns <= 4 ? ask.columns : 0
+}
+
+/** A field that starts a new line of the popup (`newRow`). */
+function rowStart(f) {
+  return f && f.newRow ? { gridColumnStart: 1 } : undefined
+}
+
 function AskDialog({ button, busy, error, onCancel, onConfirm, upload, readFile, record, options }) {
   const ask = button.ask || {}
   const file = ask.file && typeof ask.file === 'object' ? ask.file : null
@@ -121,7 +132,7 @@ function AskDialog({ button, busy, error, onCancel, onConfirm, upload, readFile,
   // At the page's root: inside the screen, a control's own box could clip it.
   return createPortal(
     <div className="xeplr-factory-modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) onCancel() }}>
-      <div ref={ref} className="xeplr-factory-modal xeplr-factory-ask" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
+      <div ref={ref} className={`xeplr-factory-modal xeplr-factory-ask${ask.wide ? ' xeplr-factory-ask-wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
         <header className="xeplr-factory-modal-head">
           <span className="xeplr-factory-modal-title" id={titleId}>{ask.title || `${button.label}?`}</span>
           <button type="button" className="xeplr-factory-modal-close" onClick={onCancel} disabled={busy} aria-label="Close">×</button>
@@ -129,14 +140,14 @@ function AskDialog({ button, busy, error, onCancel, onConfirm, upload, readFile,
         <div className="xeplr-factory-modal-body">
           {ask.message && <p className="xeplr-factory-ask-message">{ask.message}</p>}
           {fields.length > 0 && (
-            <div className="xeplr-factory-ask-fields">
+            <div className="xeplr-factory-ask-fields" style={askColumns(ask) ? { '--xf-ask-columns': askColumns(ask) } : undefined} data-columns={askColumns(ask) || undefined}>
               {fields.map((f) => {
                 const fid = `${titleId}-${f.name}`
                 if (f.type === 'checklist') {
                   const o = offered[f.name] || { loading: true, list: [] }
                   const ticked = Array.isArray(given[f.name]) ? given[f.name] : []
                   return (
-                    <fieldset key={f.name} className="xeplr-factory-ask-field xeplr-factory-ask-checklist" aria-describedby={shown[f.name] ? `${fid}-error` : undefined}>
+                    <fieldset key={f.name} style={rowStart(f)} className="xeplr-factory-ask-field xeplr-factory-ask-checklist" aria-describedby={shown[f.name] ? `${fid}-error` : undefined}>
                       <legend className="xeplr-factory-ask-label">{f.label}{f.required ? ' *' : ''}</legend>
                       {o.loading && <span className="xeplr-factory-hint">Loading…</span>}
                       {o.error && <span className="xeplr-factory-ask-field-error" role="alert">{o.error}</span>}
@@ -163,7 +174,7 @@ function AskDialog({ button, busy, error, onCancel, onConfirm, upload, readFile,
                 }
                 if (f.type === 'choice') {
                   return (
-                    <div key={f.name} className="xeplr-factory-ask-field">
+                    <div key={f.name} style={rowStart(f)} className="xeplr-factory-ask-field">
                       <label className="xeplr-factory-ask-label" htmlFor={fid}>{f.label}{f.required ? ' *' : ''}</label>
                       <select
                         id={fid}
@@ -182,7 +193,7 @@ function AskDialog({ button, busy, error, onCancel, onConfirm, upload, readFile,
                   )
                 }
                 return (
-                  <div key={f.name} className="xeplr-factory-ask-field">
+                  <div key={f.name} style={rowStart(f)} className="xeplr-factory-ask-field">
                     <label className="xeplr-factory-ask-label" htmlFor={fid}>{f.label}{f.required ? ' *' : ''}</label>
                     <span className="xeplr-factory-ask-value">
                       <input

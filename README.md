@@ -473,6 +473,25 @@ Packed asks for the parcel's size, for the courier:
 - Publishing refuses a field the function does not take, or takes as another type. A required input the button asks for is not "missing" from its `params`.
 - In the builder: **Asks for** under the button's Ask first, listing the function's inputs the button does not already give.
 
+#### Laying the popup out — `wide`, `columns`, `newRow`
+
+Many values to ask for read best as a table. `ask.wide` makes the popup wider;
+`ask.columns` (1–4) puts that many fields on each line; a field with
+`"newRow": true` starts a new line. An order's costs, two to a line, then each
+"other" cost's name beside its amount:
+
+```json
+"ask": { "title": "Order costs", "wide": true, "columns": 2, "fields": [
+  { "name": "shippingCost", "label": "Shipping", "type": "number", "unit": "₹" },
+  { "name": "boxCost", "label": "Box", "type": "number", "unit": "₹" },
+  { "name": "other1Name", "label": "Other 1 — what", "type": "text", "newRow": true },
+  { "name": "other1Cost", "label": "Other 1 — amount", "type": "number", "unit": "₹" }
+] }
+```
+
+Without `columns`, fields fill each line as they fit. On a phone, more than
+two columns become two.
+
 #### A choice — one of a fixed list
 
 Why an order came back, picked from a dropdown, beside the reason typed:
