@@ -80,6 +80,29 @@ export default function ListView({ node, doc, design, list, onEdit, onDelete, on
     rowActions.push({ key: 'extra-' + i + '-' + a.label, label: a.label, variant: a.variant, onClick: (row) => a.onClick(row.__record) })
   })
 
+  // A column that names a row action ("edit", or the id of one the page's
+  // hooks add) shows its value as a link running it — the order number opens
+  // the order. An action the page does not add: the value as plain text.
+  const byAction = { edit: actions.includes('edit') ? (rec) => onEdit(rec) : null }
+  extraActions.forEach((a) => { if (a.id) byAction[a.id] = (rec) => a.onClick(rec) })
+  const tableColumns = columns.map((c) => {
+    const run = c.action ? byAction[c.action] : null
+    if (!run) return { accessor: c.field, header: c.label }
+    return {
+      accessor: c.field, header: c.label,
+      cell: (ctx) => {
+        const value = ctx.getValue()
+        if (value === null || value === undefined || value === '') return ''
+        return (
+          <button type="button" className="xeplr-factory-cell-link"
+            onClick={(e) => { e.stopPropagation(); run(ctx.row.original.__record) }}>
+            {String(value)}
+          </button>
+        )
+      }
+    }
+  })
+
   const pageSize = p.pageSize || 10
   const title = <span className="xeplr-factory-list-title">{p.title}</span>
   const notes = (
@@ -112,7 +135,7 @@ export default function ListView({ node, doc, design, list, onEdit, onDelete, on
     <div className="xeplr-factory-list xeplr-factory-list--table" style={style}>
       <XeplrTable
         data={rows}
-        schema={{ 0: { key: listSource(doc, node) || 'records', columns: columns.map((c) => ({ accessor: c.field, header: c.label })) } }}
+        schema={{ 0: { key: listSource(doc, node) || 'records', columns: tableColumns } }}
         pageSize={pageSize}
         enablePagination={rows.length > pageSize}
         rowActions={rowActions.length ? rowActions : undefined}

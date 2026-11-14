@@ -510,6 +510,9 @@ button.xeplr-factory-activity-item:hover, button.xeplr-factory-activity-item:foc
 .xeplr-factory-buttons-note-close { font: inherit; font-size: 1.1em; line-height: 1; color: inherit; background: none; border: none; cursor: pointer; padding: 2px 4px; }
 .xeplr-factory-ask { --xf-modal-w: min(440px, 96vw); }
 .xeplr-factory-ask-wide { --xf-modal-w: min(720px, 96vw); }
+/* A cell that runs one of the row's actions (a column's "action"): reads as a link. */
+.xeplr-factory-cell-link { border: 0; background: none; padding: 0; font: inherit; color: var(--xf-accent); cursor: pointer; text-align: left; }
+.xeplr-factory-cell-link:hover, .xeplr-factory-cell-link:focus-visible { text-decoration: underline; }
 /* A tick box takes the whole line, so what it means reads beside it. */
 .xeplr-factory-ask-checkbox { grid-column: 1 / -1; }
 .xeplr-factory-ask-checkbox .xeplr-factory-ask-check { display: flex; align-items: center; gap: 8px; cursor: pointer; }

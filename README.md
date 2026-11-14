@@ -396,6 +396,19 @@ next — and they hold whoever does the work.
    not registered, are registered for something else, or are given parameters
    they do not take — saying which button and why (`functionProblems`).
 
+### A cell that opens something — a column's `action`
+
+In a list of a table, a column may name one of the row's actions: `"edit"`,
+or the `id` of one the page's hooks add (`actions(ctx)` →
+`{ id, label, onClick }`). Its value then shows as a link running that action
+— the order number on a shipping update opens the order:
+
+```json
+{ "field": "customOrderId", "label": "Order number", "action": "open-order" }
+```
+
+An action the page does not add leaves the value as plain text.
+
 ## Buttons — a function and its parameters
 
 A **Buttons** control (palette: Actions → Buttons) is a panel of buttons, each
