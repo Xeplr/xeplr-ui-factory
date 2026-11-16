@@ -8,8 +8,10 @@ import { journeyOf, menuItemsFor } from '../listRows.js'
  * A journey across the cell: a dot per step joined by a line, its label and
  * time under it. On a narrow screen the stepper scrolls sideways inside its
  * cell rather than wrapping, so the steps stay in one line, in order.
+ * `notYet`: what a step not reached says under its label (a hover box says
+ * "Not yet"; a cell, nothing).
  */
-export function Steps({ value, marker }) {
+export function Steps({ value, marker, notYet }) {
   const steps = journeyOf(value)
   if (!steps.length) return <span className="xeplr-factory-cell" {...marker}>—</span>
   return (
@@ -21,7 +23,8 @@ export function Steps({ value, marker }) {
               {s.done ? <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg> : null}
             </span>
             <span className="xeplr-factory-journey-label">{s.label}</span>
-            <span className="xeplr-factory-journey-at">{s.done ? (s.at || '—') : ''}</span>
+            <span className="xeplr-factory-journey-at">{s.done ? (s.at || '—') : (notYet || '')}</span>
+            {s.sub ? <span className="xeplr-factory-journey-sub">{s.sub}</span> : null}
             <span className="xeplr-factory-sr">{s.done ? ' — done' : ' — not yet'}</span>
           </li>
         ))}

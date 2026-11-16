@@ -19,7 +19,8 @@ export function journeyOf(value) {
     .map((s) => {
       const done = Boolean(s.done)
       const tone = BADGE_TONES.includes(s.tone) ? s.tone : (done ? 'success' : 'muted')
-      return { label: String(s.label), at: s.at === undefined || s.at === null ? '' : String(s.at), done, tone }
+      // sub: a second line under the time — who did it, a note. Optional.
+      return { label: String(s.label), at: s.at === undefined || s.at === null ? '' : String(s.at), sub: s.sub === undefined || s.sub === null ? '' : String(s.sub), done, tone }
     })
 }
 

@@ -49,7 +49,13 @@ console.log('\na journey (steps), a chip\'s icon, the row menu')
 const sameJ = (a, b) => JSON.stringify(a) === JSON.stringify(b)
 check('"steps" is a display', COLUMN_DISPLAYS.includes('steps'))
 check('steps: done is success unless it says (late: danger), not done is muted; no label, no step', sameJ(journeyOf([{ label: 'Placed', at: '13 Nov', done: true }, { label: 'Shipped', at: '15 Nov', done: true, tone: 'danger' }, { label: 'Delivered', done: false }, { at: 'x' }, null]),
-  [{ label: 'Placed', at: '13 Nov', done: true, tone: 'success' }, { label: 'Shipped', at: '15 Nov', done: true, tone: 'danger' }, { label: 'Delivered', at: '', done: false, tone: 'muted' }]))
+  [{ label: 'Placed', at: '13 Nov', sub: '', done: true, tone: 'success' }, { label: 'Shipped', at: '15 Nov', sub: '', done: true, tone: 'danger' }, { label: 'Delivered', at: '', sub: '', done: false, tone: 'muted' }]))
+check('steps: a second line (sub) is kept', journeyOf([{ label: 'Packed', at: '13 Nov', sub: 'by Ravi', done: true }])[0].sub === 'by Ravi')
+const HOVER = (extra) => [{ field: 'customStatus', label: 'Status', display: 'activity', details: 'orderTimeline', ...extra }]
+check('a hover box drawn as steps', errs(list({ columns: HOVER({ detailsAs: 'steps' }) })) === '', errs(list({ columns: HOVER({ detailsAs: 'steps' }) })))
+check('…or as a list, said', errs(list({ columns: HOVER({ detailsAs: 'list' }) })) === '')
+check('detailsAs: only list or steps', /detailsAs: must be one of: list, steps/.test(errs(list({ columns: HOVER({ detailsAs: 'grid' }) }))))
+check('detailsAs needs details', /detailsAs: is how the hover box draws its entries/.test(errs(list({ columns: [{ field: 'a', label: 'A', display: 'activity', detailsAs: 'steps' }] }))))
 check('steps: not a list, none', sameJ(journeyOf('x'), []))
 const STATUS = [{ field: 'statusLabel', label: 'Status', display: 'chip', toneFrom: 'statusTone', iconFrom: 'statusIcon' }, { field: 'progress', label: 'Progress', display: 'steps', sortable: false }]
 check('a chip may take its icon from the row; a steps column', errs(list({ columns: STATUS })) === '', errs(list({ columns: STATUS })))

@@ -28,6 +28,8 @@ import { COLUMN_ICONS } from '../buttons.js'
 const OPEN_DELAY_MS = 250
 const CLOSE_DELAY_MS = 200
 const BOX_WIDTH = 380
+// A box drawing a journey (detailsAs "steps"): about seven steps across, for placing it.
+const STEPS_BOX_WIDTH = 760
 const BOX_MAX_HEIGHT = 360
 const MIN_BELOW = 200
 
@@ -250,7 +252,7 @@ function Cell({ column: c, row, index, first, open, details, onOpenAt }) {
   }
 
   if (c.display === 'activity') {
-    return <Activity text={text(shown)} details={details} onOpenAt={onOpenAt} marker={marker} />
+    return <Activity text={text(shown)} details={details} detailsAs={c.detailsAs} onOpenAt={onOpenAt} marker={marker} />
   }
 
   const body = (
@@ -372,7 +374,9 @@ function text(v) {
  * root so the table's scrolling never clips it; under its cell, or above it
  * near the bottom of the window. A tap on a phone opens the row instead.
  */
-function Activity({ text: line, details, onOpenAt, marker }) {
+function Activity({ text: line, details, detailsAs, onOpenAt, marker }) {
+  const asSteps = detailsAs === 'steps'
+  const width = asSteps ? STEPS_BOX_WIDTH : BOX_WIDTH
   const cellRef = useRef(null)
   const timer = useRef(null)
   const [box, setBox] = useState(null)              // { top, left, maxHeight, above }
@@ -390,7 +394,7 @@ function Activity({ text: line, details, onOpenAt, marker }) {
       if (!r) return
       const below = window.innerHeight - r.bottom - 16
       const above = below < MIN_BELOW
-      const left = Math.max(8, Math.min(r.left, window.innerWidth - BOX_WIDTH - 8))
+      const left = Math.max(8, Math.min(r.left, window.innerWidth - width - 8))
       setBox(above
         ? { left, bottom: window.innerHeight - r.top + 8, maxHeight: Math.min(BOX_MAX_HEIGHT, r.top - 16), above }
         : { left, top: r.bottom + 8, maxHeight: Math.min(BOX_MAX_HEIGHT, below), above })
@@ -423,17 +427,18 @@ function Activity({ text: line, details, onOpenAt, marker }) {
       {line}
       {box && typeof document !== 'undefined' && createPortal(
         <div
-          className="xeplr-factory-activity-box"
+          className={'xeplr-factory-activity-box' + (asSteps ? ' xeplr-factory-activity-box--steps' : '')}
           role="dialog"
-          aria-label="Latest activity"
-          style={{ left: box.left, top: box.top, bottom: box.bottom, maxHeight: box.maxHeight, width: BOX_WIDTH }}
+          aria-label={asSteps ? 'Steps' : 'Latest activity'}
+          style={{ left: box.left, top: box.top, bottom: box.bottom, maxHeight: box.maxHeight, width: asSteps ? undefined : BOX_WIDTH }}
           onMouseEnter={() => clearTimeout(timer.current)}
           onMouseLeave={hide}
         >
           {!items && <div className="xeplr-factory-hint">Loading…</div>}
           {items && items.error && <div className="xeplr-factory-error-inline" role="alert">{items.error}</div>}
           {items && !items.error && !items.list.length && <div className="xeplr-factory-hint">Nothing yet.</div>}
-          {items && items.list.map((it, i) => {
+          {asSteps && items && !items.error && items.list.length > 0 && <Steps value={items.list} notYet="Not yet" />}
+          {!asSteps && items && items.list.map((it, i) => {
             const body = (
               <>
                 <span className="xeplr-factory-activity-text">{text(it.text)}</span>

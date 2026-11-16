@@ -907,17 +907,25 @@ function FedColumnsEditor({ value, onChange, functions }) {
           <MiniField label="Shows (field)" help="Blank → the value itself"><input className="xeplr-factory-prop-input" value={c.text || ''} placeholder="placedText" onChange={(e) => edit(i, { text: e.target.value.trim() })} /></MiniField>
           <MiniField label="Second line (field)"><input className="xeplr-factory-prop-input" value={c.sub || ''} onChange={(e) => edit(i, { sub: e.target.value.trim() })} /></MiniField>
           <MiniField label="Drawn as">
-            <select className="xeplr-factory-prop-input" value={c.display || 'text'} onChange={(e) => edit(i, { display: e.target.value === 'text' ? undefined : e.target.value, ...(e.target.value !== 'images' ? { more: undefined } : {}), ...(e.target.value !== 'activity' ? { details: undefined } : {}) })}>
+            <select className="xeplr-factory-prop-input" value={c.display || 'text'} onChange={(e) => edit(i, { display: e.target.value === 'text' ? undefined : e.target.value, ...(e.target.value !== 'images' ? { more: undefined } : {}), ...(e.target.value !== 'activity' ? { details: undefined, detailsAs: undefined } : {}) })}>
               {COLUMN_DISPLAYS.map((d) => <option key={d} value={d}>{DISPLAY_LABELS[d]}</option>)}
             </select>
           </MiniField>
           {c.display === 'images' && <MiniField label="How many more (field)"><input className="xeplr-factory-prop-input" value={c.more || ''} onChange={(e) => edit(i, { more: e.target.value.trim() })} /></MiniField>}
           {c.display === 'activity' && (
             <MiniField label="Hover box from">
-              <select className="xeplr-factory-prop-input" value={c.details || ''} onChange={(e) => edit(i, { details: e.target.value || undefined })}>
+              <select className="xeplr-factory-prop-input" value={c.details || ''} onChange={(e) => edit(i, { details: e.target.value || undefined, ...(e.target.value ? {} : { detailsAs: undefined }) })}>
                 <option value="">— none —</option>
                 {c.details && !details.some((f) => f.name === c.details) && <option value={c.details}>{c.details} (not registered)</option>}
                 {details.map((f) => <option key={f.name} value={f.name}>{f.name}</option>)}
+              </select>
+            </MiniField>
+          )}
+          {c.display === 'activity' && c.details && (
+            <MiniField label="Hover box shows">
+              <select className="xeplr-factory-prop-input" value={c.detailsAs || 'list'} onChange={(e) => edit(i, { detailsAs: e.target.value === 'list' ? undefined : e.target.value })}>
+                <option value="list">A list, one under another</option>
+                <option value="steps">Steps across, joined by a line</option>
               </select>
             </MiniField>
           )}
