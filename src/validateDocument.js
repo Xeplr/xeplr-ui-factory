@@ -494,7 +494,9 @@ function checkList(props, doc, at, err) {
 // (`field`), the text shown for it (`text`, else the value), a second line,
 // how it is drawn, badges after it, how many more pictures, and the function
 // its hover box lists from.
-const FED_COLUMN_KEYS = ['field', 'label', 'text', 'sub', 'display', 'badges', 'more', 'details', 'sortable', 'toneFrom', 'tone', 'icon', 'bold', 'iconFrom']
+// How a hover box draws its entries: one under another, or as a journey (Steps).
+const DETAILS_AS = ['list', 'steps']
+const FED_COLUMN_KEYS = ['field', 'label', 'text', 'sub', 'display', 'badges', 'more', 'details', 'detailsAs', 'sortable', 'toneFrom', 'tone', 'icon', 'bold', 'iconFrom']
 
 /** The settings only a function-fed list has. */
 function checkFedList(props, fed, at, err) {
@@ -601,6 +603,10 @@ function checkFedColumn(c, p, err) {
   if (c.details !== undefined) {
     if (!(nonEmptyString(c.details) && FUNCTION_NAME.test(c.details))) err(`${p}.details`, 'must be the name of a registered function (event "rowDetails")')
     else if (c.display !== 'activity') err(`${p}.details`, 'is what an "activity" column\'s hover box lists — set display to "activity"')
+  }
+  if (c.detailsAs !== undefined) {
+    if (!DETAILS_AS.includes(c.detailsAs)) err(`${p}.detailsAs`, `must be one of: ${DETAILS_AS.join(', ')}`)
+    else if (c.details === undefined) err(`${p}.detailsAs`, 'is how the hover box draws its entries — give the column "details" too')
   }
   if (c.sortable !== undefined && typeof c.sortable !== 'boolean') err(`${p}.sortable`, 'must be true or false')
   if (c.tone !== undefined && !BADGE_TONES.includes(c.tone)) err(`${p}.tone`, `must be one of: ${BADGE_TONES.join(', ')}`)

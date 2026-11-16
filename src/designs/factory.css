@@ -28,7 +28,8 @@
 .xeplr-factory-flow-builder,
 .xeplr-factory-fd,
 .xeplr-factory-builder,
-.xeplr-factory-modal-backdrop {
+.xeplr-factory-modal-backdrop,
+.xeplr-factory-activity-box {
   --xf-accent: var(--xeplr-accent, #2563eb);
   --xf-accent-ink: var(--xeplr-accent-text, #ffffff);
   --xf-ink: var(--xeplr-text-primary, #1a1a19);
@@ -1088,6 +1089,12 @@ button.xeplr-factory-activity-item:hover, button.xeplr-factory-activity-item:foc
 .xeplr-factory-journey-step.is-done .xeplr-factory-journey-label { color: var(--xf-ink); font-weight: 500; }
 .xeplr-factory-journey-at { font-size: 11.5px; line-height: 1.25; color: var(--xf-muted); white-space: nowrap; font-variant-numeric: tabular-nums; min-height: 1.25em; }
 .xeplr-factory-journey-step.is-danger .xeplr-factory-journey-at, .xeplr-factory-journey-step.is-danger.is-done .xeplr-factory-journey-label { color: var(--xf-danger); }
+/* A step's second line (who, a note): under its time. */
+.xeplr-factory-journey-sub { font-size: 11.5px; line-height: 1.25; color: var(--xf-muted); white-space: nowrap; }
+/* A hover box drawing its entries as a journey (a column's detailsAs "steps"):
+   as wide as its steps, scrolling sideways on a narrow screen. */
+.xeplr-factory-activity-box--steps { width: max-content !important; padding: 12px 10px 8px; }
+.xeplr-factory-activity-box--steps .xeplr-factory-journey-step { flex: 1 0 104px; min-width: 104px; }
 .xeplr-factory-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* ── the "…" at the end of a row (the list's rowMenu) ───────────────────── */
