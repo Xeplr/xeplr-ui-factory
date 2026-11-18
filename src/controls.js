@@ -635,7 +635,7 @@ CONTROLS.list = {
   // rowsFrom: rows a registered function works out (event "listRows") —
   // with its search box, filter chips and their counts — instead of one
   // table's records. See buttons.js.
-  props: ['title', 'source', 'belongsTo', 'editScreen', 'openIn', 'columns', 'pageSize', 'actions', 'rowsFrom', 'search', 'filters', 'kpis', 'dateRange', 'refreshEvery', 'rowOpen', 'rowMenu', 'highlight', 'dim', 'grow', 'layout', 'style'],
+  props: ['title', 'source', 'belongsTo', 'editScreen', 'openIn', 'columns', 'pageSize', 'actions', 'rowsFrom', 'search', 'filters', 'kpis', 'dateRange', 'refreshEvery', 'rowOpen', 'rowMenu', 'highlight', 'dim', 'grow', 'layout', 'bulkAdd', 'style'],
   validation: [],
   styles: ['fontFamily', 'fontSize', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'],
   properties: [
@@ -683,7 +683,11 @@ CONTROLS.list = {
       ]
     },
     { key: 'columns', title: 'Columns', fields: [{ path: 'props.columns', label: 'Columns', type: 'columns' }] },
-    { key: 'actions', title: 'Actions', fields: [{ path: 'props.actions', label: 'Actions', type: 'actions' }] },
+    { key: 'actions', title: 'Actions', fields: [
+      { path: 'props.actions', label: 'Actions', type: 'actions' },
+      { path: 'props.bulkAdd', label: 'Add several at once', type: 'toggle',
+        help: 'An "Add several" button beside New: the edit screen\'s fields as a grid, one row per record, saved in one go. Rows can be pasted from a spreadsheet. Needs "Edit in" and New.' }
+    ] },
     ...styleGroups(['fontFamily', 'fontSize', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'])
   ]
 }

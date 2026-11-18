@@ -45,7 +45,8 @@
             "field": "startDate",
             "label": "Start date"
           }
-        ]
+        ],
+        "bulkAdd": true
       }
     }
   ],

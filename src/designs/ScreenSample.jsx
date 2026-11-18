@@ -252,7 +252,9 @@ export default function ScreenSample({ ctrl, className, style, renderPopup, rend
                 onEdit: (rec) => (node.props.editScreen ? ctrl.openEditor(node, rec) : (ctrl.confirmDiscard() && ctrl.openRecord(rec))),
                 // eslint-disable-next-line no-alert
                 onDelete: (rec) => ctrl.deleteRecord(node, rec).catch((err) => window.alert(err.message || 'Could not delete')),
-                onNew: () => (node.props.editScreen ? ctrl.openEditor(node, null) : (ctrl.confirmDiscard() && ctrl.newRecord()))
+                onNew: () => (node.props.editScreen ? ctrl.openEditor(node, null) : (ctrl.confirmDiscard() && ctrl.newRecord())),
+                // Add several: the edit screen's fields as a grid (bulkAdd).
+                bulk: node.props.bulkAdd && ctrl.bulkFor ? ctrl.bulkFor(node) : undefined
               } : undefined}
               // A form inside this one: the page draws it (renderSubform).
               subform={node.type === 'subform' ? { sub: ctrl.subformFor(node), render: renderSubform } : undefined}

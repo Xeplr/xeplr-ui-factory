@@ -2,6 +2,8 @@ import { XeplrTable } from '@xeplr/ui-table'
 import { displayValue, listColumns, listSource } from '../values.js'
 import { boxStyle, fieldStyle } from './styles.js'
 import FedList from './FedList.jsx'
+import BulkAdd from './BulkAdd.jsx'
+import { useState } from 'react'
 
 // A list of the saved records, in @xeplr/ui-table.
 //
@@ -10,8 +12,10 @@ import FedList from './FedList.jsx'
 // Edit and New open the list's edit screen in a popup (`editScreen`), or, for a
 // list on a form, load the row into the form's own fields. Delete removes it.
 
-export default function ListView({ node, doc, design, list, onEdit, onDelete, onNew, currentId, recordKey = 'id', canDelete, fieldNodes, optionsFor, extraActions = [], query, rowDetails, onOpen }) {
+export default function ListView({ node, doc, design, list, onEdit, onDelete, onNew, currentId, recordKey = 'id', canDelete, fieldNodes, optionsFor, extraActions = [], query, rowDetails, onOpen, bulk }) {
   const p = node.props || {}
+  // Add several (bulkAdd): a grid of the edit screen's fields, saved in one go.
+  const [bulkOpen, setBulkOpen] = useState(false)
   // Rows a function works out: their own view — search, chips, the server's text.
   if (!design && p.rowsFrom && list) {
     return <FedList node={node} list={list} query={query || { q: '', filter: '', setQ: () => {}, setFilter: () => {} }} onOpen={onOpen || onEdit} rowDetails={rowDetails} recordKey={recordKey} extraActions={extraActions} />
@@ -111,9 +115,14 @@ export default function ListView({ node, doc, design, list, onEdit, onDelete, on
       {list.error && <span className="xeplr-factory-error-inline" role="alert">{list.error}</span>}
     </>
   )
+  const canBulk = Boolean(p.bulkAdd && p.editScreen && actions.includes('new') && bulk)
   const newButton = actions.includes('new') && (
-    <button type="button" className="xeplr-factory-list-new" onClick={onNew}>+ New</button>
+    <>
+      {canBulk && <button type="button" className="xeplr-factory-list-more" onClick={() => setBulkOpen(true)}>Add several</button>}
+      <button type="button" className="xeplr-factory-list-new" onClick={onNew}>+ New</button>
+    </>
   )
+  const bulkDialog = canBulk && bulkOpen && <BulkAdd bulk={bulk} title={p.title} onClose={() => setBulkOpen(false)} />
 
   // ONE CARD. With rows, the title and + New ride in the table's own toolbar
   // rather than in a header bar stacked on top of it — two bars, two frames,
@@ -127,6 +136,7 @@ export default function ListView({ node, doc, design, list, onEdit, onDelete, on
       <div className="xeplr-factory-list" style={style}>
         <div className="xeplr-factory-list-head">{title}{notes}{newButton}</div>
         {!list.loading && !list.error && <div className="xeplr-factory-list-empty">Nothing saved yet.</div>}
+        {bulkDialog}
       </div>
     )
   }
@@ -144,6 +154,7 @@ export default function ListView({ node, doc, design, list, onEdit, onDelete, on
         toolbarLeading={() => <>{title}{notes}</>}
         toolbarActions={() => newButton || null}
       />
+      {bulkDialog}
     </div>
   )
 }

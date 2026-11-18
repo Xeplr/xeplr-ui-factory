@@ -872,6 +872,34 @@ export function useFactoryScreen({
 
   const subformFor = useCallback((node) => subforms[node.id] || { loading: true, error: null, document: null, record: null }, [subforms])
 
+  /**
+   * Add several (a list's bulkAdd): what its grid needs — the edit screen,
+   * a table dropdown's options, a save per row (the host's onSave, as New's
+   * popup saves, so the server's checks apply) and the list refreshed after.
+   * A sub-table's link is filled in on every row, as New fills it.
+   */
+  const bulkFor = useCallback((node) => {
+    const screenId = node.props.editScreen
+    const link = node.props.belongsTo
+    const params = link && live.current.recordId ? { [link]: live.current.recordId } : null
+    return {
+      params,
+      loadScreen: async () => {
+        let found = screensRef.current && screensRef.current[screenId]
+        if (!found && loadScreenRef.current) found = await loadScreenRef.current(screenId)
+        if (!found) throw new Error(`Screen "${screenId}" was not provided — pass it in \`screens\` or supply loadScreen`)
+        return found
+      },
+      fetchOptions: async (table, field) => normaliseOptions(fetchOptionsRef.current ? await fetchOptionsRef.current({ table, node: field }) : []),
+      save: async (vals) => {
+        if (!onSaveRef.current) throw new Error('No onSave was provided')
+        const found = (screensRef.current && screensRef.current[screenId]) || (loadScreenRef.current ? await loadScreenRef.current(screenId) : null)
+        return onSaveRef.current(vals, { id: null, source: found ? found.source : listSource(doc, node), screen: screenId, document: found, isNew: true })
+      },
+      done: () => setListVersion((v) => v + 1)
+    }
+  }, [doc]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const closeEditor = useCallback(() => {
     setPopup(null)
     setListVersion((v) => v + 1)
@@ -951,6 +979,7 @@ export function useFactoryScreen({
     fieldsFor,
     openEditor,
     closeEditor,
+    bulkFor,
     popupSave,
     popupPressed,
     values,
