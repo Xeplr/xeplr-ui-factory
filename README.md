@@ -216,6 +216,36 @@ import schemaHandler from '@xeplr/schema-handler'          // CommonJS: default 
 const clean = schemaHandler.applySchema(formSchema(screen), req.body)   // throws ValidationError listing each field
 ```
 
+### Add several at once — `bulkAdd`
+
+A list of a table with `"bulkAdd": true` gets an **Add several** button beside
+**New**: its edit screen's fields as a grid, one row per record, saved in one
+go — eight holidays, a dozen staff.
+
+```json
+{ "type": "list", "props": { "title": "Holidays", "editScreen": "holiday_edit", "bulkAdd": true } }
+```
+
+- **The columns are the edit screen's fields**, in reading order, with their
+  defaults and their own kind of input. A field that holds more than one value
+  — a file, a multi-select, tags — is not a column; the grid says to fill it
+  in afterwards with Edit. A sub-table's link is filled in on every row, as New
+  fills it.
+- **Paste from a spreadsheet** into any cell and the grid fills from there,
+  adding rows as needed: a dropdown's cell by the option's name (any case) or
+  id, a tick from Yes / 1 / ✓, a date from 2026-08-15, 15/08/2026 (day first)
+  or 15 Aug 2026, a number without its commas and ₹.
+- **Each row is checked before anything is sent** — the same messages the
+  form shows, under the cell — and nothing is saved while one needs fixing.
+  Empty rows are left out.
+- **Each row is saved as New saves it** (the host's `onSave`), so the server's
+  checks (`beforeSave`) apply. Rows that saved leave the grid; a row the server
+  refused stays, with its reason. The list refreshes after.
+- The page's front-end `save` hook is not run for these rows — put anything
+  that must hold in a server function.
+- Needs `editScreen` and New among the `actions`; not for rows a function works
+  out. In the builder: the list's Actions → **Add several at once**.
+
 ## Identifier — the number or code a record is known by
 
 Every record already has a key: 25 characters, made on save, never an

@@ -571,6 +571,10 @@ function checkFedList(props, fed, at, err) {
   }
   if (props.rowOpen !== undefined && typeof props.rowOpen !== 'boolean') err(`${at}.props.rowOpen`, 'must be true or false')
   if (props.rowOpen && !props.editScreen) err(`${at}.props.rowOpen`, 'needs "Edit in" (editScreen) — the screen a row opens in')
+  if (props.bulkAdd !== undefined && typeof props.bulkAdd !== 'boolean') err(`${at}.props.bulkAdd`, 'must be true or false')
+  if (props.bulkAdd && !props.editScreen) err(`${at}.props.bulkAdd`, 'needs "Edit in" (editScreen) — its fields are the grid\'s columns')
+  if (props.bulkAdd && props.rowsFrom) err(`${at}.props.bulkAdd`, 'is for a list of a table\'s records, not rows a function works out')
+  if (props.bulkAdd && Array.isArray(props.actions) && !props.actions.includes('new')) err(`${at}.props.bulkAdd`, 'needs New among the actions — adding is what it does')
   // A worked-out row is not a record of one table: nothing to delete it from,
   // and Edit or New only with a screen to do it in.
   if (fed && Array.isArray(props.actions)) {
