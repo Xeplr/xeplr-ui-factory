@@ -1299,3 +1299,24 @@ button.xeplr-factory-activity-item:hover, button.xeplr-factory-activity-item:foc
 .xeplr-factory-page--flow .xeplr-factory-tabs { height: auto; overflow: visible; }
 .xeplr-factory-page--flow .xeplr-factory-feed-entries { overflow: visible; }
 .xeplr-factory-page--flow .xeplr-factory-list { max-height: none; }
+
+/* ── a button's rows question (ask.fields type "rows") ─────────────────────
+   One line per thing — "Packet 1", its fields side by side, × to remove —
+   and "+ Add packet" under them. Takes the popup's whole width. */
+.xeplr-factory-ask-rows { grid-column: 1 / -1; border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.xeplr-factory-ask-row {
+  display: grid; grid-template-columns: 72px repeat(auto-fit, minmax(90px, 1fr)) 28px; align-items: end; gap: 8px;
+  padding: 8px 10px; border: 1px solid var(--xf-border); border-radius: 8px; background: var(--xf-surface);
+}
+.xeplr-factory-ask-row-name { align-self: center; font-weight: 600; font-size: .9em; color: var(--xf-muted); white-space: nowrap; }
+.xeplr-factory-ask-row-cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.xeplr-factory-ask-row-label { font-size: .82em; color: var(--xf-muted); }
+.xeplr-factory-ask-row-cell .xeplr-factory-ask-input { width: 100%; min-width: 0; box-sizing: border-box; }
+.xeplr-factory-ask-row-remove { align-self: center; width: 28px; height: 28px; border: 0; border-radius: 6px; background: none; color: var(--xf-muted); font-size: 1.2em; cursor: pointer; }
+.xeplr-factory-ask-row-remove:hover:not(:disabled) { background: var(--xf-hover); color: var(--xf-danger); }
+.xeplr-factory-ask-row-add { align-self: flex-start; }
+@media (max-width: 640px) {
+  .xeplr-factory-ask-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .xeplr-factory-ask-row-name { grid-column: 1 / -1; }
+  .xeplr-factory-ask-row-remove { grid-column: 2; justify-self: end; grid-row: 1; width: 40px; height: 40px; }
+}

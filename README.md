@@ -516,6 +516,30 @@ Packed asks for the parcel's size, for the courier:
 - Publishing refuses a field the function does not take, or takes as another type. A required input the button asks for is not "missing" from its `params`.
 - In the builder: **Asks for** under the button's Ask first, listing the function's inputs the button does not already give.
 
+#### Several of the same — `rows`
+
+The same few fields once per thing, as many as there are — the packets an
+order went out in, each with its size:
+
+```json
+{ "name": "parcels", "label": "Packets", "type": "rows", "rowLabel": "Packet", "addLabel": "Add packet",
+  "required": true, "min": 1, "max": 10, "startFrom": "orderParcels",
+  "fields": [
+    { "name": "lengthCm", "label": "Length", "type": "number", "unit": "cm", "required": true, "min": 0.1 },
+    { "name": "weightKg", "label": "Weight", "type": "number", "unit": "kg", "required": true, "min": 0.01 } ] }
+```
+
+- Each row is "Packet 1", its fields side by side (two to a line on a phone),
+  × to remove one; **+ Add packet** under them, up to `max` (at most 50).
+- A row's fields are `number` or `text`, checked as those are; a problem names
+  its row ("Packet 2: Weight is required"). Rows left wholly blank are dropped.
+- The function takes it as an **array** (its inputSchema says `type: "array"`)
+  of `{ name: value }`, numbers as numbers.
+- **`startFrom`** (optional): a function, event `buttonOptions`, that answers
+  the rows to start with for the record pressed on — what was given last time,
+  so a correction starts from it. Without it the popup starts with `min` empty
+  rows (at least one).
+
 #### Laying the popup out — `wide`, `columns`, `newRow`
 
 Many values to ask for read best as a table. `ask.wide` makes the popup wider;
@@ -1479,7 +1503,7 @@ dev/                     ─ the stand-in app for `npm run dev` (not published)
 npm test
 ```
 
-`test/buttons.test.js` covers buttons and function-fed lists in the document: what the checker refuses, when a button shows or is greyed out, what a press sends (the document's parameters, never the request's), and `functionProblems` against a registry. `test/cli.test.js` includes `pages`. `test/dashboard.test.js` covers a list's date range and KPI cards, and a button that asks for values. `test/details.test.js` covers a details panel: what the checker refuses and what an answer becomes (links, tones, empty rows). `test/tabs.test.js` covers a stepper shown as tabs. `test/feed.test.js` covers a feed: what the checker refuses, what a function's answer becomes, and what posting a comment saves. `test/files.test.js` covers files: several in one field (the value, its column, its checks), camera only, and a button whose press takes files.
+`test/buttons.test.js` covers buttons and function-fed lists in the document: what the checker refuses, when a button shows or is greyed out, what a press sends (the document's parameters, never the request's), and `functionProblems` against a registry. `test/cli.test.js` includes `pages`. `test/dashboard.test.js` covers a list's date range and KPI cards, and a button that asks for values. `test/details.test.js` covers a details panel: what the checker refuses and what an answer becomes (links, tones, empty rows). `test/tabs.test.js` covers a stepper shown as tabs. `test/feed.test.js` covers a feed: what the checker refuses, what a function's answer becomes, and what posting a comment saves. `test/askrows.test.js` covers a button's rows question. `test/files.test.js` covers files: several in one field (the value, its column, its checks), camera only, and a button whose press takes files.
 
 `test/urlState.test.js` covers the URL state: the key format, and the three controllers reading their places back from a real `MemoryRouter` and being clicked through in memory, rendered with `react-dom/server`.
 

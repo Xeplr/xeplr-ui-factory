@@ -147,7 +147,25 @@ export function buttonInput(button, note, files, values) {
 }
 
 /** The kinds of value a button's `ask.fields` can ask for. */
-export const ASK_FIELD_TYPES = ['number', 'text', 'date', 'checklist', 'choice', 'checkbox']
+export const ASK_FIELD_TYPES = ['number', 'text', 'date', 'checklist', 'choice', 'checkbox', 'rows']
+
+/**
+ * A `rows` field: the same small set of fields once per thing, as many as
+ * there are — the packets an order went out in, each with its size:
+ *
+ *   { name: 'parcels', label: 'Packets', type: 'rows', rowLabel: 'Packet',
+ *     addLabel: 'Add packet', min: 1, max: 10, startFrom: 'orderParcels',
+ *     fields: [{ name: 'lengthCm', label: 'Length', type: 'number', unit: 'cm', required: true, min: 0.1 }, …] }
+ *
+ * Its value is a list of { name: value }, one per row, each row's fields
+ * checked as a number or text field is. `startFrom` (optional) is a function
+ * (event "buttonOptions") that answers the rows to start with — what was given
+ * last time — for the record pressed on; without it the dialog starts with
+ * `min` empty rows (at least one).
+ */
+export const ROW_FIELD_TYPES = ['number', 'text']
+/** Most rows one rows field may hold. */
+export const MAX_ASK_ROWS = 50
 
 /**
  * A CHECKLIST in a button's popup: a tick per entry, the entries worked out
@@ -198,6 +216,34 @@ export function askChoiceOptions(field) {
 /** The checklist fields a button asks for. */
 export function checklistFields(button) {
   return askFields(button).filter((f) => f.type === 'checklist')
+}
+
+/** The rows fields whose starting rows a function gives (startFrom). */
+export function startedRowsFields(button) {
+  return askFields(button).filter((f) => f.type === 'rows' && typeof f.startFrom === 'string' && f.startFrom)
+}
+
+/** One empty row of a rows field: each of its fields blank. */
+export function emptyRow(field) {
+  const row = {}
+  ;(Array.isArray(field.fields) ? field.fields : []).forEach((c) => { if (c && c.name) row[c.name] = '' })
+  return row
+}
+
+/**
+ * What a startFrom function answered, as rows the dialog can show: each a
+ * { name: value } of the field's own fields (as text, as typed), at most
+ * MAX_ASK_ROWS; anything else dropped. None → the field's empty start.
+ */
+export function startRowsOf(field, out) {
+  const cols = (Array.isArray(field.fields) ? field.fields : []).filter((c) => c && c.name)
+  const rows = (Array.isArray(out) ? out : []).filter((r) => r && typeof r === 'object' && !Array.isArray(r)).slice(0, MAX_ASK_ROWS)
+    .map((r) => {
+      const row = {}
+      cols.forEach((c) => { const v = r[c.name]; row[c.name] = v === undefined || v === null ? '' : String(v) })
+      return row
+    })
+  return rows.length ? rows : askFieldStart(field)
 }
 
 const ASK_DAY = /^\d{4}-\d{2}-\d{2}$/
@@ -253,6 +299,7 @@ export function askFields(button) {
 /** What the dialog starts each field with: the record's `fill` field, or empty. A date field takes the day of a date-and-time. */
 export function askFieldStart(field, record) {
   if (field.type === 'checklist') return []
+  if (field.type === 'rows') return Array.from({ length: Math.max(1, Number.isInteger(field.min) ? field.min : 1) }, () => emptyRow(field))
   const v = field.fill && record ? record[field.fill] : undefined
   // A CHECKBOX: ticked or not — from the record's field when it says so.
   if (field.type === 'checkbox') return v === true || v === 'true' || v === 1 || v === '1'
@@ -299,6 +346,29 @@ export function askFieldValues(button, given, now, offered) {
       if (Number.isInteger(f.min) && ids.length < f.min) { errors.push({ field: f.name, message: `${label}: tick at least ${f.min}` }); return }
       if (Number.isInteger(f.max) && ids.length > f.max) { errors.push({ field: f.name, message: `${label}: tick at most ${f.max}` }); return }
       values[f.name] = ids
+      return
+    }
+    // ROWS: the same fields once per thing. Rows left wholly blank are
+    // dropped; each kept row's fields are checked as a field of their type,
+    // and a problem names its row: "Packet 2: Weight is required".
+    if (f.type === 'rows') {
+      if (v !== undefined && v !== null && !Array.isArray(v)) { errors.push({ field: f.name, message: `${label} must be a list of rows` }); return }
+      const cols = (Array.isArray(f.fields) ? f.fields : []).filter((c) => c && c.name)
+      const blank = (r) => cols.every((c) => r[c.name] === undefined || r[c.name] === null || String(r[c.name]).trim() === '')
+      const given = (v || []).filter((r) => r && typeof r === 'object' && !Array.isArray(r) && !blank(r))
+      const min = Number.isInteger(f.min) ? f.min : (f.required ? 1 : 0)
+      const max = Math.min(Number.isInteger(f.max) ? f.max : MAX_ASK_ROWS, MAX_ASK_ROWS)
+      const what = (f.rowLabel || 'row').toLowerCase()
+      if (given.length < min) { errors.push({ field: f.name, message: min === 1 ? `${label}: give at least one ${what}` : `${label}: give at least ${min}` }); return }
+      if (given.length > max) { errors.push({ field: f.name, message: `${label}: at most ${max}` }); return }
+      const rows = []
+      let bad = false
+      given.forEach((r, i) => {
+        const out = askFieldValues({ ask: { fields: cols } }, r, now)
+        out.errors.forEach((e) => { bad = true; errors.push({ field: f.name, row: i, message: `${f.rowLabel || 'Row'} ${i + 1}: ${e.message}` }) })
+        rows.push(out.values)
+      })
+      if (!bad) values[f.name] = rows
       return
     }
     const empty = v === undefined || v === null || String(v).trim() === ''
@@ -380,6 +450,9 @@ export function nodeFunctions(doc) {
           if (f.type === 'checklist' && typeof f.optionsFrom === 'string' && f.optionsFrom) {
             out.push({ event: BUTTON_OPTIONS_EVENT, name: f.optionsFrom, at: `nodes[${i}].props.buttons[${j}].ask.fields[${k}].optionsFrom` })
           }
+          if (f.type === 'rows' && typeof f.startFrom === 'string' && f.startFrom) {
+            out.push({ event: BUTTON_OPTIONS_EVENT, name: f.startFrom, at: `nodes[${i}].props.buttons[${j}].ask.fields[${k}].startFrom` })
+          }
         })
       })
     }
@@ -415,8 +488,8 @@ export function paramProblems(button, inputSchema) {
   askFields(button).forEach((a) => {
     const f = byName.get(a.name)
     if (!f) { problems.push(`asks for "${a.name}", but takes no "${a.name}"`); return }
-    const want = a.type === 'number' ? 'number' : a.type === 'checklist' ? 'array' : a.type === 'checkbox' ? 'boolean' : 'string'
-    if (f.type && f.type !== want) problems.push(`asks for "${a.name}" as ${a.type === 'number' ? 'a number' : a.type === 'date' ? 'a date' : a.type === 'checklist' ? 'a list of ticked ids' : a.type === 'checkbox' ? 'a tick (true or false)' : 'text'}, but it takes ${f.type}`)
+    const want = a.type === 'number' ? 'number' : a.type === 'checklist' || a.type === 'rows' ? 'array' : a.type === 'checkbox' ? 'boolean' : 'string'
+    if (f.type && f.type !== want) problems.push(`asks for "${a.name}" as ${a.type === 'number' ? 'a number' : a.type === 'date' ? 'a date' : a.type === 'checklist' ? 'a list of ticked ids' : a.type === 'rows' ? 'a list of rows' : a.type === 'checkbox' ? 'a tick (true or false)' : 'text'}, but it takes ${f.type}`)
     // A choice offers only what the function takes, when it lists what it takes.
     const takes = optionValues(f.options).map(String)
     if (a.type === 'choice' && takes.length) {

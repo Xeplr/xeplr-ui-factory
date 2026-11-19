@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { boxStyle, fieldStyle } from './styles.js'
 import FileField from './FileField.jsx'
-import { askFields, askFieldStart, askFieldValues, askDayLimit, checklistOptionsOf, askChoiceOptions } from '../buttons.js'
+import { askFields, askFieldStart, askFieldValues, askDayLimit, checklistOptionsOf, askChoiceOptions, emptyRow, startRowsOf, MAX_ASK_ROWS } from '../buttons.js'
 
 // A PANEL OF BUTTONS. Each runs a function of the app on the server, with the
 // parameters the screen gives it; which ones show, and which are greyed out,
@@ -105,8 +105,22 @@ function AskDialog({ button, busy, error, onCancel, onConfirm, upload, readFile,
         .then((list) => { if (live) setOffered((o) => ({ ...o, [f.name]: { list: checklistOptionsOf(list) } })) })
         .catch((err) => { if (live) setOffered((o) => ({ ...o, [f.name]: { list: [], error: err.message || 'Could not load the list' } })) })
     })
+    // ROWS that start from what was given last time (startFrom), asked for
+    // the record now; until they come, the field's empty start.
+    fields.filter((f) => f.type === 'rows' && f.startFrom && options).forEach((f) => {
+      setOffered((o) => ({ ...o, [f.name]: { loading: true, list: [] } }))
+      Promise.resolve(options(f.name))
+        .then((list) => { if (live) { setGiven((g) => ({ ...g, [f.name]: startRowsOf(f, list) })); setOffered((o) => ({ ...o, [f.name]: { list: [] } })) } })
+        .catch((err) => { if (live) setOffered((o) => ({ ...o, [f.name]: { list: [], error: err.message || 'Could not load what was given before' } })) })
+    })
     return () => { live = false }
   }, [button.id])                                                    // eslint-disable-line react-hooks/exhaustive-deps
+  const setRow = (name, i, key, v) => {
+    setGiven((g) => ({ ...g, [name]: (g[name] || []).map((r, j) => (j === i ? { ...r, [key]: v } : r)) }))
+    setShown((m) => ({ ...m, [name]: undefined }))
+  }
+  const addRow = (f) => setGiven((g) => ({ ...g, [f.name]: [...(g[f.name] || []), emptyRow(f)] }))
+  const dropRow = (name, i) => setGiven((g) => ({ ...g, [name]: (g[name] || []).filter((_, j) => j !== i) }))
   const tick = (name, id, on) => {
     setGiven((g) => {
       const now = Array.isArray(g[name]) ? g[name] : []
@@ -115,7 +129,8 @@ function AskDialog({ button, busy, error, onCancel, onConfirm, upload, readFile,
     setShown((m) => ({ ...m, [name]: undefined }))
   }
   const confirm = () => {
-    const out = askFieldValues(button, given, undefined, Object.fromEntries(Object.entries(offered).map(([k, v]) => [k, (v.list || []).map((o) => o.id)])))
+    const offeredIds = Object.fromEntries(fields.filter((f) => f.type === 'checklist').map((f) => [f.name, ((offered[f.name] || {}).list || []).map((o) => o.id)]))
+    const out = askFieldValues(button, given, undefined, offeredIds)
     if (out.errors.length) { setShown(Object.fromEntries(out.errors.map((e) => [e.field, e.message]))); return }
     setShown({})
     onConfirm(typed, files, out.values)
@@ -167,6 +182,50 @@ function AskDialog({ button, busy, error, onCancel, onConfirm, upload, readFile,
                             </li>
                           ))}
                         </ul>
+                      )}
+                      {shown[f.name] && <span className="xeplr-factory-ask-field-error" id={`${fid}-error`} role="alert">{shown[f.name]}</span>}
+                    </fieldset>
+                  )
+                }
+                if (f.type === 'rows') {
+                  const rows = Array.isArray(given[f.name]) ? given[f.name] : []
+                  const cols = (f.fields || []).filter((c) => c && c.name)
+                  const o = offered[f.name] || {}
+                  const max = Math.min(Number.isInteger(f.max) ? f.max : MAX_ASK_ROWS, MAX_ASK_ROWS)
+                  const keep = Math.max(1, Number.isInteger(f.min) ? f.min : 1)
+                  return (
+                    <fieldset key={f.name} className="xeplr-factory-ask-field xeplr-factory-ask-rows" aria-describedby={shown[f.name] ? `${fid}-error` : undefined}>
+                      <legend className="xeplr-factory-ask-label">{f.label}{f.required ? ' *' : ''}</legend>
+                      {o.loading && <span className="xeplr-factory-hint">Loading what was given before…</span>}
+                      {o.error && <span className="xeplr-factory-ask-field-error" role="alert">{o.error}</span>}
+                      {rows.map((r, i) => (
+                        <div key={i} className="xeplr-factory-ask-row" role="group" aria-label={`${f.rowLabel || 'Row'} ${i + 1}`}>
+                          <span className="xeplr-factory-ask-row-name">{f.rowLabel || 'Row'} {i + 1}</span>
+                          {cols.map((c) => (
+                            <label key={c.name} className="xeplr-factory-ask-row-cell">
+                              <span className="xeplr-factory-ask-row-label">{c.label}{c.required ? ' *' : ''}</span>
+                              <span className="xeplr-factory-ask-value">
+                                <input
+                                  className="xeplr-factory-ask-input"
+                                  type={c.type === 'number' ? 'number' : 'text'}
+                                  inputMode={c.type === 'number' ? 'decimal' : undefined}
+                                  step={c.type === 'number' ? 'any' : undefined}
+                                  min={c.min} max={c.max}
+                                  value={r[c.name] ?? ''}
+                                  disabled={busy}
+                                  onChange={(e) => setRow(f.name, i, c.name, e.target.value)}
+                                />
+                                {c.unit && <span className="xeplr-factory-ask-unit">{c.unit}</span>}
+                              </span>
+                            </label>
+                          ))}
+                          {rows.length > keep && (
+                            <button type="button" className="xeplr-factory-ask-row-remove" aria-label={`Remove ${(f.rowLabel || 'row').toLowerCase()} ${i + 1}`} disabled={busy} onClick={() => dropRow(f.name, i)}>×</button>
+                          )}
+                        </div>
+                      ))}
+                      {rows.length < max && (
+                        <button type="button" className="xeplr-factory-secondary xeplr-factory-ask-row-add" disabled={busy} onClick={() => addRow(f)}>+ {f.addLabel || `Add ${(f.rowLabel || 'row').toLowerCase()}`}</button>
                       )}
                       {shown[f.name] && <span className="xeplr-factory-ask-field-error" id={`${fid}-error`} role="alert">{shown[f.name]}</span>}
                     </fieldset>

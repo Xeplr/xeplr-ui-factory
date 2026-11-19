@@ -20,7 +20,7 @@ import { isBinding } from './values.js'
 import { ROW_MENU_ACTIONS } from './listRows.js'
 import { feedProblems, FEED_EVENT } from './feed.js'
 import { detailsProblems, DETAILS_EVENT } from './details.js'
-import { BUTTON_VARIANTS, COLUMN_DISPLAYS, LIST_LAYOUTS, BADGE_TONES, COLUMN_ICONS, CONDITION_OPERATORS, ASK_FIELD_TYPES, NOTE_INPUT, FILES_INPUT, isAskDayLimit } from './buttons.js'
+import { BUTTON_VARIANTS, COLUMN_DISPLAYS, LIST_LAYOUTS, BADGE_TONES, COLUMN_ICONS, CONDITION_OPERATORS, ASK_FIELD_TYPES, ROW_FIELD_TYPES, MAX_ASK_ROWS, NOTE_INPUT, FILES_INPUT, isAskDayLimit } from './buttons.js'
 
 const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 const TABLE_NAME = /^[A-Za-z_][A-Za-z0-9_.$-]*$/
@@ -652,13 +652,13 @@ const ASK_FILE_KEYS = ['label', 'required', 'accept', 'maxSize', 'multiple', 'ma
  * server checks the names against what is registered when the screen is
  * published (functionProblems). Here: the shape.
  */
-const ASK_FIELD_KEYS = ['name', 'label', 'type', 'unit', 'required', 'min', 'max', 'fill', 'optionsFrom', 'options', 'newRow']
+const ASK_FIELD_KEYS = ['name', 'label', 'type', 'unit', 'required', 'min', 'max', 'fill', 'optionsFrom', 'options', 'newRow', 'fields', 'rowLabel', 'addLabel', 'startFrom']
 // How the popup is laid out: wider, and how many fields to a line.
 const ASK_LAYOUT_KEYS = ['wide', 'columns']
 export const MAX_ASK_COLUMNS = 4
 
 /** A button's `ask.fields`: the values a press asks for, each reaching the function under its name. */
-function checkAskFields(fields, params, at, err) {
+function checkAskFields(fields, params, at, err, inRow) {
   if (!Array.isArray(fields)) { err(at, 'must be a list of { name, label, type, unit?, required?, min?, max?, fill?, options? }'); return }
   const seen = new Set()
   fields.forEach((f, i) => {
@@ -668,7 +668,7 @@ function checkAskFields(fields, params, at, err) {
     if (bad.length) err(p, `only ${ASK_FIELD_KEYS.map((k) => `"${k}"`).join(', ')} are used — remove: ${bad.join(', ')}`)
     if (!(nonEmptyString(f.name) && /^[A-Za-z][A-Za-z0-9_]{0,62}$/.test(f.name))) err(`${p}.name`, 'must be letters, digits or _ — what the function receives it as, e.g. "lengthIn"')
     else if (seen.has(f.name)) err(`${p}.name`, `"${f.name}" is asked twice`)
-    else if (f.name === NOTE_INPUT || f.name === FILES_INPUT) err(`${p}.name`, `"${f.name}" is the note's or the files' own name — use ask.note or ask.file`)
+    else if (!inRow && (f.name === NOTE_INPUT || f.name === FILES_INPUT)) err(`${p}.name`, `"${f.name}" is the note's or the files' own name — use ask.note or ask.file`)
     else if (params && Object.prototype.hasOwnProperty.call(params, f.name)) err(`${p}.name`, `"${f.name}" is already one of the button's parameters — the screen gives it, so nobody should be asked`)
     else seen.add(f.name)
     if (!nonEmptyString(f.label)) err(`${p}.label`, 'must be what the person sees, e.g. "Length"')
@@ -684,6 +684,22 @@ function checkAskFields(fields, params, at, err) {
       if (f.fill !== undefined) err(`${p}.fill`, 'is for a number, text or date field — a checklist starts empty')
       return
     }
+    if (f.type === 'rows') {
+      // The same few fields once per thing: number or text, checked as those are.
+      if (!Array.isArray(f.fields) || !f.fields.length) err(`${p}.fields`, 'must list what each row asks for, e.g. [{ name: "lengthCm", label: "Length", type: "number", unit: "cm" }]')
+      else {
+        f.fields.forEach((c, k) => { if (c && !ROW_FIELD_TYPES.includes(c.type)) err(`${p}.fields[${k}].type`, `must be one of: ${ROW_FIELD_TYPES.join(', ')} — a row holds numbers and text`) })
+        // A row's own names: only one another's — never the button's note or files.
+        checkAskFields(f.fields, null, `${p}.fields`, err, true)
+      }
+      ;['min', 'max'].forEach((k) => { if (f[k] !== undefined && !(Number.isInteger(f[k]) && f[k] >= 0 && f[k] <= MAX_ASK_ROWS)) err(`${p}.${k}`, `must be how many rows, a whole number up to ${MAX_ASK_ROWS}`) })
+      if (Number.isInteger(f.min) && Number.isInteger(f.max) && f.min > f.max) err(`${p}.min`, 'is more than max')
+      ;['rowLabel', 'addLabel'].forEach((k) => { if (f[k] !== undefined && !(typeof f[k] === 'string' && f[k].length <= 40)) err(`${p}.${k}`, 'must be a short text, e.g. "Packet"') })
+      if (f.startFrom !== undefined && !(nonEmptyString(f.startFrom) && FUNCTION_NAME.test(f.startFrom))) err(`${p}.startFrom`, 'must be the name of a registered function (event "buttonOptions") that answers the rows to start with, e.g. "orderParcels"')
+      ;['unit', 'fill', 'options', 'optionsFrom'].forEach((k) => { if (f[k] !== undefined) err(`${p}.${k}`, 'is not for rows — give it to the row\'s own fields') })
+      return
+    }
+    ;['fields', 'rowLabel', 'addLabel', 'startFrom'].forEach((k) => { if (f[k] !== undefined) err(`${p}.${k}`, 'is for a rows field') })
     if (f.optionsFrom !== undefined) err(`${p}.optionsFrom`, 'is for a checklist')
     if (f.type === 'checkbox') {
       ;['min', 'max', 'unit', 'options', 'optionsFrom'].forEach((k) => { if (f[k] !== undefined) err(`${p}.${k}`, 'is not for a checkbox') })
