@@ -97,7 +97,7 @@ console.log('turning a comment into a task')
   check('convert without a link field: valid — the new record belongs to nothing', errs(screen({ convert: { screen: 'general_task_edit' } }).doc).length === 0)
   check('a link field that is not a field name: refused', errs(screen({ convert: { screen: 'x_edit', linkField: 'not a field' } }).doc).some((e) => /convert\.linkField: must be/.test(e)))
   check('an unknown convert key: refused', errs(screen({ convert: { ...CONVERT, values: {} } }).doc).some((e) => /convert\.values: is not used/.test(e)))
-  check('converting into this very screen: refused', errs(screen({ convert: { ...CONVERT, screen: 'order_view' } }).doc).some((e) => /convert\.screen: cannot be this screen/.test(e)))
+  check('converting into a new record of this very form: valid — a task\'s comment becomes another task', errs(screen({ convert: { screen: 'order_view' } }).doc).length === 0)
 
   const [can, did, odd] = entriesOf([
     { id: 'oc-1', kind: 'comment', text: 'Call her', convert: { name: 'Call her', details: 'Call her', sourceCommentId: 1, bad: { x: 1 }, 'not a field': 'x' } },
