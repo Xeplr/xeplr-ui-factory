@@ -22,6 +22,8 @@ export {
 } from './buttons.js'
 // An autocomplete field's suggestions — what a suggest function may answer, and what picking one writes.
 export { SUGGEST_EVENT, MAX_SUGGESTIONS, DEFAULT_MIN_CHARS, MAX_SUGGEST_QUERY, suggestionsOf, shouldSuggest, pickValues, MAX_TAGS, MAX_TAG_QTY, isTagField, tagLimit, addTag, setTagQty, removeTag, tagsOf } from './suggest.js'
+// A record's feed: comments and its history, from a function (event "feedEntries").
+export { FEED_EVENT, FEED_KINDS, FEED_ORDERS, MAX_FEED_ENTRIES, MAX_ENTRY_TEXT, MIN_FEED_REFRESH, entriesOf, shownEntries, initials, composeValues, feedProblems } from './feed.js'
 // Which pages are drawn from documents and which are web only (ui/pages.json).
 export { checkInventory, routesIn, pageWarnings, webOnlyMenus } from './pagesInventory.js'
 export { formSchema, initialValues, parseInput, validateValues, fieldError, sameId, optionValue, chooseable, saveState, recordValues, displayValue, fileLabel, isMultiFile, toDbValue, fromDbValue, listColumns, listSource } from './values.js'

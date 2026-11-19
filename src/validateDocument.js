@@ -18,6 +18,7 @@ import { RESERVED_COLUMNS, MAX_IDENTIFIER } from './tableSchema.js'
 import { FIELD_PRESETS, INPUT_TYPES, presetFor } from './presets.js'
 import { isBinding } from './values.js'
 import { ROW_MENU_ACTIONS } from './listRows.js'
+import { feedProblems, FEED_EVENT } from './feed.js'
 import { BUTTON_VARIANTS, COLUMN_DISPLAYS, LIST_LAYOUTS, BADGE_TONES, COLUMN_ICONS, CONDITION_OPERATORS, ASK_FIELD_TYPES, NOTE_INPUT, FILES_INPUT, isAskDayLimit } from './buttons.js'
 
 const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
@@ -192,6 +193,7 @@ export function validateDocument(doc, controls = CONTROLS) {
     if (node.type === 'list') checkList(props, doc, at, err)
     if (node.type === 'buttons') checkButtons(props, at, err, buttonIds)
     if (node.type === 'subform') checkSubform(props, doc, at, err)
+    if (node.type === 'feed') checkFeed(props, doc, at, err)
     if (node.type === 'label') {
       if (typeof props.text !== 'string') err(`${at}.props.text`, 'must be a string')
       if (props.variant !== undefined && !LABEL_VARIANTS.includes(props.variant)) err(`${at}.props.variant`, `must be one of: ${LABEL_VARIANTS.join(', ')}`)
@@ -782,6 +784,17 @@ function checkSubform(props, doc, at, err) {
   if (!(nonEmptyString(props.belongsTo) && /^[A-Za-z_][\w]*$/.test(props.belongsTo))) {
     err(`${at}.props.belongsTo`, 'is required — the field on that form pointing back at this record, e.g. "employeeId"')
   }
+}
+
+// A record's feed: its entries come from a function given THE RECORD, so the
+// screen must say which table that record is in.
+function checkFeed(props, doc, at, err) {
+  if (!(nonEmptyString(props.entriesFrom) && FUNCTION_NAME.test(props.entriesFrom))) {
+    err(`${at}.props.entriesFrom`, `is required — the name of a registered function (event "${FEED_EVENT}") that returns the record's entries, e.g. "orderFeed"`)
+  }
+  feedProblems(props, at).forEach((e) => err(e.path, e.message))
+  if (!nonEmptyString(doc.source)) err(`${at}.props.entriesFrom`, 'needs the screen to have a "source" — the feed is about one record of that table')
+  if (props.compose && props.compose.screen === doc.id) err(`${at}.props.compose.screen`, 'cannot be this screen — a comment is saved through a form of its own')
 }
 
 function nonEmptyString(v) {

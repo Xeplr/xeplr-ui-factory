@@ -809,6 +809,54 @@ CONTROLS.buttons = {
   ]
 }
 
+// A RECORD'S FEED — comments and the record's history in one list, newest
+// first, with a box under it to write a comment. The entries are worked out
+// by a function of the app (event "feedEntries", named in entriesFrom) given
+// the record; a comment is saved through a form of the app (compose.screen),
+// so its rules and events apply. See feed.js.
+CONTROLS.feed = {
+  type: 'feed',
+  label: 'Comments & history',
+  group: 'Data',
+  input: false,
+  defaultSize: { w: 0.92, h: 0.5 },
+  defaults: { title: 'Comments', order: 'newest' },
+  props: ['title', 'entriesFrom', 'compose', 'order', 'eventsSwitch', 'refreshEvery', 'empty', 'style'],
+  validation: [],
+  styles: ['fontFamily', 'fontSize', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'],
+  properties: [
+    {
+      key: 'feed',
+      title: 'Feed',
+      fields: [
+        { path: 'props.title', label: 'Title', type: 'text', help: 'Shown above it. Blank → none' },
+        { path: 'props.entriesFrom', label: 'Entries from', type: 'function', event: 'feedEntries',
+          help: 'A function of the app that returns this record\'s comments and history' },
+        { path: 'props.order', label: 'Order', type: 'select', options: [
+          { value: 'newest', label: 'Newest first' },
+          { value: 'oldest', label: 'Oldest first' }
+        ] },
+        { path: 'props.eventsSwitch', label: '"Comments only" switch', type: 'toggle', help: 'Lets people hide the history and read only what was said' },
+        { path: 'props.refreshEvery', label: 'Refresh every (seconds)', type: 'number', help: 'At least 10. Blank → only when something is posted' },
+        { path: 'props.empty', label: 'When there is nothing', type: 'text', help: 'Blank → "Nothing here yet."' }
+      ]
+    },
+    {
+      key: 'compose',
+      title: 'Writing a comment',
+      fields: [
+        { path: 'props.compose.screen', label: 'Saved through', type: 'form', help: 'The form a comment is saved in — its rules and events apply. Blank → nobody can write here' },
+        { path: 'props.compose.linkField', label: 'Linked by', type: 'text', help: 'The field on that form pointing back at this record, e.g. orderId' },
+        { path: 'props.compose.textField', label: 'Text field', type: 'text', help: 'The field the comment is saved in, e.g. body' },
+        { path: 'props.compose.fileField', label: 'File field', type: 'text', help: 'The file field on that form, for a photo or document. Blank → text only' },
+        { path: 'props.compose.placeholder', label: 'Hint in the box', type: 'text' },
+        { path: 'props.compose.button', label: 'Button', type: 'text', help: 'Blank → "Post"' }
+      ]
+    },
+    ...styleGroups(['fontFamily', 'fontSize', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'])
+  ]
+}
+
 export const LABEL_VARIANTS = ['heading', 'subheading', 'text']
 
 /** The sizes a label preset starts from, in px at the design width. */

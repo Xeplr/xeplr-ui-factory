@@ -770,6 +770,67 @@ actions.register({ name: 'productSuggestions', event: 'suggest', execute: async 
 - In an entity spec: `{ "label": "Add products", "name": "addProducts", "type": "autocomplete", "suggestFrom": "productSuggestions", "multiple": true, "quantity": true }`.
   A list generated from the spec leaves it out of its columns.
 
+## Comments and history — `feed`
+
+What was said about a record and what happened to it, in one list: comments as
+full rows (round initials, name, badge, when, the text, its file) and the
+record's history as quiet one-line rows between them, with a box under the
+title to write a comment. Palette: **Data → Comments & history**.
+
+```json
+{ "id": "n5", "type": "feed", "props": {
+  "title": "Comments", "entriesFrom": "orderFeed", "order": "newest", "eventsSwitch": true, "refreshEvery": 60,
+  "compose": { "screen": "order_comment_edit", "linkField": "orderId", "textField": "body",
+               "fileField": "attachment", "placeholder": "Write a comment…", "button": "Post" } } }
+```
+
+- **It is about one record**: the screen needs a `source`, and the feed shows
+  nothing (and takes no comment) until the record is saved.
+- **The entries are worked out by a function** of the app, registered for event
+  **`feedEntries`** and named in `entriesFrom` (publishing refuses one nobody
+  registered, or one written for another event). It is given the record —
+  read on the server, this company's and active, so another company's id is a
+  404 — as `ctx.record` and `ctx.id`, and returns entries. Everything an entry
+  shows is **text the server wrote**, so it reads the same in any renderer:
+
+  ```js
+  actions.register({ name: 'orderFeed', event: 'feedEntries', execute: async (ctx) => {
+    var comments = await ctx.db('order_comments').where('orderId', ctx.id).orderBy('id', 'desc');
+    return comments.map((c) => ({
+      id: 'c' + c.id, kind: 'comment', text: c.body,
+      author: { name: c.authorName, badge: c.teamName },      // badge optional
+      at: formatWhen(c.recordCreatedDate),                    // "Today, 4:00 pm"
+      files: c.attachment ? [{ path: c.attachment }] : [],
+      sub: c.taskTitle ? 'on task ' + c.taskTitle : undefined  // a quieter line
+    })).concat(statusChanges.map((s) => ({ id: 's' + s.id, kind: 'event', text: 'Status → ' + s.label, author: { name: s.by }, at: formatWhen(s.at) })));
+  } });
+  ```
+
+  Return them in the order they are shown newest-first; `order: "oldest"`
+  reverses them and puts the box under the list. An entry with no `id`, a
+  repeated `id`, or nothing to show is dropped; at most 500 are kept
+  (`entriesOf`).
+- **A comment is saved through a form of the app** (`compose.screen`): the feed
+  fills in `linkField` with the record's id, `textField` with what was typed
+  and, when `fileField` is set and a file was attached, that field with the
+  stored file. So the form's rules (required, length, the file's `accept` and
+  `maxSize`), its access row and its events — telling everyone in `afterSave`
+  — apply exactly as anywhere else. The file is stored when it is chosen, with
+  the compose form's own rules. Ctrl/⌘ + Enter posts. Without `compose` the
+  feed only reads.
+- **`eventsSwitch`** shows a "Comments only" switch when there are events.
+  **`refreshEvery`** (seconds, from 10) asks again — for "2h ago". It also asks
+  again after a post and whenever `reloadKey` changes.
+- **`empty`** is what shows when there is nothing yet (default "Nothing here yet.").
+- Route: `GET /factory/feed/:screen?node=&id=` (same access as a list's rows) —
+  see `@xeplr/factory`. `createFactoryApi(...).fetchFeed({ screen, node, id })`,
+  handed to `FactoryScreen` in `screenProps`.
+- The controller part is `useFeeds` inside `useFactoryScreen` — `ctrl.feedFor(node)`
+  returns `{ entries, hasEvents, loading, error, waiting, commentsOnly,
+  setCommentsOnly, reload, compose: { text, setText, file, upload, removeFile,
+  post, posting, error, placeholder, button, fileRules } | null }` — so a phone
+  renderer draws the same feed from the same calls.
+
 ## Web-only pages — `ui/pages.json`
 
 Each app keeps an inventory of its pages: drawn from documents, or
@@ -1068,6 +1129,7 @@ Both walk someone through something, and they answer different questions:
 | `label` | — | text with a heading, subheading or text preset |
 | `list` | — | saved records, with New / Edit / Delete — or rows a function works out (`rowsFrom`), with search, filter chips and counts; see above |
 | `buttons` | — | a panel of buttons, each a registered function and its parameters — see above (palette: **Actions → Buttons**) |
+| `feed` | — | a record's comments and history from a function (`entriesFrom`, event `feedEntries`), with a box that saves a comment through another form (`compose`) — see [Comments and history](#comments-and-history--feed) |
 | `table` | array of the rows ticked | `minItems`, `maxItems`; `required` = at least one. Rows the screen is **handed** (`rows: '{params.lines}'`), not a table it reads; `columns` (`ref, amount`) or every key of the first row; `selectable` (a tick per row, on by default). Adds no column — see below |
 | `subform` | — | another form drawn inside this one (palette: **Form**), saving into its own table — see below |
 
@@ -1315,12 +1377,14 @@ src/
   useFlowBuilder.js      ─ flow designer controller
   buttons.js             ─ buttons and function-fed lists: conditions, what a press sends, asked values (askFieldValues), functionProblems' checks (React-free)
   listRange.js           ─ a list's date range: presets → days (resolveRange) (React-free)
+  feed.js                ─ a record's feed: entriesOf, composeValues, the compose checks (React-free)
+  useFeeds.js            ─ the feeds on a screen: entries, "Comments only", posting (inside useFactoryScreen)
   pagesInventory.js      ─ ui/pages.json: routesIn, pageWarnings, webOnlyMenus (React-free)
   urlState.js            ─ the URL keys and values for selection and steps (React-free)
   useUrlPlaces.js        ─ useUrlSteps, useUrlSelection: those places, in the URL or in memory
   useScreenSource.js     ─ { screens, screenEditor } for @xeplr/ui-workflow's Screen step
   useFilePreview.js      ─ a stored picture as an object URL, through readFile
-  designs/               ─ BuilderSample, ScreenSample, ScreenEditorSample, ControlView, ListView, FedList, ButtonsView, FileField, Palette, PropertyPanel, styles.js, factory.css
+  designs/               ─ BuilderSample, ScreenSample, ScreenEditorSample, ControlView, ListView, FedList, ButtonsView, FeedView, FileField, Palette, PropertyPanel, styles.js, factory.css
   pages.jsx              ─ FactoryBuilder, FactoryScreen
 bin/xeplr-factory.js     ─ screens / generate / validate / controls / schema / pages
 examples/                ─ employee.entity.json and what `screens` makes of it; orders-board and order-actions (a function-fed list, buttons — one takes photos); delivery-photos (several pictures, camera only)
@@ -1333,7 +1397,7 @@ dev/                     ─ the stand-in app for `npm run dev` (not published)
 npm test
 ```
 
-`test/buttons.test.js` covers buttons and function-fed lists in the document: what the checker refuses, when a button shows or is greyed out, what a press sends (the document's parameters, never the request's), and `functionProblems` against a registry. `test/cli.test.js` includes `pages`. `test/dashboard.test.js` covers a list's date range and KPI cards, and a button that asks for values. `test/files.test.js` covers files: several in one field (the value, its column, its checks), camera only, and a button whose press takes files.
+`test/buttons.test.js` covers buttons and function-fed lists in the document: what the checker refuses, when a button shows or is greyed out, what a press sends (the document's parameters, never the request's), and `functionProblems` against a registry. `test/cli.test.js` includes `pages`. `test/dashboard.test.js` covers a list's date range and KPI cards, and a button that asks for values. `test/feed.test.js` covers a feed: what the checker refuses, what a function's answer becomes, and what posting a comment saves. `test/files.test.js` covers files: several in one field (the value, its column, its checks), camera only, and a button whose press takes files.
 
 `test/urlState.test.js` covers the URL state: the key format, and the three controllers reading their places back from a real `MemoryRouter` and being clicked through in memory, rendered with `react-dom/server`.
 

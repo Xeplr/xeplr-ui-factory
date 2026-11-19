@@ -1142,3 +1142,60 @@ button.xeplr-factory-activity-item:hover, button.xeplr-factory-activity-item:foc
   color: inherit; background: transparent; cursor: pointer; white-space: nowrap;
 }
 .xeplr-factory-rowmenu-item:hover, .xeplr-factory-rowmenu-item:focus-visible { outline: none; background: var(--xeplr-bg-hover, #f0f0ee); }
+
+/* ── a record's feed: comments and history (FeedView) ──────────────────────
+   Fills its box on the canvas; the entries scroll inside it. A comment is a
+   full row — round initials, name, badge, when, the text, its files; the
+   record's history is a quiet one-line row between them. */
+.xeplr-factory-feed {
+  display: flex; flex-direction: column; gap: calc(10 * var(--xf-u)); height: 100%; box-sizing: border-box; min-height: 0;
+  font-size: max(11px, calc(var(--xf-font, 14) * var(--xf-u))); color: var(--xf-ink);
+}
+.xeplr-factory-feed-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.xeplr-factory-feed-title { font-weight: 600; font-size: 1.05em; }
+.xeplr-factory-feed-switch { display: inline-flex; align-items: center; gap: 6px; color: var(--xf-muted); font-size: .9em; cursor: pointer; white-space: nowrap; }
+.xeplr-factory-feed-entries { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.xeplr-factory-feed-comment { display: flex; gap: 10px; padding: 8px 2px; border-bottom: 1px solid color-mix(in srgb, var(--xf-border) 60%, transparent); }
+.xeplr-factory-feed-avatar {
+  flex: none; width: 30px; height: 30px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; color: var(--xf-accent); background: color-mix(in srgb, var(--xf-accent) 14%, transparent);
+}
+.xeplr-factory-feed-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.xeplr-factory-feed-meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+.xeplr-factory-feed-badge { font-size: .8em; padding: 1px 7px; border-radius: 999px; color: var(--xf-muted); background: var(--xf-hover); }
+.xeplr-factory-feed-at { font-size: .85em; color: var(--xf-muted); white-space: nowrap; }
+.xeplr-factory-feed-sub { font-size: .85em; color: var(--xf-muted); }
+.xeplr-factory-feed-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.45; }
+.xeplr-factory-feed-files { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.xeplr-factory-feed-thumb img { display: block; width: 88px; height: 88px; object-fit: cover; border-radius: 6px; border: 1px solid var(--xf-border); }
+.xeplr-factory-feed-file {
+  display: inline-flex; align-items: center; gap: 4px; max-width: 100%; font: inherit; font-size: .88em; padding: 3px 9px; border-radius: 6px;
+  color: var(--xf-accent); background: var(--xf-surface); border: 1px solid var(--xf-border); cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.xeplr-factory-feed-file:disabled { cursor: default; color: var(--xf-muted); }
+.xeplr-factory-feed-file--chosen { cursor: default; color: var(--xf-ink); }
+.xeplr-factory-feed-unattach { font: inherit; line-height: 1; padding: 0 2px; border: 0; background: none; color: var(--xf-muted); cursor: pointer; }
+.xeplr-factory-feed-event { display: flex; align-items: baseline; gap: 8px; padding: 3px 2px 3px 11px; color: var(--xf-muted); font-size: .88em; }
+.xeplr-factory-feed-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--xf-border); transform: translateY(-1px); }
+.xeplr-factory-feed-event-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.xeplr-factory-feed-compose { display: flex; flex-direction: column; gap: 6px; flex: none; }
+.xeplr-factory-feed-input {
+  font: inherit; width: 100%; box-sizing: border-box; resize: vertical; min-height: 56px; padding: 8px 10px; border-radius: 6px;
+  color: var(--xf-ink); background: var(--xf-surface); border: 1px solid var(--xf-border);
+}
+.xeplr-factory-feed-input:focus { outline: none; border-color: var(--xf-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--xf-accent) 25%, transparent); }
+.xeplr-factory-feed-input--design { display: block; color: var(--xf-muted); }
+.xeplr-factory-feed-compose-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.xeplr-factory-feed-post { margin-left: auto; }
+.xeplr-factory-feed-error { color: var(--xf-danger); font-size: .88em; }
+.xeplr-factory-page--grows .xeplr-factory-feed { height: auto; }
+.xeplr-factory-page--grows .xeplr-factory-feed-entries { overflow: visible; }
+
+@media (max-width: 640px) {
+  .xeplr-factory-feed { height: auto; }
+  .xeplr-factory-feed-entries { overflow: visible; }
+  .xeplr-factory-feed-input { font-size: max(16px, 1em); min-height: 88px; }
+  .xeplr-factory-feed-switch { min-height: 40px; }
+  .xeplr-factory-feed-switch input { width: 20px; height: 20px; }
+}

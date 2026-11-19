@@ -27,6 +27,7 @@ A request for "a form for employees" is an **entity**. Every entity is the same 
 | a field, a label, a rule, a dropdown, the layout, a colour | the screen JSON (then validate) |
 | "a button that does something to a record" — set a status, confirm, approve | a **Buttons** control naming a function (event `button`) and its parameters; the function in `employee.functions.js` — one function, many buttons with different parameters |
 | "a list whose rows are worked out", "a search box", "filter chips with counts" | a list with `rowsFrom` naming a function (event `listRows`) that returns `{ rows, counts }` — the text it shows is the function's |
+| "comments on a record", "its history", "what happened to it" | a **feed** (`type: "feed"`) on a screen with that record's `source`: `entriesFrom` naming a function (event `feedEntries`) that returns the entries, and `compose` naming the form a comment is saved through — see Comments and history |
 | "show / hide / filter rows on screen", "fill in X before saving" (browser convenience — web only) | front-end hooks in `EditEmployee.jsx` |
 | "must", "only if", "check against…", "email when…", "only managers see…" | a server function in `employee.functions.js`, named in the screen's `events` |
 | "store as…", "convert…", "comma-separated / array", "work out X from Y" (data shape) | server model in `employee.model.js` |
@@ -245,6 +246,19 @@ A button that needs values typed first (a parcel's size before Packed) gets `ask
 
 Register the function with `event: 'button'` and an `inputSchema` (with `options` for the values allowed, a `note` input if a button asks for one, and a `files` input if its `ask.file` takes photos or documents — `{ "accept": ".png,.jpg,.jpeg", "multiple": true, "source": "any" }`, the same rules as a file field). `when` / `disabledWhen` are `@xeplr/rules` rules on the record. Publishing refuses parameters the function does not take. See the README's "Buttons".
 
+## Comments and history
+
+A **feed** shows one record's comments and history. The screen needs a `source` (the record's table):
+
+```json
+{ "type": "feed", "props": { "title": "Comments", "entriesFrom": "orderFeed", "eventsSwitch": true,
+  "compose": { "screen": "order_comment_edit", "linkField": "orderId", "textField": "body", "fileField": "attachment" } } }
+```
+
+- `entriesFrom` — a function registered with `event: 'feedEntries'`. It gets `ctx.record` / `ctx.id` and returns `[{ id, kind: 'comment' | 'event', text, author?: { name, badge? }, at?, files?: [{ path, name? }], sub? }]`, newest first, every value already worded for people ("Today, 4:00 pm").
+- `compose` — the comments' own form (an entity like `order comment`, with a dropdown back to the record, a textarea and optionally a file field). Leave `compose` out for a feed that only reads.
+- Comments are records of that form: telling people about a new one is that form's `afterSave`, not the feed's.
+
 ## When the document cannot say it
 
 Say so — "this needs a new control" — rather than writing a page by hand around it. If a hand-written page is agreed, list it in the app's `ui/pages.json` under `webOnly` with the reason: it will not be in a phone app, and `npx xeplr-factory pages` says so on every commit.
@@ -298,6 +312,7 @@ Rules you give merge over the ready-made ones (`"validation": { "max": 120 }`).
 | a document, a contract, a spreadsheet, a photo | `file` with `accept` (`".pdf,.docx"`) |
 | several photos, several documents | `file` with `multiple: true` (and `maxFiles`) — the value is a list of paths |
 | a photo taken now, at the door / on site | `file` with `source: "camera"` and images in `accept` — the phone opens its camera |
+| comments on a record, its history | a `feed` — see Comments and history |
 | a section title between groups | `{ "type": "label", "text": "…", "variant": "subheading" }` |
 | a long form people work through in stages | a `stepper`, then `step` on each field |
 

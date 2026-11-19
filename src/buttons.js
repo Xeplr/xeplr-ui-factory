@@ -20,6 +20,7 @@
 //               one table: { rows, counts } for a search and a filter chip.
 //   rowDetails  what a list cell's hover box lists for one row.
 //   suggest     an autocomplete field's suggestions as the person types (suggest.js).
+//   feedEntries a record's comments and history, for a feed (feed.js).
 //   buttonOptions  what a button's checklist offers, worked out for the record
 //               it is pressed on: the products still out on this movement.
 //
@@ -33,6 +34,7 @@
 
 import { matches, OPERATORS } from '@xeplr/rules'
 import { SUGGEST_EVENT as SUGGEST } from './suggest.js'
+import { FEED_EVENT } from './feed.js'
 
 export const BUTTON_EVENT = 'button'
 export const LIST_ROWS_EVENT = 'listRows'
@@ -359,6 +361,9 @@ export function nodeFunctions(doc) {
       ;(Array.isArray(p.columns) ? p.columns : []).forEach((c, j) => {
         if (c && typeof c.details === 'string' && c.details) out.push({ event: ROW_DETAILS_EVENT, name: c.details, at: `nodes[${i}].props.columns[${j}].details` })
       })
+    }
+    if (node.type === 'feed' && typeof p.entriesFrom === 'string' && p.entriesFrom) {
+      out.push({ event: FEED_EVENT, name: p.entriesFrom, at: `nodes[${i}].props.entriesFrom` })
     }
     if (node.type === 'autocomplete' && typeof p.suggestFrom === 'string' && p.suggestFrom) {
       out.push({ event: SUGGEST, name: p.suggestFrom, at: `nodes[${i}].props.suggestFrom` })
