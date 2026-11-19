@@ -3,7 +3,7 @@
 //
 //   import { screenFromSpec, validateDocument, formSchema } from '@xeplr/ui-factory/model'
 
-export { CONTROLS, OPTION_ID, OPTION_LABEL, LABEL_VARIANTS, LABEL_PRESETS, LIST_ACTIONS, STYLE_KEYS, SCREEN_STYLE_KEYS, FONT_FAMILIES, LAYOUTS, CHOICE_TYPES, STEP_LIMIT, MULTI_SEPARATOR, FILE_KINDS, MAX_FILE_MB, IMAGE_EXTENSIONS, FILE_SOURCES, MAX_FILES, isImageFile, filePicker, acceptList, controlGroups, withControls } from './controls.js'
+export { CONTROLS, OPTION_ID, OPTION_LABEL, LABEL_VARIANTS, LABEL_PRESETS, LIST_ACTIONS, STYLE_KEYS, SCREEN_STYLE_KEYS, FONT_FAMILIES, LAYOUTS, CHOICE_TYPES, STEP_LIMIT, MULTI_SEPARATOR, STEPPER_DISPLAYS, isTabs, FILE_KINDS, MAX_FILE_MB, IMAGE_EXTENSIONS, FILE_SOURCES, MAX_FILES, isImageFile, filePicker, acceptList, controlGroups, withControls } from './controls.js'
 export {
   DOCUMENT_KIND, DOCUMENT_VERSION, DEFAULT_ASPECT, DEFAULT_WIDTH, MARGIN, GAP,
   createScreen, renameScreen, setScreenProperty, addControl, moveNode, setNodeProperty, getNodeProperty, removeNodes,

@@ -11,7 +11,7 @@
 // fields writing the same key — looks like a data problem to whoever uses it.
 
 import { SCREEN_EVENT_KEYS, FUNCTION_NAME } from './events.js'
-import { CONTROLS, LABEL_VARIANTS, LIST_ACTIONS, STYLE_KEYS, SCREEN_STYLE_KEYS, LAYOUTS, MULTI_SEPARATOR, MAX_FILE_MB, STEP_LIMIT, acceptList, FILE_SOURCES, IMAGE_EXTENSIONS, MAX_FILES } from './controls.js'
+import { CONTROLS, LABEL_VARIANTS, LIST_ACTIONS, STYLE_KEYS, SCREEN_STYLE_KEYS, LAYOUTS, MULTI_SEPARATOR, MAX_FILE_MB, STEP_LIMIT, STEPPER_DISPLAYS, acceptList, FILE_SOURCES, IMAGE_EXTENSIONS, MAX_FILES } from './controls.js'
 import { DOCUMENT_KIND, DOCUMENT_VERSION } from './document.js'
 import { DATE_PRESET_VALUES } from './listRange.js'
 import { RESERVED_COLUMNS, MAX_IDENTIFIER } from './tableSchema.js'
@@ -274,6 +274,7 @@ function checkSteps(props, at, err) {
     if (extra.length) err(p, `only "key" and "label" are used — remove: ${extra.join(', ')}`)
   })
   if (props.showNumbers !== undefined && typeof props.showNumbers !== 'boolean') err(`${at}.props.showNumbers`, 'must be true or false')
+  if (props.display !== undefined && !STEPPER_DISPLAYS.includes(props.display)) err(`${at}.props.display`, `must be one of: ${STEPPER_DISPLAYS.join(', ')} — "tabs" opens any one with a click, with no Back or Next`)
 }
 
 /** A node's `step`: a stepper that exists, and one of its steps. */

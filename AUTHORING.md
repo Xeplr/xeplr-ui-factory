@@ -183,6 +183,7 @@ Each field:
 | `layout` | radio, multiselect: `"vertical"` (default) or `"horizontal"` |
 | `accept` | file: the extensions it takes, e.g. `".pdf,.docx"` |
 | `steps` | stepper: `["Connect", "Transform", "Review"]` — at least two |
+| `display` | stepper: `"steps"` (default — Back and Next) or `"tabs"` (a row of tabs, any one opened with a click) |
 | `step` | which step this field is on: the step's label, or its number from 1. Needs a `stepper` earlier in `fields`; without a `step` a field shows on every step |
 | `maxSize` | file: the largest file in megabytes (default 10) |
 | `text`, `variant` | `label` only — `variant` is `heading`, `subheading` (default for a section) or `text` |
@@ -315,6 +316,7 @@ Rules you give merge over the ready-made ones (`"validation": { "max": 120 }`).
 | comments on a record, its history | a `feed` — see Comments and history |
 | a section title between groups | `{ "type": "label", "text": "…", "variant": "subheading" }` |
 | a long form people work through in stages | a `stepper`, then `step` on each field |
+| parts of one screen side by side, opened in any order (Comments / Tasks) | a `stepper` with `"display": "tabs"`, then `step` on each control |
 
 Keep labels short and in sentence case ("Start date", not "START DATE:"). Mark only what the request needs as required.
 

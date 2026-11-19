@@ -561,6 +561,7 @@ function StepperView({ node, p, design, stepper }) {
   const active = stepper && Number.isInteger(stepper.active) ? stepper.active : 0
   const go = stepper && stepper.onStep
   const text = boxStyle(p.style)
+  if (p.display === 'tabs') return <TabsView node={node} p={p} design={design} steps={steps} active={active} go={go} stepper={stepper} />
   return (
     <div className="xeplr-factory-stepper" style={{ ...fieldStyle(p.style), ...text }}>
       <ol className="xeplr-factory-steps">
@@ -586,6 +587,43 @@ function StepperView({ node, p, design, stepper }) {
           )
         })}
       </ol>
+    </div>
+  )
+}
+
+/**
+ * The same steps as a row of tabs: any one opens with a click (the app's
+ * `step` hook still has the last word), arrow keys move along the row. On the
+ * canvas a click opens a tab too, which is how its controls are reached.
+ */
+function TabsView({ node, p, design, steps, active, go, stepper }) {
+  const keyDown = (e) => {
+    if (!go || (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft')) return
+    e.preventDefault()
+    const way = e.key === 'ArrowRight' ? 1 : -1
+    for (let i = active + way; i >= 0 && i < steps.length; i += way) {
+      if (!(stepper && stepper.isDisabled && stepper.isDisabled(i))) { go(i); return }
+    }
+  }
+  return (
+    <div className="xeplr-factory-tabs" role="tablist" aria-label={node.id} style={{ ...fieldStyle(p.style), ...boxStyle(p.style) }} onKeyDown={keyDown}>
+      {steps.map((s, i) => {
+        const off = Boolean(stepper && stepper.isDisabled && stepper.isDisabled(i))
+        return (
+          <button
+            key={s.key}
+            type="button"
+            role="tab"
+            aria-selected={i === active}
+            className={'xeplr-factory-tab' + (i === active ? ' is-active' : '')}
+            onClick={(e) => { if (go && !off) { e.stopPropagation(); go(i) } }}
+            disabled={off}
+            tabIndex={design ? -1 : i === active ? 0 : -1}
+          >
+            {s.label}
+          </button>
+        )
+      })}
     </div>
   )
 }

@@ -47,7 +47,7 @@ export const SPEC_HEIGHTS = {
  */
 export const ROW_GAP = 0.04
 
-const FIELD_KEYS = ['type', 'preset', 'label', 'name', 'required', 'placeholder', 'default', 'validation', 'data', 'options', 'table', 'layout', 'accept', 'maxSize', 'multiple', 'maxFiles', 'suggestFrom', 'minChars', 'quantity', 'maxTags', 'step', 'steps', 'showNumbers', 'width', 'text', 'variant', 'style']
+const FIELD_KEYS = ['type', 'preset', 'label', 'name', 'required', 'placeholder', 'default', 'validation', 'data', 'options', 'table', 'layout', 'accept', 'maxSize', 'multiple', 'maxFiles', 'suggestFrom', 'minChars', 'quantity', 'maxTags', 'step', 'steps', 'showNumbers', 'display', 'width', 'text', 'variant', 'style']
 const SPEC_KEYS = ['name', 'id', 'source', 'columns', 'heading', 'fields', 'list', 'aspect', 'width', 'style']
 const LIST_KEYS = ['title', 'source', 'columns', 'pageSize', 'actions', 'style']
 
@@ -194,6 +194,7 @@ function propsFromField(type, field, at, fromPreset) {
         : s))
     }
     if (field.showNumbers !== undefined) props.showNumbers = field.showNumbers
+    if (field.display !== undefined) props.display = field.display
     if (field.style) props.style = field.style
     return props
   }

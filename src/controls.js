@@ -197,6 +197,12 @@ export function acceptList(accept) {
  *   node.step = { of: '<the stepper node's id>', index: 0 }
  */
 export const STEP_LIMIT = 12
+/** How a stepper is drawn: a journey with Back and Next, or a row of tabs. */
+export const STEPPER_DISPLAYS = ['steps', 'tabs']
+/** Is this stepper drawn as tabs? */
+export function isTabs(node) {
+  return Boolean(node && node.type === 'stepper' && node.props && node.props.display === 'tabs')
+}
 
 /** Largest upload a file field may take, in bytes. */
 export const MAX_FILE_MB = 200
@@ -573,7 +579,9 @@ export const CONTROLS = {
     // Steps are typed as one line — "Connect, Transform, Review" — because
     // that is how someone describes them. Each becomes { key, label }.
     defaults: { steps: [{ key: 'step_1', label: 'Step 1' }, { key: 'step_2', label: 'Step 2' }], showNumbers: true },
-    props: ['steps', 'showNumbers', 'style'],
+    // display "tabs": the same steps as a row of tabs — any one opened by a
+    // click, no Back / Next, and the screen's ordinary Save footer.
+    props: ['steps', 'showNumbers', 'display', 'style'],
     validation: [],
     styles: ['fontFamily', 'fontSize', 'fontWeight', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'],
     properties: [
@@ -582,7 +590,11 @@ export const CONTROLS = {
         title: 'Steps',
         fields: [
           { path: 'props.steps', label: 'Steps', type: 'steps', help: 'One line, separated by commas. Click a step on the canvas to build it.' },
-          { path: 'props.showNumbers', label: 'Number the steps', type: 'toggle' }
+          { path: 'props.display', label: 'Shown as', type: 'select', options: [
+            { value: 'steps', label: 'Steps — a journey, with Back and Next' },
+            { value: 'tabs', label: 'Tabs — open any one, no Back or Next' }
+          ] },
+          { path: 'props.showNumbers', label: 'Number the steps', type: 'toggle', help: 'Steps only' }
         ]
       },
       ...styleGroups(['fontFamily', 'fontSize', 'fontWeight', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'])

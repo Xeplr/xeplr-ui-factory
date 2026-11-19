@@ -1125,7 +1125,7 @@ Both walk someone through something, and they answer different questions:
 | `radio` | option id | — |
 | `multiselect` | array of option ids | `minItems`, `maxItems` |
 | `file` | the stored file's path — or, with `multiple`, an array of them | `accept` (extensions), `maxSize` (MB), `multiple`, `maxFiles`, `source` (`any` / `camera`); see [Files: gallery, camera, several](#files-gallery-camera-several) |
-| `stepper` | — | a journey across the top; every other control says which step it is on |
+| `stepper` | — | a journey across the top; every other control says which step it is on — or, with `display: "tabs"`, a row of tabs with no Back / Next |
 | `label` | — | text with a heading, subheading or text preset |
 | `list` | — | saved records, with New / Edit / Delete — or rows a function works out (`rowsFrom`), with search, filter chips and counts; see above |
 | `buttons` | — | a panel of buttons, each a registered function and its parameters — see above (palette: **Actions → Buttons**) |
@@ -1252,6 +1252,17 @@ learns which branch it is on. "Step 2 of 4" counts only the steps that apply.
 **A step is not a separate form.** Every field is a column, is checked, and is
 saved, whichever step is showing — Save can be pressed on any step. **Next** holds at a step whose own fields are not filled in, and says which,
 rather than moving on and leaving a problem behind where nobody is looking.
+
+#### Tabs — `display: "tabs"`
+
+The same stepper, drawn as a **row of tabs**: any tab opens with a click (or
+the arrow keys along the row), there is no Back / Next and no "Step 2 of 3",
+and the screen keeps its ordinary footer. Controls belong to a tab exactly as
+to a step (`step` on the node; none means every tab), the open tab lives in the
+URL with `urlKey` like a step, and the `step` hook still runs on every click —
+so a tab can be ruled out (`ctx.disable`) or refused. In the designer: the
+stepper's **Shown as → Tabs**. In a spec: `{ "type": "stepper", "steps": ["Comments", "Tasks"], "display": "tabs" }`.
+On a phone the row scrolls sideways rather than wrapping.
 
 ### Options: dropdown, radio group, multi-select
 

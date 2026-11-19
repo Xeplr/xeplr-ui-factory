@@ -1,7 +1,7 @@
 import ControlView from './ControlView.jsx'
 import { contentBottom, inputNodes, readingOrder, MARGIN } from '../document.js'
 import { screenStyle } from './styles.js'
-import { CHOICE_TYPES } from '../controls.js'
+import { CHOICE_TYPES, isTabs } from '../controls.js'
 
 // A saved screen, drawn. Presentation only — everything comes from
 // useFactoryScreen.
@@ -182,7 +182,9 @@ export default function ScreenSample({ ctrl, className, style, renderPopup, rend
   const status = hasFields && footer ? <SaveStatus ctrl={ctrl} /> : null
   // Nor a <form> of its own — one form inside another is not valid HTML.
   const Page = ctrl.embedded ? 'div' : 'form'
-  const steppers = ctrl.steps.nodes
+  // Tabs open any step with a click: no Back / Next under them, and the
+  // screen keeps its ordinary footer.
+  const steppers = ctrl.steps.nodes.filter((n) => !isTabs(n))
   // A list that grows with its rows, or a panel of buttons (wrapping on a
   // narrow screen) — its screen's one control: the page is as tall as it is,
   // rather than it scrolling or spilling out of a fixed box.
