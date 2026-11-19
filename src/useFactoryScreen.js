@@ -821,6 +821,16 @@ export function useFactoryScreen({
     // column ("#GA1025"), so a screen of buttons says what it acts on.
     const head = node.props.rowsFrom && rec && Array.isArray(node.props.columns) ? node.props.columns[0] : null
     const label = head && rec[head.text || head.field] !== undefined && rec[head.text || head.field] !== null ? String(rec[head.text || head.field]) : null
+    return openPopup({ node, screenId, rec, params: given, label })
+  }, [])
+
+  /**
+   * Opens screen `screenId` in the popup: a record (`rec`, or just its `id`,
+   * read again as it is now) or a new one called with `params`. A list's Edit / New open it
+   * so, and so does a feed turning a comment into a task.
+   */
+  const openPopup = useCallback(async ({ node = null, screenId, rec = null, id, params: given = null, label = null }) => {
+    if (!rec && id !== undefined && id !== null && id !== '') rec = { [live.current.recordKey]: id }
     const base = { node, screenId, record: rec || null, document: null, loading: true, error: null, params: given, label }
     setPopup(base)
     try {
@@ -947,7 +957,10 @@ export function useFactoryScreen({
   const [pressing, setPressing] = useState(null)        // button id on the wire
   const [buttonNote, setButtonNote] = useState(null)    // { kind: 'done' | 'error', text, button }
   // A record's comments and history (feed controls) — useFeeds.js.
-  const { feedFor } = useFeeds({ doc, recordId, fetchFeed, onSave, uploadFile, loadScreen, reloadKey })
+  // A comment turned into a task opens the task's form in the popup, and the
+  // feed asks again once that popup saves (listVersion), so the comment shows
+  // the task it became.
+  const { feedFor } = useFeeds({ doc, recordId, fetchFeed, onSave, uploadFile, loadScreen, reloadKey: `${reloadKey ?? ''}:${listVersion}`, openPopup })
   // What is known about the record (details panels) — useRecordDetails.js.
   const { detailsFor } = useRecordDetails({ doc, recordId, fetchDetails, reloadKey })
 

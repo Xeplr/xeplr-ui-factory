@@ -835,7 +835,7 @@ CONTROLS.feed = {
   input: false,
   defaultSize: { w: 0.92, h: 0.5 },
   defaults: { title: 'Comments', order: 'newest' },
-  props: ['title', 'entriesFrom', 'compose', 'order', 'eventsSwitch', 'refreshEvery', 'empty', 'style'],
+  props: ['title', 'entriesFrom', 'compose', 'convert', 'order', 'eventsSwitch', 'refreshEvery', 'empty', 'style'],
   validation: [],
   styles: ['fontFamily', 'fontSize', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'],
   properties: [
@@ -865,6 +865,16 @@ CONTROLS.feed = {
         { path: 'props.compose.fileField', label: 'File field', type: 'text', help: 'The file field on that form, for a photo or document. Blank → text only' },
         { path: 'props.compose.placeholder', label: 'Hint in the box', type: 'text' },
         { path: 'props.compose.button', label: 'Button', type: 'text', help: 'Blank → "Post"' }
+      ]
+    },
+    {
+      key: 'convert',
+      title: 'Turning a comment into a task',
+      fields: [
+        { path: 'props.convert.screen', label: 'Becomes a', type: 'form', help: 'The form a comment opens in, filled in from it — e.g. the task form. Blank → comments stay comments' },
+        { path: 'props.convert.linkField', label: 'Linked by', type: 'text', help: 'The field on that form pointing back at this record, e.g. orderId' },
+        { path: 'props.convert.label', label: 'Button', type: 'text', help: 'On each comment. Blank → "Convert"' },
+        { path: 'props.convert.openScreen', label: 'Opens in', type: 'form', help: 'The screen the record it became opens in, from the comment. Blank → shown, not opened' }
       ]
     },
     ...styleGroups(['fontFamily', 'fontSize', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'])

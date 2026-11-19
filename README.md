@@ -843,6 +843,19 @@ title to write a comment. Palette: **Data → Comments & history**.
   — apply exactly as anywhere else. The file is stored when it is chosen, with
   the compose form's own rules. Ctrl/⌘ + Enter posts. Without `compose` the
   feed only reads.
+- **A comment can become a record of another form** — "Convert to task":
+  `"convert": { "screen": "order_task_edit", "linkField": "orderId", "label": "Convert to task", "openScreen": "order_task_view" }`.
+  The function decides, per entry: `convert: { name, details, sourceCommentId }`
+  — the values that form opens with (field names to plain values only) — on a
+  comment that can still be converted, or `converted: { id, text }` — the
+  record it became — on one that was. The button opens `convert.screen` in the
+  screen's popup with those values and `linkField` set to this record (an entry
+  cannot point it at another); a field whose default is `{params.x}` stays
+  hidden as with New. Saving is that form's own save, so **the app's rules
+  decide whether the comment may still be converted** (Taskie claims it once,
+  in the task's `beforeSave`). Once converted, the comment shows
+  "✓ Became …", which opens the record in `openScreen` (just shown without it).
+  The feed asks again when the popup closes.
 - **`eventsSwitch`** shows a "Comments only" switch when there are events.
   **`refreshEvery`** (seconds, from 10) asks again — for "2h ago". It also asks
   again after a post and whenever `reloadKey` changes.
@@ -853,7 +866,8 @@ title to write a comment. Palette: **Data → Comments & history**.
 - The controller part is `useFeeds` inside `useFactoryScreen` — `ctrl.feedFor(node)`
   returns `{ entries, hasEvents, loading, error, waiting, commentsOnly,
   setCommentsOnly, reload, compose: { text, setText, file, upload, removeFile,
-  post, posting, error, placeholder, button, fileRules } | null }` — so a phone
+  post, posting, error, placeholder, button, fileRules } | null,
+  convert: { label, can(entry), start(entry), canOpen(entry), open(entry) } | null }` — so a phone
   renderer draws the same feed from the same calls.
 
 ## What is known about a record — `details`
@@ -1483,7 +1497,7 @@ src/
   details.js             ─ a record's details: detailsOf, safeHref (React-free)
   useRecordDetails.js    ─ the details panels on a screen, and their "More" (inside useFactoryScreen)
   tones.js               ─ the badge tones every rule file may name
-  feed.js                ─ a record's feed: entriesOf, composeValues, the compose checks (React-free)
+  feed.js                ─ a record's feed: entriesOf, composeValues, convertParams, the compose/convert checks (React-free)
   useFeeds.js            ─ the feeds on a screen: entries, "Comments only", posting (inside useFactoryScreen)
   pagesInventory.js      ─ ui/pages.json: routesIn, pageWarnings, webOnlyMenus (React-free)
   urlState.js            ─ the URL keys and values for selection and steps (React-free)

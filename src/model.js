@@ -23,7 +23,7 @@ export {
 // An autocomplete field's suggestions — what a suggest function may answer, and what picking one writes.
 export { SUGGEST_EVENT, MAX_SUGGESTIONS, DEFAULT_MIN_CHARS, MAX_SUGGEST_QUERY, suggestionsOf, shouldSuggest, pickValues, MAX_TAGS, MAX_TAG_QTY, isTagField, tagLimit, addTag, setTagQty, removeTag, tagsOf } from './suggest.js'
 // A record's feed: comments and its history, from a function (event "feedEntries").
-export { FEED_EVENT, FEED_KINDS, FEED_ORDERS, MAX_FEED_ENTRIES, MAX_ENTRY_TEXT, MIN_FEED_REFRESH, entriesOf, shownEntries, initials, composeValues, feedProblems } from './feed.js'
+export { FEED_EVENT, FEED_KINDS, FEED_ORDERS, MAX_FEED_ENTRIES, MAX_ENTRY_TEXT, MIN_FEED_REFRESH, entriesOf, shownEntries, initials, composeValues, convertParams, feedProblems } from './feed.js'
 // A record's details: read-only sections from a function (event "recordDetails").
 export { DETAILS_EVENT, MAX_SECTIONS, MAX_ROWS, MAX_ITEMS, MAX_DETAIL_TEXT, safeHref, detailsOf, detailsProblems } from './details.js'
 // Which pages are drawn from documents and which are web only (ui/pages.json).

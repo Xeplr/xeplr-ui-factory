@@ -818,6 +818,7 @@ function checkFeed(props, doc, at, err) {
   feedProblems(props, at).forEach((e) => err(e.path, e.message))
   if (!nonEmptyString(doc.source)) err(`${at}.props.entriesFrom`, 'needs the screen to have a "source" — the feed is about one record of that table')
   if (props.compose && props.compose.screen === doc.id) err(`${at}.props.compose.screen`, 'cannot be this screen — a comment is saved through a form of its own')
+  if (props.convert && props.convert.screen === doc.id) err(`${at}.props.convert.screen`, 'cannot be this screen — a comment becomes a record of another form')
 }
 
 // A record's details: worked out by a function given THE RECORD.

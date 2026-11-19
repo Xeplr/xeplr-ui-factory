@@ -4,7 +4,7 @@
 // Plain script: prints its checks, exits non-zero on failure. No framework.
 import {
   validateDocument, createScreen, addControl, setNodeProperty, nodeFunctions, inputNodes,
-  FEED_EVENT, MAX_FEED_ENTRIES, entriesOf, shownEntries, initials, composeValues, CONTROLS
+  FEED_EVENT, MAX_FEED_ENTRIES, entriesOf, shownEntries, initials, composeValues, convertParams, CONTROLS
 } from '../src/model.js'
 
 const results = []
@@ -64,7 +64,7 @@ console.log('what an answer becomes')
     null, 'text'
   ] })
   check('the entries a renderer can draw, in order; the rest dropped', same(out.map((e) => e.id), ['1', 'e1', 'only-file', 'odd']), JSON.stringify(out.map((e) => e.id)))
-  check('a comment keeps its writer, badge, when and files with a path', same(out[0], { id: '1', kind: 'comment', text: 'Gift wrap please', author: { name: 'Riya Shah', badge: 'Packing' }, at: 'Today, 4:00 pm', files: [{ path: 'orders/a1__wrap.jpg', name: 'wrap.jpg' }], sub: null }), JSON.stringify(out[0]))
+  check('a comment keeps its writer, badge, when and files with a path', same(out[0], { id: '1', kind: 'comment', text: 'Gift wrap please', author: { name: 'Riya Shah', badge: 'Packing' }, at: 'Today, 4:00 pm', files: [{ path: 'orders/a1__wrap.jpg', name: 'wrap.jpg' }], sub: null, convert: null, converted: null }), JSON.stringify(out[0]))
   check('an event keeps its kind', out[1].kind === 'event' && out[1].author.name === 'Amit' && out[1].author.badge === null)
   check('an unknown kind is a comment; an author with no name is none', out[3].kind === 'comment' && out[3].author === null)
   check('a bare list is accepted too', entriesOf([{ id: 'a', text: 'x' }]).length === 1)
@@ -86,6 +86,33 @@ console.log('what posting saves')
   check('no record yet: refused — a comment belongs to a saved one', /Save the record first/.test(composeValues(COMPOSE, null, 'hi').error))
   check('a file where the form takes none: refused', /no files/.test(composeValues({ ...COMPOSE, fileField: undefined }, 7, 'hi', 'p.jpg').error))
   check('too long: refused', /at most/.test(composeValues(COMPOSE, 7, 'x'.repeat(6000)).error))
+}
+
+console.log('turning a comment into a task')
+{
+  const CONVERT = { screen: 'order_task_edit', linkField: 'orderId', label: 'Convert to task', openScreen: 'order_task_view' }
+  const { doc } = screen({ compose: COMPOSE, convert: CONVERT })
+  check('a feed that converts comments: valid', errs(doc).length === 0, errs(doc).join('; '))
+  check('convert without a form: refused, naming it', errs(screen({ convert: { linkField: 'orderId' } }).doc).some((e) => /convert\.screen: is required/.test(e)))
+  check('convert without a link field: refused', errs(screen({ convert: { screen: 'order_task_edit' } }).doc).some((e) => /convert\.linkField: is required/.test(e)))
+  check('an unknown convert key: refused', errs(screen({ convert: { ...CONVERT, values: {} } }).doc).some((e) => /convert\.values: is not used/.test(e)))
+  check('converting into this very screen: refused', errs(screen({ convert: { ...CONVERT, screen: 'order_view' } }).doc).some((e) => /convert\.screen: cannot be this screen/.test(e)))
+
+  const [can, did, odd] = entriesOf([
+    { id: 'oc-1', kind: 'comment', text: 'Call her', convert: { name: 'Call her', details: 'Call her', sourceCommentId: 1, bad: { x: 1 }, 'not a field': 'x' } },
+    { id: 'oc-2', kind: 'comment', text: 'Done', converted: { id: 9, text: 'Ship it' } },
+    { id: 'oc-3', kind: 'comment', text: 'x', convert: ['no'], converted: { text: 'no id' } }
+  ])
+  check('an entry keeps the values it converts with — plain values under field names only',
+    same(can.convert, { name: 'Call her', details: 'Call her', sourceCommentId: 1 }), JSON.stringify(can.convert))
+  check('an entry keeps what it became, the id as text', same(did.converted, { id: '9', text: 'Ship it' }), JSON.stringify(did.converted))
+  check('a list, or a "became" with no id: dropped', odd.convert === null && odd.converted === null)
+  check('opened with its values and the link back to this record',
+    same(convertParams(CONVERT, 'o7', can), { name: 'Call her', details: 'Call her', sourceCommentId: 1, orderId: 'o7' }))
+  check('the entry cannot point the task at another record', convertParams(CONVERT, 'o7', entriesOf([{ id: 'a', text: 'x', convert: { orderId: 'other' } }])[0]).orderId === 'o7')
+  check('already converted: not again', convertParams(CONVERT, 'o7', { ...can, converted: { id: '1' } }) === null)
+  check('no record, or a feed that does not convert: nothing', convertParams(CONVERT, null, can) === null && convertParams(null, 'o7', can) === null)
+  check('an entry the function did not offer: nothing', convertParams(CONVERT, 'o7', did) === null)
 }
 
 const failed = results.filter(([, ok]) => !ok)

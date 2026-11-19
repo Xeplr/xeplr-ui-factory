@@ -50,14 +50,28 @@ export default function FeedView({ node, design, feed }) {
         )}
         {feed.entries.map((e) => (e.kind === 'event'
           ? <EventRow key={e.id} entry={e} />
-          : <CommentRow key={e.id} entry={e} readFile={feed.readFile} />))}
+          : <CommentRow key={e.id} entry={e} readFile={feed.readFile} convert={feed.convert} />))}
       </div>
       {feed.compose && p.order === 'oldest' && <Compose node={node} compose={feed.compose} />}
     </div>
   )
 }
 
-function CommentRow({ entry, readFile }) {
+// On the comment's right: turn it into a task, or — once it is one — the
+// task it became, which opens it.
+function ConvertAction({ entry, convert }) {
+  if (!convert) return null
+  if (entry.converted) {
+    const label = entry.converted.text ? `Became “${entry.converted.text}”` : 'Converted'
+    return convert.canOpen(entry)
+      ? <button type="button" className="xeplr-factory-feed-converted" onClick={() => convert.open(entry)} title="Open it">✓ {label}</button>
+      : <span className="xeplr-factory-feed-converted">✓ {label}</span>
+  }
+  if (!convert.can(entry)) return null
+  return <button type="button" className="xeplr-factory-secondary xeplr-factory-feed-convert" onClick={() => convert.start(entry)}>{convert.label}</button>
+}
+
+function CommentRow({ entry, readFile, convert }) {
   const name = entry.author ? entry.author.name : ''
   return (
     <div className="xeplr-factory-feed-comment">
@@ -67,6 +81,7 @@ function CommentRow({ entry, readFile }) {
           {name && <strong>{name}</strong>}
           {entry.author && entry.author.badge && <span className="xeplr-factory-feed-badge">{entry.author.badge}</span>}
           {entry.at && <span className="xeplr-factory-feed-at">{entry.at}</span>}
+          <ConvertAction entry={entry} convert={convert} />
         </div>
         {entry.sub && <div className="xeplr-factory-feed-sub">{entry.sub}</div>}
         {entry.text && <div className="xeplr-factory-feed-text">{entry.text}</div>}

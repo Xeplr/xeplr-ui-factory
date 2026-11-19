@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { entriesOf, shownEntries, composeValues } from './feed.js'
+import { entriesOf, shownEntries, composeValues, convertParams } from './feed.js'
 import { inputNodes } from './document.js'
 
 // THE FEEDS ON A SCREEN — each one's entries for the record the screen is
@@ -19,8 +19,10 @@ import { inputNodes } from './document.js'
  * @param uploadFile async (file, { screen, field }) → { path } — the compose form's file field
  * @param loadScreen async (id) → document — reads the compose form's file rules
  * @param reloadKey  anything — when it changes, every feed asks again
+ * @param openPopup  ({ screenId, id?, params?, label? }) — opens a form in the
+ *                   screen's popup: a comment's conversion, or what it became
  */
-export function useFeeds({ doc, recordId, fetchFeed, onSave, uploadFile, loadScreen, reloadKey }) {
+export function useFeeds({ doc, recordId, fetchFeed, onSave, uploadFile, loadScreen, reloadKey, openPopup }) {
   const nodes = useMemo(() => ((doc && doc.nodes) || []).filter((n) => n.type === 'feed'), [doc])
   const [state, setState] = useState({})              // node id → { entries, loading, error }
   const [commentsOnly, setCommentsOnly] = useState({}) // node id → true
@@ -30,6 +32,7 @@ export function useFeeds({ doc, recordId, fetchFeed, onSave, uploadFile, loadScr
   const fetchRef = useRef(fetchFeed); fetchRef.current = fetchFeed
   const saveRef = useRef(onSave); saveRef.current = onSave
   const uploadRef = useRef(uploadFile); uploadRef.current = uploadFile
+  const popupRef = useRef(openPopup); popupRef.current = openPopup
   const has = recordId !== null && recordId !== undefined && recordId !== ''
 
   useEffect(() => {
@@ -93,6 +96,20 @@ export function useFeeds({ doc, recordId, fetchFeed, onSave, uploadFile, loadScr
       commentsOnly: only,
       setCommentsOnly: (v) => setCommentsOnly((m) => ({ ...m, [node.id]: Boolean(v) })),
       reload: () => setVersion((v) => v + 1),
+      // A comment that can still become a task: its button opens the task's
+      // form, filled in from it. One that did: a link to the task.
+      convert: p.convert && popupRef.current ? {
+        label: p.convert.label || 'Convert',
+        can: (entry) => Boolean(convertParams(p.convert, recordId, entry)),
+        start: (entry) => {
+          const params = convertParams(p.convert, recordId, entry)
+          if (params) popupRef.current({ screenId: p.convert.screen, params })
+        },
+        canOpen: (entry) => Boolean(entry && entry.converted && p.convert.openScreen),
+        open: (entry) => {
+          if (entry && entry.converted && p.convert.openScreen) popupRef.current({ screenId: p.convert.openScreen, id: entry.converted.id, label: entry.converted.text })
+        }
+      } : null,
       compose: c && has && onSave ? {
         text: draft.text,
         file: draft.file,

@@ -262,6 +262,7 @@ A **feed** shows one record's comments and history. The screen needs a `source` 
 
 - `entriesFrom` — a function registered with `event: 'feedEntries'`. It gets `ctx.record` / `ctx.id` and returns `[{ id, kind: 'comment' | 'event', text, author?: { name, badge? }, at?, files?: [{ path, name? }], sub? }]`, newest first, every value already worded for people ("Today, 4:00 pm").
 - `compose` — the comments' own form (an entity like `order comment`, with a dropdown back to the record, a textarea and optionally a file field). Leave `compose` out for a feed that only reads.
+- `convert` — `{ screen, linkField, label?, openScreen? }`: a "Convert to task" button on each comment, opening that form filled in. The function gives each convertible comment `convert: { field: value, … }` (what the form starts with) and each converted one `converted: { id, text }`. Whether a comment may be converted twice is the target form's rule, not the feed's.
 - Comments are records of that form: telling people about a new one is that form's `afterSave`, not the feed's.
 
 ## When the document cannot say it
