@@ -11,6 +11,7 @@ export * from './model.js'
 // Controllers
 export { useFactoryBuilder } from './useFactoryBuilder.js'
 export { useFactoryScreen, normaliseOptions } from './useFactoryScreen.js'
+export { useScreenDocument } from './useScreenDocument.js'
 // This app's screens, shaped for another package's designer — see
 // useScreenSource.js. Two props instead of a page of glue per application.
 export { useScreenSource } from './useScreenSource.js'
