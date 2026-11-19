@@ -2,7 +2,7 @@
 // screen may say and what an answer becomes.
 //
 // Plain script: prints its checks, exits non-zero on failure. No framework.
-import { validateDocument, createScreen, addControl, setNodeProperty, nodeFunctions, inputNodes, DETAILS_EVENT, detailsOf, safeHref, MAX_ROWS } from '../src/model.js'
+import { validateDocument, createScreen, addControl, setNodeProperty, nodeFunctions, inputNodes, DETAILS_EVENT, detailsOf, safeHref, MAX_ROWS, screenFromSpec, SCREEN_LAYOUTS } from '../src/model.js'
 
 const results = []
 const check = (name, cond, detail) => { results.push([name, cond]); console.log((cond ? '  ok   ' : '  FAIL ') + name + (!cond && detail ? ' — ' + detail : '')) }
@@ -59,6 +59,25 @@ console.log('what an answer becomes')
   check('anything else is no sections, not an error', detailsOf(null).sections.length === 0 && detailsOf('x').sections.length === 0)
   check('at most 50 rows a section', detailsOf([{ rows: Array.from({ length: 80 }, (_, i) => ({ text: 'r' + i })) }]).sections[0].rows.length === MAX_ROWS)
   check('safeHref: only http(s), tel and mailto', safeHref('HTTPS://x') && safeHref('tel:1') && !safeHref('ftp://x') && !safeHref('  javascript:x'))
+}
+
+console.log('a header line, a journey, and a screen that flows')
+{
+  const out = detailsOf({ sections: [
+    { kind: 'header', title: '#GA3068', sub: 'Naresh, Chennai', aside: '₹8,883 · COD', badges: [{ text: 'Ordered', tone: 'accent' }, { text: 'odd', tone: 'neon' }, { text: '' }] },
+    { kind: 'header', title: '' },
+    { kind: 'journey', title: 'Timeline', steps: [{ label: 'Placed', at: '19 Nov', done: true }, { label: 'Packed' }, { at: 'no label' }] },
+    { kind: 'journey', steps: [] },
+    { title: 'Contact', rows: [{ label: 'Phone', text: '1' }] }
+  ] })
+  check('kinds kept in order; an empty header and journey dropped', same(out.sections.map((s) => s.kind), ['header', 'journey', 'facts']), JSON.stringify(out.sections.map((s) => s.kind)))
+  check('a header: title, line, aside, pills — an unknown tone is muted, an empty pill dropped',
+    same(out.sections[0], { kind: 'header', title: '#GA3068', sub: 'Naresh, Chennai', badges: [{ text: 'Ordered', tone: 'accent' }, { text: 'odd', tone: 'muted' }], aside: '₹8,883 · COD' }), JSON.stringify(out.sections[0]))
+  check('a journey: its steps, reached or not; one without a label dropped',
+    out.sections[1].steps.length === 2 && out.sections[1].steps[0].done && out.sections[1].steps[0].tone === 'success' && !out.sections[1].steps[1].done)
+  const doc = screenFromSpec({ name: 'Order', source: 'orders', layout: 'flow', fields: [{ label: 'Name' }] })
+  check('a spec\'s layout reaches the screen, and flow is valid', doc.layout === 'flow' && errs(doc).length === 0, errs(doc).join('; '))
+  check('another layout: refused', errs({ ...doc, layout: 'grid' }).some((e) => e.startsWith('layout:')) && SCREEN_LAYOUTS.join() === 'fixed,flow')
 }
 
 const failed = results.filter(([, ok]) => !ok)

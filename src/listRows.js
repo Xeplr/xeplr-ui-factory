@@ -9,7 +9,7 @@
 //             open (the row, as a click on it), link (the URL in `field`, in a
 //             new tab) or copy (the text in `field`). An entry whose field is
 //             empty on a row is not offered on that row
-import { BADGE_TONES } from './buttons.js'
+import { BADGE_TONES } from './tones.js'
 
 export const ROW_MENU_ACTIONS = ['open', 'link', 'copy']
 

@@ -48,7 +48,7 @@ export const SPEC_HEIGHTS = {
 export const ROW_GAP = 0.04
 
 const FIELD_KEYS = ['type', 'preset', 'label', 'name', 'required', 'placeholder', 'default', 'validation', 'data', 'options', 'table', 'layout', 'accept', 'maxSize', 'multiple', 'maxFiles', 'suggestFrom', 'minChars', 'quantity', 'maxTags', 'step', 'steps', 'showNumbers', 'display', 'width', 'text', 'variant', 'style']
-const SPEC_KEYS = ['name', 'id', 'source', 'columns', 'heading', 'fields', 'list', 'aspect', 'width', 'style']
+const SPEC_KEYS = ['name', 'id', 'source', 'columns', 'heading', 'fields', 'list', 'aspect', 'width', 'layout', 'style']
 const LIST_KEYS = ['title', 'source', 'columns', 'pageSize', 'actions', 'style']
 
 /**
@@ -88,6 +88,7 @@ export function screenFromSpec(spec, controls = CONTROLS) {
   if (columns !== 1 && columns !== 2) throw new Error('screenFromSpec: spec.columns must be 1 or 2')
 
   let doc = createScreen({ name: spec.name, id: spec.id, aspect: spec.aspect, width: spec.width, source: spec.source, style: spec.style })
+  if (spec.layout !== undefined) doc = { ...doc, layout: spec.layout }
   const full = 1 - 2 * MARGIN
   const colW = round((full - (columns - 1) * GAP) / columns)
   let y = MARGIN

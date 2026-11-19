@@ -1,4 +1,5 @@
 import { boxStyle, fieldStyle } from './styles.js'
+import { Steps } from './listExtras.jsx'
 
 // A RECORD'S DETAILS, DRAWN — sections side by side (one under another on a
 // phone), each a title and label / value rows or a list of items with their
@@ -28,7 +29,7 @@ export default function DetailsView({ node, design, details }) {
       {p.title && <div className="xeplr-factory-details-title">{p.title}</div>}
       {details.error && <span className="xeplr-factory-details-error" role="alert">{details.error}</span>}
       {nothing && <span className="xeplr-factory-hint">{p.empty}</span>}
-      <Sections sections={details.sections} />
+      <Sections sections={details.sections} columns={p.columns || 2} />
       {details.canShowMore && (
         <button type="button" className="xeplr-factory-secondary xeplr-factory-details-more" onClick={details.showMore}>{p.moreLabel || 'More'}</button>
       )}
@@ -36,7 +37,7 @@ export default function DetailsView({ node, design, details }) {
         <div className="xeplr-factory-details-extra">
           {details.more.loading && <span className="xeplr-factory-hint">Loading…</span>}
           {details.more.error && <span className="xeplr-factory-details-error" role="alert">{details.more.error}</span>}
-          <Sections sections={details.more.sections} />
+          <Sections sections={details.more.sections} columns={1} />
           {!details.more.loading && (
             <button type="button" className="xeplr-factory-secondary xeplr-factory-details-more" onClick={details.hideMore}>Less</button>
           )}
@@ -46,10 +47,47 @@ export default function DetailsView({ node, design, details }) {
   )
 }
 
-function Sections({ sections }) {
+// The record's own line and its journey go across the top; the other
+// sections pack into columns under them, each as tall as it is, so a short
+// one never leaves a hole beside a long one.
+function Sections({ sections, columns = 2 }) {
   if (!sections.length) return null
+  const wide = sections.filter((s) => s.kind === 'header' || s.kind === 'journey')
+  const boxes = sections.filter((s) => s.kind !== 'header' && s.kind !== 'journey')
   return (
-    <div className="xeplr-factory-details-grid">
+    <>
+      {wide.map((s, i) => (s.kind === 'header' ? <Header key={'w' + i} section={s} /> : (
+        <section key={'w' + i} className="xeplr-factory-details-journey">
+          {s.title && <h4 className="xeplr-factory-details-section-title">{s.title}</h4>}
+          <Steps value={s.steps} notYet="Not yet" />
+        </section>
+      )))}
+      {boxes.length > 0 && <Boxes sections={boxes} columns={columns} />}
+    </>
+  )
+}
+
+function Header({ section: s }) {
+  return (
+    <header className="xeplr-factory-details-header">
+      <div className="xeplr-factory-details-header-main">
+        <span className="xeplr-factory-details-header-title">{s.title}</span>
+        {s.badges.map((b, i) => <span key={i} className={`xeplr-factory-details-pill xeplr-factory-details-pill--${b.tone}`}>{b.text}</span>)}
+      </div>
+      {(s.sub || s.aside) && (
+        <div className="xeplr-factory-details-header-line">
+          {s.sub && <span>{s.sub}</span>}
+          {s.aside && <span className="xeplr-factory-details-header-aside">{s.aside}</span>}
+        </div>
+      )}
+    </header>
+  )
+}
+
+// Never more columns than boxes: two boxes share the width, not a third of it each.
+function Boxes({ sections, columns }) {
+  return (
+    <div className="xeplr-factory-details-grid" style={{ '--xf-details-columns': Math.max(1, Math.min(columns, sections.length)) }}>
       {sections.map((s, i) => (
         <section key={i} className="xeplr-factory-details-section">
           {s.title && <h4 className="xeplr-factory-details-section-title">{s.title}</h4>}

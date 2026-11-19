@@ -28,6 +28,14 @@ export const DEFAULT_ASPECT = 1
 /** Px. Styles are sizes at this width; narrower shrinks them, wider never grows them. */
 export const DEFAULT_WIDTH = 800
 
+/**
+ * How a screen's controls take their height: as placed ("fixed", the
+ * default — the canvas), or "flow": one under another in reading order, each
+ * as tall as its content — a record's screen, whose details and comments vary
+ * in length. Across, each keeps where it was placed.
+ */
+export const SCREEN_LAYOUTS = ['fixed', 'flow']
+
 /** Space kept around and between controls, as fractions. */
 export const MARGIN = 0.04
 export const GAP = 0.025

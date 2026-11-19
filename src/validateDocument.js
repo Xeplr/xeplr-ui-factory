@@ -12,7 +12,7 @@
 
 import { SCREEN_EVENT_KEYS, FUNCTION_NAME } from './events.js'
 import { CONTROLS, LABEL_VARIANTS, LIST_ACTIONS, STYLE_KEYS, SCREEN_STYLE_KEYS, LAYOUTS, MULTI_SEPARATOR, MAX_FILE_MB, STEP_LIMIT, STEPPER_DISPLAYS, acceptList, FILE_SOURCES, IMAGE_EXTENSIONS, MAX_FILES } from './controls.js'
-import { DOCUMENT_KIND, DOCUMENT_VERSION } from './document.js'
+import { DOCUMENT_KIND, DOCUMENT_VERSION, SCREEN_LAYOUTS } from './document.js'
 import { DATE_PRESET_VALUES } from './listRange.js'
 import { RESERVED_COLUMNS, MAX_IDENTIFIER } from './tableSchema.js'
 import { FIELD_PRESETS, INPUT_TYPES, presetFor } from './presets.js'
@@ -25,7 +25,7 @@ import { BUTTON_VARIANTS, COLUMN_DISPLAYS, LIST_LAYOUTS, BADGE_TONES, COLUMN_ICO
 const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 const TABLE_NAME = /^[A-Za-z_][A-Za-z0-9_.$-]*$/
 const SCREEN_ID = /^[A-Za-z0-9_-]+$/
-const DOCUMENT_KEYS = ['kind', 'version', 'id', 'name', 'source', 'units', 'aspect', 'width', 'style', 'description', 'master', 'labelField', 'params', 'events', 'nodes']
+const DOCUMENT_KEYS = ['kind', 'version', 'id', 'name', 'source', 'units', 'aspect', 'width', 'layout', 'style', 'description', 'master', 'labelField', 'params', 'events', 'nodes']
 const COLOR = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i
 
 /**
@@ -46,6 +46,7 @@ export function validateDocument(doc, controls = CONTROLS) {
   if (!nonEmptyString(doc.name)) err('name', 'must be a non-empty string — the screen\'s title, e.g. "New employee"')
   if (doc.units !== 'fraction') err('units', 'must be "fraction"')
   if (!(typeof doc.aspect === 'number' && doc.aspect > 0)) err('aspect', 'must be a number greater than 0 (1 = page as tall as it is wide)')
+  if (doc.layout !== undefined && !SCREEN_LAYOUTS.includes(doc.layout)) err('layout', `must be one of: ${SCREEN_LAYOUTS.join(', ')} — "flow" puts the controls one under another, each as tall as its content`)
   if (!(Number.isInteger(doc.width) && doc.width >= 320 && doc.width <= 1920)) err('width', 'must be a whole number of pixels from 320 to 1920 — the width the screen is designed at')
   if (doc.source !== undefined && !(nonEmptyString(doc.source) && TABLE_NAME.test(doc.source))) err('source', 'must name the table records are saved to, e.g. "employees"')
 

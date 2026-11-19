@@ -197,7 +197,7 @@ export default function ScreenSample({ ctrl, className, style, renderPopup, rend
       style={{ maxWidth: doc.width, '--xf-margin': `${MARGIN * 100}%`, ...screenStyle(doc), ...style }}
     >
       <Page
-        className={'xeplr-factory-page' + (grows ? ' xeplr-factory-page--grows' : '')}
+        className={'xeplr-factory-page' + (grows ? ' xeplr-factory-page--grows' : '') + (doc.layout === 'flow' ? ' xeplr-factory-page--flow' : '')}
         style={{ '--xf-page-h': `${pageHeight}cqw` }}
         // Never a submit: Enter posts nothing and saves nothing. Save is a button.
         {...(ctrl.embedded ? { role: 'group' } : { onSubmit: (e) => e.preventDefault(), noValidate: true })}

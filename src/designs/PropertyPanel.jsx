@@ -224,6 +224,10 @@ function ScreenPanel({ doc, errors, tables, onChange }) {
       <fieldset className="xeplr-factory-group">
         <legend>Size</legend>
         {row({ path: 'width', label: 'Width (px)', type: 'number', help: 'The width it is designed at. Narrower screens scale it down; wider ones never stretch it.' }, NumberEditor)}
+        {row({ path: 'layout', label: 'Heights', type: 'select', options: [
+          { value: 'fixed', label: 'As placed — each control the size drawn' },
+          { value: 'flow', label: 'As tall as their content — one under another' }
+        ], help: 'For a screen about a record whose details, comments and lists vary in length' }, SelectEditor)}
       </fieldset>
       <fieldset className="xeplr-factory-group">
         <legend>Text</legend>

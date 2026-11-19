@@ -11,6 +11,14 @@
 //
 // A row's `tone` (one of the badge tones: success, warning, danger…) colours it.
 //
+// Two sections are drawn differently, across the whole width, above the rest:
+//   { kind: 'header', title: '#GA3068', sub: 'Naresh, Chennai',
+//     badges: [{ text: 'Ordered', tone: 'accent' }], aside: '₹8,883 · COD' }
+//                                   the record's own line: big title, pills
+//   { kind: 'journey', title: 'Timeline',
+//     steps: [{ label: 'Placed', at: '19 Nov', sub: 'Shopify', done: true, tone? }] }
+//                                   a dot per step joined by a line — where it is
+//
 //   { sections: [
 //       { title: 'Contact',
 //         rows: [{ label: 'Phone', text: '+91 98…', href: 'tel:+9198…' },
@@ -26,6 +34,7 @@
 // never saved anywhere.
 
 import { BADGE_TONES } from './tones.js'
+import { journeyOf } from './listRows.js'
 
 export const DETAILS_EVENT = 'recordDetails'
 
@@ -58,6 +67,21 @@ export function detailsOf(out) {
   const sections = []
   for (const s of list) {
     if (!s || typeof s !== 'object') continue
+    if (s.kind === 'header') {
+      if (!text(s.title)) continue
+      const badges = (Array.isArray(s.badges) ? s.badges : []).filter((b) => b && text(b.text)).slice(0, 6)
+        .map((b) => ({ text: text(b.text), tone: BADGE_TONES.includes(b.tone) ? b.tone : 'muted' }))
+      sections.push({ kind: 'header', title: text(s.title), sub: text(s.sub) || null, badges, aside: text(s.aside) || null })
+      if (sections.length >= MAX_SECTIONS) break
+      continue
+    }
+    if (s.kind === 'journey') {
+      const steps = journeyOf(s.steps).slice(0, MAX_ROWS)
+      if (!steps.length) continue
+      sections.push({ kind: 'journey', title: text(s.title) || null, steps })
+      if (sections.length >= MAX_SECTIONS) break
+      continue
+    }
     const rows = (Array.isArray(s.rows) ? s.rows : [])
       .filter((r) => r && text(r.text).trim())
       .slice(0, MAX_ROWS)
@@ -67,7 +91,7 @@ export function detailsOf(out) {
       .slice(0, MAX_ITEMS)
       .map((i) => ({ src: safeHref(i.src), name: text(i.name) || null, detail: text(i.detail) || null, qty: Number.isFinite(Number(i.qty)) && i.qty !== null && i.qty !== '' ? Number(i.qty) : null }))
     if (!rows.length && !items.length) continue
-    sections.push({ title: text(s.title) || null, rows, items })
+    sections.push({ kind: 'facts', title: text(s.title) || null, rows, items })
     if (sections.length >= MAX_SECTIONS) break
   }
   return { sections, more: Boolean(out && !Array.isArray(out) && out.more) }

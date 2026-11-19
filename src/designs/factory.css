@@ -1230,8 +1230,27 @@ button.xeplr-factory-activity-item:hover, button.xeplr-factory-activity-item:foc
   font-size: max(11px, calc(var(--xf-font, 14) * var(--xf-u))); color: var(--xf-ink);
 }
 .xeplr-factory-details-title { font-weight: 600; font-size: 1.05em; }
-.xeplr-factory-details-grid { display: grid; grid-template-columns: repeat(var(--xf-details-columns, 2), minmax(0, 1fr)); gap: 12px 20px; }
-.xeplr-factory-details-section { min-width: 0; padding: 10px 12px; border: 1px solid var(--xf-border); border-radius: 8px; background: var(--xf-surface); }
+.xeplr-factory-details-grid { columns: var(--xf-details-columns, 2) 260px; column-gap: 16px; }
+.xeplr-factory-details-section { break-inside: avoid; margin: 0 0 14px; min-width: 0; padding: 12px 14px; border: 1px solid var(--xf-border); border-radius: 10px; background: var(--xf-surface); }
+/* The record's own line: big title, its pills, and a line under it. */
+.xeplr-factory-details-header { display: flex; flex-direction: column; gap: 4px; padding: 2px 2px 4px; }
+.xeplr-factory-details-header-main { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.xeplr-factory-details-header-title { font-size: 1.6em; font-weight: 700; letter-spacing: -.01em; }
+.xeplr-factory-details-header-line { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--xf-muted); }
+.xeplr-factory-details-header-aside { font-weight: 600; color: var(--xf-ink); }
+.xeplr-factory-details-pill { font-size: .85em; font-weight: 600; padding: 3px 10px; border-radius: 999px; color: var(--xf-accent); background: color-mix(in srgb, var(--xf-accent) 13%, transparent); }
+.xeplr-factory-details-pill--success { color: var(--xf-good); background: color-mix(in srgb, var(--xf-good) 14%, transparent); }
+.xeplr-factory-details-pill--warning { color: var(--xf-warn); background: color-mix(in srgb, var(--xf-warn) 16%, transparent); }
+.xeplr-factory-details-pill--danger { color: var(--xf-danger); background: color-mix(in srgb, var(--xf-danger) 14%, transparent); }
+.xeplr-factory-details-pill--muted { color: var(--xf-muted); background: var(--xf-hover); }
+.xeplr-factory-details-pill--info { color: var(--xf-info); background: color-mix(in srgb, var(--xf-info) 14%, transparent); }
+.xeplr-factory-details-pill--violet { color: var(--xf-violet); background: color-mix(in srgb, var(--xf-violet) 14%, transparent); }
+/* Where it is: the journey across the width. */
+.xeplr-factory-details-journey { padding: 12px 14px 8px; border: 1px solid var(--xf-border); border-radius: 10px; background: var(--xf-surface); }
+/* "More": one strip across the width, each value under its label. */
+.xeplr-factory-details-extra .xeplr-factory-details-grid { columns: 1; }
+.xeplr-factory-details-extra .xeplr-factory-details-rows { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px 20px; }
+.xeplr-factory-details-extra .xeplr-factory-details-row { display: flex; flex-direction: column; gap: 2px; }
 .xeplr-factory-details-section-title { margin: 0 0 8px; font-size: .78em; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--xf-muted); }
 .xeplr-factory-details-rows { margin: 0; display: flex; flex-direction: column; gap: 6px; }
 .xeplr-factory-details-row { display: grid; grid-template-columns: minmax(80px, 34%) minmax(0, 1fr); gap: 10px; align-items: baseline; }
@@ -1260,6 +1279,23 @@ button.xeplr-factory-activity-item:hover, button.xeplr-factory-activity-item:foc
 .xeplr-factory-page--grows .xeplr-factory-details { height: auto; overflow: visible; }
 @media (max-width: 640px) {
   .xeplr-factory-details { height: auto; overflow: visible; }
-  .xeplr-factory-details-grid { grid-template-columns: minmax(0, 1fr); }
+  .xeplr-factory-details-grid { columns: 1; }
   .xeplr-factory-details-more { min-height: 44px; }
 }
+
+/* ── a screen whose controls flow (layout "flow") ──────────────────────────
+   One under another in reading order, each as tall as its content; across,
+   where it was placed. What a phone already does, on a desktop too. */
+.xeplr-factory-page--flow {
+  height: auto; display: flex; flex-direction: column; gap: 14px;
+  padding: calc(var(--xf-margin) * .5) 0 calc(var(--xf-margin) * .5);
+}
+.xeplr-factory-page--flow > .xeplr-factory-node {
+  position: static; order: var(--xf-order); height: auto; min-height: 0;
+  width: var(--xf-w); margin-left: var(--xf-x);
+}
+.xeplr-factory-page--flow .xeplr-factory-details,
+.xeplr-factory-page--flow .xeplr-factory-feed,
+.xeplr-factory-page--flow .xeplr-factory-tabs { height: auto; overflow: visible; }
+.xeplr-factory-page--flow .xeplr-factory-feed-entries { overflow: visible; }
+.xeplr-factory-page--flow .xeplr-factory-list { max-height: none; }
