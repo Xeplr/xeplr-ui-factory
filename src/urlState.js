@@ -12,11 +12,11 @@
 
 /**
  * The query keys under a host's `urlKey`, or null (in memory).
- *   factoryUrlKeys('form') → { steps: 'formSteps', selected: 'formSelected', tab: 'formTab', q: 'formQ', filter: 'formFilter', kpi: 'formKpi', dates: 'formDates' }
+ *   factoryUrlKeys('form') → { steps: 'formSteps', selected: 'formSelected', tab: 'formTab', q: 'formQ', filter: 'formFilter', kpi: 'formKpi', dates: 'formDates', open: 'formOpen' }
  */
 export function factoryUrlKeys(urlKey) {
   if (!urlKey) return null
-  return { steps: `${urlKey}Steps`, selected: `${urlKey}Selected`, tab: `${urlKey}Tab`, q: `${urlKey}Q`, filter: `${urlKey}Filter`, kpi: `${urlKey}Kpi`, dates: `${urlKey}Dates` }
+  return { steps: `${urlKey}Steps`, selected: `${urlKey}Selected`, tab: `${urlKey}Tab`, q: `${urlKey}Q`, filter: `${urlKey}Filter`, kpi: `${urlKey}Kpi`, dates: `${urlKey}Dates`, open: `${urlKey}Open` }
 }
 
 /**
@@ -68,4 +68,43 @@ export function replacesHistory(previous, next) {
 export function selectionPlace(ids) {
   const list = ids ? [...ids] : []
   return list.length === 1 ? list[0] : null
+}
+
+/**
+ * THE RECORD OPEN IN THE POPUP — a task opened from its card, the task a
+ * comment became — so a refresh, Back, or a link from a notification lands on
+ * it. A record only: a NEW one's form is not a place (what it was filled in
+ * with is not in the URL).
+ *   { screen: 'order_task_view', id: 'tk 9' } → 'order_task_view:tk%209'
+ */
+export function encodeOpen(place) {
+  if (!place || !place.screen || place.id === undefined || place.id === null || place.id === '') return null
+  return `${encodeURIComponent(place.screen)}:${encodeURIComponent(String(place.id))}`
+}
+
+/** The query value back to { screen, id }, or null when it cannot be read. */
+export function decodeOpen(value) {
+  if (!value || typeof value !== 'string') return null
+  const at = value.indexOf(':')
+  if (at <= 0 || at === value.length - 1) return null
+  try {
+    return { screen: decodeURIComponent(value.slice(0, at)), id: decodeURIComponent(value.slice(at + 1)) }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The screens a document may open a record in — its lists' edit / new
+ * screens and its feeds' "became" screen. A link naming any other screen is
+ * ignored: the URL cannot make a screen open something it never would.
+ */
+export function openableScreens(doc) {
+  const out = new Set()
+  ;((doc && doc.nodes) || []).forEach((n) => {
+    const p = n.props || {}
+    if (n.type === 'list') { if (p.editScreen) out.add(p.editScreen); if (p.newScreen) out.add(p.newScreen) }
+    if (n.type === 'feed' && p.convert) { if (p.convert.openScreen) out.add(p.convert.openScreen) }
+  })
+  return out
 }

@@ -4,7 +4,7 @@
 import { createElement } from 'react'
 import { renderToString } from 'react-dom/server'
 import { MemoryRouter } from 'react-router-dom'
-import { factoryUrlKeys, encodeSteps, decodeSteps, replacesHistory, selectionPlace } from '../src/urlState.js'
+import { factoryUrlKeys, encodeSteps, decodeSteps, replacesHistory, selectionPlace, encodeOpen, decodeOpen, openableScreens } from '../src/urlState.js'
 import { createScreen, addControl } from '../src/document.js'
 import { createFlow, addStep } from '../src/flow.js'
 import { useFactoryBuilder } from '../src/useFactoryBuilder.js'
@@ -16,7 +16,7 @@ const check = (name, cond) => { results.push([name, cond]); console.log((cond ? 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
 
 console.log('\nthe keys are the host\'s')
-check('derived from urlKey', same(factoryUrlKeys('form'), { steps: 'formSteps', selected: 'formSelected', tab: 'formTab', q: 'formQ', filter: 'formFilter', kpi: 'formKpi', dates: 'formDates' }))
+check('derived from urlKey', same(factoryUrlKeys('form'), { steps: 'formSteps', selected: 'formSelected', tab: 'formTab', q: 'formQ', filter: 'formFilter', kpi: 'formKpi', dates: 'formDates', open: 'formOpen' }))
 check('none without one: in memory', factoryUrlKeys(undefined) === null && factoryUrlKeys('') === null)
 
 console.log('\nsteps in one value')
@@ -119,6 +119,22 @@ console.log('\nuseFlowBuilder')
   check('removing the selected step closes it', log[2].selected === null && !log[2].flow.steps.some((s) => s.stepKey === second))
   const again = play(useFlowBuilder, { flow }, [(f) => f.setSelected(first), (f) => f.setSelected(first), () => {}])
   check('selecting what is already selected changes nothing — no render, no history entry', again.length === 1)
+}
+
+console.log('the record open in the popup')
+{
+  check('a record: screen and id, both encoded', encodeOpen({ screen: 'order_task_view', id: 'tk 9:1' }) === 'order_task_view:tk%209%3A1')
+  check('and back', same(decodeOpen(encodeOpen({ screen: 'order_task_view', id: 'tk 9:1' })), { screen: 'order_task_view', id: 'tk 9:1' }))
+  check('a number id reads back as text', same(decodeOpen(encodeOpen({ screen: 's', id: 42 })), { screen: 's', id: '42' }))
+  check('a new record (no id) is not a place', encodeOpen({ screen: 's', id: null }) === null && encodeOpen({ screen: 's' }) === null && encodeOpen(null) === null)
+  check('unreadable: nothing open', decodeOpen('nocolon') === null && decodeOpen(':1') === null && decodeOpen('s:') === null && decodeOpen('s:%E0%A4') === null && decodeOpen(null) === null)
+  const doc = { nodes: [
+    { type: 'list', props: { editScreen: 'order_task_view', newScreen: 'order_task_edit' } },
+    { type: 'feed', props: { convert: { screen: 'order_task_edit', openScreen: 'order_task_view' } } },
+    { type: 'text', props: { editScreen: 'nope' } }
+  ] }
+  check('the screens a document opens records in: its lists\' and feeds\'', same([...openableScreens(doc)].sort(), ['order_task_edit', 'order_task_view']))
+  check('no document: none', openableScreens(null).size === 0)
 }
 
 const failed = results.filter(([, ok]) => !ok)

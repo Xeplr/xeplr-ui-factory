@@ -843,6 +843,9 @@ title to write a comment. Palette: **Data → Comments & history**.
   — apply exactly as anywhere else. The file is stored when it is chosen, with
   the compose form's own rules. Ctrl/⌘ + Enter posts. Without `compose` the
   feed only reads.
+- **A VIEW opened in the popup** — a screen with no fields and no buttons,
+  only a record's details and comments (a task's own screen) — is not read
+  through a form: its details and feed read the record by id themselves.
 - **A comment can become a record of another form** — "Convert to task":
   `"convert": { "screen": "order_task_edit", "linkField": "orderId", "label": "Convert to task", "openScreen": "order_task_view" }`.
   The function decides, per entry: `convert: { name, details, sourceCommentId }`
@@ -1440,6 +1443,7 @@ The control whose properties are open, the step a stepper is open at, and the fl
 | `useFactoryBuilder` / `<FactoryBuilder>` | `<urlKey>Selected` | the id of the one selected control | opening or closing its properties adds an entry (Back closes them); moving to another control replaces it |
 | `useFactoryBuilder` / `<FactoryBuilder>` | `<urlKey>Steps` | the step each stepper is open at: `stepperId:index`, comma-separated, step 0 left out | replaces |
 | `useFactoryScreen` / `<FactoryScreen>`, `<FlowRunner>` | `<urlKey>Steps` | as above | replaces |
+| `useFactoryScreen` / `<FactoryScreen>` | `<urlKey>Open` | the record open in the screen's popup: `screen:id` (both URI-encoded) — a task opened from its card, the task a comment became. Only a screen this document opens records in (a list's `editScreen` / `newScreen`, a feed's `convert.openScreen`) is honoured; a NEW record's form is not a place | opening adds an entry (Back closes it); a link or a refresh opens it |
 | `useFlowBuilder` / `<FlowBuilder>` | `<urlKey>Selected` | the key of the selected flow step | as for a control |
 | `useFactoryScreen` / `<FactoryScreen>` | `<urlKey>Q`, `<urlKey>Filter` | a function-fed list's search and chip (the first chip is left out) | replaces |
 

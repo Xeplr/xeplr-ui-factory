@@ -4,7 +4,8 @@ import { inputNodes, nodesForSteps, steppers, stepsOf, stepOf, resolveStep, reac
 import { validateDocument } from './validateDocument.js'
 import { initialValues, parseInput, saveState, fieldError, optionValue, recordValues, listSource, resolveBinding } from './values.js'
 import { hookMethod } from './hooks.js'
-import { useUrlSteps, useUrlListQuery } from './useUrlPlaces.js'
+import { useUrlSteps, useUrlListQuery, useUrlOpen } from './useUrlPlaces.js'
+import { openableScreens } from './urlState.js'
 import { buttonShown, buttonDisabled, buttonPressed } from './buttons.js'
 import { resolveRange, rangePresets, dayOf } from './listRange.js'
 import { suggestionsOf, shouldSuggest, pickValues, MAX_SUGGEST_QUERY, isTagField } from './suggest.js'
@@ -787,7 +788,13 @@ export function useFactoryScreen({
   }, [doc, recordKey, openRecord])
 
   // ── popup: a list's Edit / New in its edit screen ─────────────────────
-  const [popup, setPopup] = useState(null)   // { node, screenId, record, document, loading, error, label }
+  const [popup, setPopup] = useState(null)   // { node, screenId, record, document, loading, error, label, place }
+  // The RECORD open in it lives in the URL (`<urlKey>Open`): a refresh, Back,
+  // or a link from a notification lands on it. A new record's form does not.
+  const [openPlace, setOpenPlaceNow] = useUrlOpen(urlKey)
+  // The setter changes with the URL; the popup's callbacks are made once.
+  const setOpenPlaceRef = useRef(setOpenPlaceNow); setOpenPlaceRef.current = setOpenPlaceNow
+  const setOpenPlace = useCallback((place) => setOpenPlaceRef.current(place), [])
   const screensRef = useRef(knownScreens); screensRef.current = knownScreens
   const fetchRecordRef = useRef(fetchRecord); fetchRecordRef.current = fetchRecord
   const loadScreenRef = useRef(loadScreen); loadScreenRef.current = loadScreen
@@ -831,7 +838,10 @@ export function useFactoryScreen({
    */
   const openPopup = useCallback(async ({ node = null, screenId, rec = null, id, params: given = null, label = null }) => {
     if (!rec && id !== undefined && id !== null && id !== '') rec = { [live.current.recordKey]: id }
-    const base = { node, screenId, record: rec || null, document: null, loading: true, error: null, params: given, label }
+    const placeId = rec ? rec[live.current.recordKey] : undefined
+    const place = placeId !== undefined && placeId !== null && placeId !== ''
+    if (place) setOpenPlace({ screen: screenId, id: placeId })
+    const base = { node, screenId, record: rec || null, document: null, loading: true, error: null, params: given, label, place }
     setPopup(base)
     try {
       let found = screensRef.current && screensRef.current[screenId]
@@ -842,7 +852,11 @@ export function useFactoryScreen({
       // Edit opens the record as it is NOW, through the server's get hooks —
       // not the list's copy, which may be stale or shaped for the list.
       let fresh = rec || null
-      if (rec && rec[live.current.recordKey] !== undefined) {
+      // A VIEW of the record — its details and comments, no fields and no
+      // buttons — reads what it shows itself, by the id; there is nothing to
+      // read through a form (and no form to read it through).
+      const viewOnly = !inputNodes(found, live.current.controls).length && !found.nodes.some((n) => n.type === 'buttons')
+      if (rec && rec[live.current.recordKey] !== undefined && !viewOnly) {
         const id = rec[live.current.recordKey]
         fresh = await hook('get')({
           many: false, id, screen: screenId, document: found,
@@ -854,6 +868,21 @@ export function useFactoryScreen({
       setPopup((p) => (p && p.screenId === screenId ? { ...p, loading: false, error: err.message } : p))
     }
   }, [])
+
+  // THE URL SAYS WHICH RECORD IS OPEN: opened from a link or a refresh, it
+  // opens; gone from it (Back), the popup closes. Only a screen this document
+  // itself opens records in is honoured — a link cannot make it open another.
+  const openable = useMemo(() => (check.ok ? openableScreens(doc) : new Set()), [check.ok, doc])
+  useEffect(() => {
+    if (!openPlace) {
+      if (popup && popup.place) setPopup(null)
+      return
+    }
+    if (!openable.has(openPlace.screen)) return
+    const shown = popup && popup.record ? popup.record[recordKey] : undefined
+    if (popup && popup.screenId === openPlace.screen && String(shown) === openPlace.id) return
+    openPopup({ screenId: openPlace.screen, id: openPlace.id })
+  }, [openPlace, openable]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── subforms: the form each draws, and this record's row of it ────────
   //
@@ -928,6 +957,7 @@ export function useFactoryScreen({
 
   const closeEditor = useCallback(() => {
     setPopup(null)
+    setOpenPlace(null)
     setListVersion((v) => v + 1)
   }, [])
 
