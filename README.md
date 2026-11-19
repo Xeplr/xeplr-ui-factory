@@ -852,8 +852,9 @@ title to write a comment. Palette: **Data → Comments & history**.
   — the values that form opens with (field names to plain values only) — on a
   comment that can still be converted, or `converted: { id, text }` — the
   record it became — on one that was. The button opens `convert.screen` in the
-  screen's popup with those values and `linkField` set to this record (an entry
-  cannot point it at another); a field whose default is `{params.x}` stays
+  screen's popup with those values and, when `linkField` is given, that field
+  set to this record (an entry cannot point it at another; leave it out when
+  the new record belongs to nothing — a Tasks-section task made from another's comment); a field whose default is `{params.x}` stays
   hidden as with New. Saving is that form's own save, so **the app's rules
   decide whether the comment may still be converted** (Taskie claims it once,
   in the task's `beforeSave`). Once converted, the comment shows

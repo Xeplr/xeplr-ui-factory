@@ -107,7 +107,7 @@ export function useFeeds({ doc, recordId, fetchFeed, onSave, uploadFile, loadScr
         },
         canOpen: (entry) => Boolean(entry && entry.converted && p.convert.openScreen),
         open: (entry) => {
-          if (entry && entry.converted && p.convert.openScreen) popupRef.current({ screenId: p.convert.openScreen, id: entry.converted.id, label: entry.converted.text, params: has ? { [p.convert.linkField]: recordId } : null })
+          if (entry && entry.converted && p.convert.openScreen) popupRef.current({ screenId: p.convert.openScreen, id: entry.converted.id, label: entry.converted.text, params: has && p.convert.linkField ? { [p.convert.linkField]: recordId } : null })
         }
       } : null,
       compose: c && has && onSave ? {

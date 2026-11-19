@@ -28,7 +28,8 @@
 // (`compose.textField`) and, when the form has one, a file (`compose.fileField`).
 //
 // A COMMENT CAN BECOME A RECORD of another form — a task made from what was
-// said (`convert`: { screen, linkField, label?, openScreen? }). The function
+// said (`convert`: { screen, linkField?, label?, openScreen? }; linkField, when
+// given, points the new record back at this one). The function
 // decides which entries still can (`convert`, the values that form starts
 // with) and which already did (`converted`, the record it became — opened in
 // `openScreen` when there is one). The form's own save does the rest: the
@@ -115,7 +116,7 @@ function convertOf(v) {
 export function convertParams(convert, recordId, entry) {
   if (!convert || !entry || !entry.convert || entry.converted) return null
   if (recordId === null || recordId === undefined || recordId === '') return null
-  return { ...entry.convert, [convert.linkField]: recordId }
+  return convert.linkField ? { ...entry.convert, [convert.linkField]: recordId } : { ...entry.convert }
 }
 
 /** The entries shown: events left out when only comments are asked for. */
@@ -185,12 +186,12 @@ export function feedProblems(props, at) {
     const c = p.convert
     const cat = `${at}.props.convert`
     if (!c || typeof c !== 'object' || Array.isArray(c)) {
-      err(cat, 'must be { screen, linkField, label?, openScreen? } — the form a comment becomes a record of')
+      err(cat, 'must be { screen, linkField?, label?, openScreen? } — the form a comment becomes a record of')
     } else {
       const allowed = ['screen', 'linkField', 'label', 'openScreen']
       Object.keys(c).forEach((k) => { if (!allowed.includes(k)) err(`${cat}.${k}`, `is not used — allowed: ${allowed.join(', ')}`) })
       if (!(typeof c.screen === 'string' && SCREEN.test(c.screen))) err(`${cat}.screen`, 'is required — the id of the form a comment becomes, e.g. "order_task_edit"')
-      if (!(typeof c.linkField === 'string' && FIELD.test(c.linkField))) err(`${cat}.linkField`, 'is required — the field on that form pointing back at this record, e.g. "orderId"')
+      if (c.linkField !== undefined && !(typeof c.linkField === 'string' && FIELD.test(c.linkField))) err(`${cat}.linkField`, 'must be the field on that form pointing back at this record, e.g. "orderId" — or left out when the new record belongs to nothing')
       if (c.label !== undefined && typeof c.label !== 'string') err(`${cat}.label`, 'must be a string — the button on each comment, e.g. "Convert to task"')
       if (c.openScreen !== undefined && !(typeof c.openScreen === 'string' && SCREEN.test(c.openScreen))) err(`${cat}.openScreen`, 'must be the id of the screen the record it became opens in, e.g. "order_task_view"')
     }
