@@ -1317,6 +1317,7 @@ button.xeplr-factory-activity-item:hover, button.xeplr-factory-activity-item:foc
 .xeplr-factory-ask-row-add { align-self: flex-start; }
 @media (max-width: 640px) {
   .xeplr-factory-ask-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .xeplr-factory-ask-row-name { grid-column: 1 / -1; }
-  .xeplr-factory-ask-row-remove { grid-column: 2; justify-self: end; grid-row: 1; width: 40px; height: 40px; }
+  /* "Packet 1" and its × share the first line. */
+  .xeplr-factory-ask-row-name { grid-column: 1; grid-row: 1; }
+  .xeplr-factory-ask-row-remove { grid-column: 2; grid-row: 1; justify-self: end; width: 40px; height: 40px; }
 }
