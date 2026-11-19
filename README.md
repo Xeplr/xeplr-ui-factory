@@ -701,8 +701,9 @@ actions.register({ name: 'orderActivity', event: 'rowDetails', execute: async (c
 - **`refreshEvery`** (seconds, 10–3600) asks again — for text that changes with time. **`reloadKey`** on `<FactoryScreen>` reloads every list when it changes (the host heard something happen).
 - **`grow`** (a list that is its screen's **one** control) lets the page grow with the rows on a desktop, instead of the list scrolling inside the box it was placed in — a full-page list like Orders. Phones always flow.
 - **`rowOpen`** makes a click anywhere on a row open it (the first cell is also a button, for the keyboard); **`highlight`** marks rows whose field is true (tinted, the first cell in the accent — today's row); **`rowMenu`** — `[{ label, action, field? }]` — is the "…" at the end of each row: `open` (the row, as a click on it; needs `rowOpen`), `link` (the URL in `field`, in a new tab), `copy` (the text in `field`); an entry whose field is empty on a row is not offered there. **`dim`** fades them (cancelled orders: there, but not to be looked at — clearer on hover).
+- **On a screen about one record** (the screen has a `source` and a saved record is open), the function is told which: `ctx.record` and `ctx.id` — this order's tasks, as cards (`layout: "cards"`) whose click opens the task's own screen in a popup (`editScreen`). The record is read on the server, this company's and active; an id the caller cannot see is a 404. The list asks again when the record changes. Without a record (a board) there is no `ctx.record`.
 - **Rows that are worked out are not a table's records**: no Delete, and Edit / New only with an `editScreen`.
-- Routes: `GET /factory/rows/:screen` (`?node=&q=&filter=&kpi=&from=&to=`) and `/factory/rows/:screen/details` (`?node=&column=&id=`) — see `@xeplr/factory`.
+- Routes: `GET /factory/rows/:screen` (`?node=&q=&filter=&kpi=&from=&to=&id=`) and `/factory/rows/:screen/details` (`?node=&column=&id=`) — see `@xeplr/factory`.
 
 ## Text with suggestions — `autocomplete`
 

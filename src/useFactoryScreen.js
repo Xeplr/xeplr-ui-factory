@@ -63,7 +63,7 @@ import { useRecordDetails } from './useRecordDetails.js'
  * @param onDirtyChange (dirty) → void — whether there are unsaved changes, as that changes
  * @param controls      the control registry (default: the built-ins)
  * @param hooks         a FactoryHooks (or an object with some of its methods) — get / save / delete / actions
- * @param fetchRows     async ({ screen, node, q, filter, kpi, from, to }) → { rows, counts, kpis } — a list whose rows a function works out (rowsFrom)
+ * @param fetchRows     async ({ screen, node, q, filter, kpi, from, to, id }) → { rows, counts, kpis } — a list whose rows a function works out (rowsFrom)
  * @param suggest       async ({ screen, node, q }) → [{ value, label, sub?, image?, fill? }] — an autocomplete's suggestions (suggestFrom)
  * @param fetchDetails  async ({ screen, node, id, more }) → { sections, more } — a details panel's sections for this record (detailsFrom)
  * @param fetchFeed     async ({ screen, node, id }) → { entries } — a feed's comments and history for this record (entriesFrom)
@@ -690,11 +690,15 @@ export function useFactoryScreen({
               if (!fetchRowsRef.current) throw new Error(`No fetchRows was provided — the list's rows come from "${node.props.rowsFrom}"`)
               const range = rangeFor(node)
               const kpis = Array.isArray(node.props.kpis) ? node.props.kpis : []
+              // On a screen about one record (it has a source, and a saved
+              // record is open) the function is told which: this order's tasks.
+              const about = doc.source && live.current.recordId !== null && live.current.recordId !== undefined ? live.current.recordId : undefined
               return fetchRowsRef.current({
                 screen: doc.id, node: node.id, q: askedQ, filter: listFilter || undefined,
                 kpi: kpis.some((k) => k.key === listKpi) ? listKpi : undefined,
                 from: range && range.from ? range.from : undefined,
-                to: range && range.to ? range.to : undefined
+                to: range && range.to ? range.to : undefined,
+                id: about
               })
             }
             if (!fetchRecordsRef.current) throw new Error(`No fetchRecords was provided to list "${src}"`)
@@ -722,7 +726,7 @@ export function useFactoryScreen({
         .catch((err) => { if (!cancelled) setLists((l) => ({ ...l, [node.id]: { rows: l[node.id]?.rows || [], counts: l[node.id]?.counts || {}, loading: false, error: err.message || 'Could not load records' } })) })
     })
     return () => { cancelled = true }
-  }, [listNodes, listVersion, doc, askedQ, listFilter, listKpi, rangeFor, reloadKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [listNodes, listVersion, doc, askedQ, listFilter, listKpi, rangeFor, reloadKey, recordId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /** What a function-fed list is narrowed to, and how to change it. */
   const listQuery = useMemo(() => ({
