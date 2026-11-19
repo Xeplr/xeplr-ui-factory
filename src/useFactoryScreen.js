@@ -881,7 +881,14 @@ export function useFactoryScreen({
     if (!openable.has(openPlace.screen)) return
     const shown = popup && popup.record ? popup.record[recordKey] : undefined
     if (popup && popup.screenId === openPlace.screen && String(shown) === openPlace.id) return
-    openPopup({ screenId: openPlace.screen, id: openPlace.id })
+    // Called as a click would call it: a list's sub-table hands its link to
+    // this record (so the form hides it), a feed's conversion its linkField.
+    const owner = live.current.recordId
+    const lists = doc.nodes.filter((n) => n.type === 'list' && (n.props.editScreen === openPlace.screen || n.props.newScreen === openPlace.screen))
+    const feeds = doc.nodes.filter((n) => n.type === 'feed' && n.props.convert && n.props.convert.openScreen === openPlace.screen)
+    const link = (lists.find((n) => n.props.belongsTo) || { props: {} }).props.belongsTo || (feeds[0] && feeds[0].props.convert.linkField)
+    const given = link && owner !== null && owner !== undefined && owner !== '' ? { [link]: owner } : null
+    openPopup({ node: lists[0] || null, screenId: openPlace.screen, id: openPlace.id, params: given })
   }, [openPlace, openable]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── subforms: the form each draws, and this record's row of it ────────
