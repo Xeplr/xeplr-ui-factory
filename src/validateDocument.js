@@ -11,19 +11,21 @@
 // fields writing the same key — looks like a data problem to whoever uses it.
 
 import { SCREEN_EVENT_KEYS, FUNCTION_NAME } from './events.js'
-import { CONTROLS, LABEL_VARIANTS, LIST_ACTIONS, STYLE_KEYS, SCREEN_STYLE_KEYS, LAYOUTS, MULTI_SEPARATOR, MAX_FILE_MB, STEP_LIMIT, acceptList, FILE_SOURCES, IMAGE_EXTENSIONS, MAX_FILES } from './controls.js'
-import { DOCUMENT_KIND, DOCUMENT_VERSION } from './document.js'
+import { CONTROLS, LABEL_VARIANTS, LIST_ACTIONS, STYLE_KEYS, SCREEN_STYLE_KEYS, LAYOUTS, MULTI_SEPARATOR, MAX_FILE_MB, STEP_LIMIT, STEPPER_DISPLAYS, acceptList, FILE_SOURCES, IMAGE_EXTENSIONS, MAX_FILES } from './controls.js'
+import { DOCUMENT_KIND, DOCUMENT_VERSION, SCREEN_LAYOUTS } from './document.js'
 import { DATE_PRESET_VALUES } from './listRange.js'
 import { RESERVED_COLUMNS, MAX_IDENTIFIER } from './tableSchema.js'
 import { FIELD_PRESETS, INPUT_TYPES, presetFor } from './presets.js'
 import { isBinding } from './values.js'
 import { ROW_MENU_ACTIONS } from './listRows.js'
-import { BUTTON_VARIANTS, COLUMN_DISPLAYS, LIST_LAYOUTS, BADGE_TONES, COLUMN_ICONS, CONDITION_OPERATORS, ASK_FIELD_TYPES, NOTE_INPUT, FILES_INPUT, isAskDayLimit } from './buttons.js'
+import { feedProblems, FEED_EVENT } from './feed.js'
+import { detailsProblems, DETAILS_EVENT } from './details.js'
+import { BUTTON_VARIANTS, COLUMN_DISPLAYS, LIST_LAYOUTS, BADGE_TONES, COLUMN_ICONS, CONDITION_OPERATORS, ASK_FIELD_TYPES, ROW_FIELD_TYPES, MAX_ASK_ROWS, NOTE_INPUT, FILES_INPUT, isAskDayLimit } from './buttons.js'
 
 const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
 const TABLE_NAME = /^[A-Za-z_][A-Za-z0-9_.$-]*$/
 const SCREEN_ID = /^[A-Za-z0-9_-]+$/
-const DOCUMENT_KEYS = ['kind', 'version', 'id', 'name', 'source', 'units', 'aspect', 'width', 'style', 'description', 'master', 'labelField', 'params', 'events', 'nodes']
+const DOCUMENT_KEYS = ['kind', 'version', 'id', 'name', 'source', 'units', 'aspect', 'width', 'layout', 'style', 'description', 'master', 'labelField', 'params', 'events', 'nodes']
 const COLOR = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i
 
 /**
@@ -44,6 +46,7 @@ export function validateDocument(doc, controls = CONTROLS) {
   if (!nonEmptyString(doc.name)) err('name', 'must be a non-empty string — the screen\'s title, e.g. "New employee"')
   if (doc.units !== 'fraction') err('units', 'must be "fraction"')
   if (!(typeof doc.aspect === 'number' && doc.aspect > 0)) err('aspect', 'must be a number greater than 0 (1 = page as tall as it is wide)')
+  if (doc.layout !== undefined && !SCREEN_LAYOUTS.includes(doc.layout)) err('layout', `must be one of: ${SCREEN_LAYOUTS.join(', ')} — "flow" puts the controls one under another, each as tall as its content`)
   if (!(Number.isInteger(doc.width) && doc.width >= 320 && doc.width <= 1920)) err('width', 'must be a whole number of pixels from 320 to 1920 — the width the screen is designed at')
   if (doc.source !== undefined && !(nonEmptyString(doc.source) && TABLE_NAME.test(doc.source))) err('source', 'must name the table records are saved to, e.g. "employees"')
 
@@ -149,6 +152,8 @@ export function validateDocument(doc, controls = CONTROLS) {
 
       if (!nonEmptyString(props.label)) err(`${at}.props.label`, 'is required — the text shown above the field')
       if (props.required !== undefined && typeof props.required !== 'boolean') err(`${at}.props.required`, 'must be true or false')
+      if (props.hidden !== undefined && typeof props.hidden !== 'boolean') err(`${at}.props.hidden`, 'must be true or false')
+      if (props.hidden === true && props.required === true && !isBinding(props.default)) err(`${at}.props.hidden`, 'a hidden field nobody can fill in cannot be required — give it "Fill in from", or let the server fill it in and drop Required')
       if (props.placeholder !== undefined && typeof props.placeholder !== 'string') err(`${at}.props.placeholder`, 'must be a string')
       // Where the field came from (a ready-made field's key), or false: plain on purpose.
       if (props.preset !== undefined && props.preset !== false && !presetFor(props.preset)) err(`${at}.props.preset`, `"${props.preset}" is not a ready-made field — one of: ${FIELD_PRESETS.map((p) => p.key).join(', ')}, or false`)
@@ -192,6 +197,8 @@ export function validateDocument(doc, controls = CONTROLS) {
     if (node.type === 'list') checkList(props, doc, at, err)
     if (node.type === 'buttons') checkButtons(props, at, err, buttonIds)
     if (node.type === 'subform') checkSubform(props, doc, at, err)
+    if (node.type === 'feed') checkFeed(props, doc, at, err)
+    if (node.type === 'details') checkDetails(props, doc, at, err)
     if (node.type === 'label') {
       if (typeof props.text !== 'string') err(`${at}.props.text`, 'must be a string')
       if (props.variant !== undefined && !LABEL_VARIANTS.includes(props.variant)) err(`${at}.props.variant`, `must be one of: ${LABEL_VARIANTS.join(', ')}`)
@@ -272,6 +279,7 @@ function checkSteps(props, at, err) {
     if (extra.length) err(p, `only "key" and "label" are used — remove: ${extra.join(', ')}`)
   })
   if (props.showNumbers !== undefined && typeof props.showNumbers !== 'boolean') err(`${at}.props.showNumbers`, 'must be true or false')
+  if (props.display !== undefined && !STEPPER_DISPLAYS.includes(props.display)) err(`${at}.props.display`, `must be one of: ${STEPPER_DISPLAYS.join(', ')} — "tabs" opens any one with a click, with no Back or Next`)
 }
 
 /** A node's `step`: a stepper that exists, and one of its steps. */
@@ -453,6 +461,7 @@ function checkList(props, doc, at, err) {
   // The page grows with it, so nothing can be placed beside or under it.
   if (props.grow && doc.nodes.length !== 1) err(`${at}.props.grow`, 'only for a list that is the screen\'s one control — the page grows with it, so nothing else has a place')
   if (props.editScreen !== undefined && !(nonEmptyString(props.editScreen) && SCREEN_ID.test(props.editScreen))) err(`${at}.props.editScreen`, 'must be the id of the screen that edits a record, e.g. "employee_edit"')
+  if (props.newScreen !== undefined && !(nonEmptyString(props.newScreen) && SCREEN_ID.test(props.newScreen))) err(`${at}.props.newScreen`, 'must be the id of the screen New opens, e.g. "order_task_edit"')
 
   // THE LINK BACK, for a sub-table on a form: this material's
   // characteristics. A column name, checked as one — a value that could never
@@ -460,8 +469,8 @@ function checkList(props, doc, at, err) {
   if (props.belongsTo !== undefined && props.belongsTo !== '') {
     if (!(nonEmptyString(props.belongsTo) && /^[A-Za-z_][\w]*$/.test(props.belongsTo))) {
       err(`${at}.props.belongsTo`, 'must be a column name, e.g. "materialId"')
-    } else if (!props.source) {
-      err(`${at}.props.belongsTo`, 'only means something with "Records from" set — a list of this screen\'s own table already belongs to this record')
+    } else if (!props.source && !props.rowsFrom) {
+      err(`${at}.props.belongsTo`, 'only means something with "Records from" set (or rows from a function) — a list of this screen\'s own table already belongs to this record')
     }
   }
   if (props.pageSize !== undefined && !(Number.isInteger(props.pageSize) && props.pageSize >= 1 && props.pageSize <= 200)) err(`${at}.props.pageSize`, 'must be a whole number from 1 to 200')
@@ -569,6 +578,7 @@ function checkFedList(props, fed, at, err) {
   if (props.refreshEvery !== undefined && !(Number.isInteger(props.refreshEvery) && props.refreshEvery >= 10 && props.refreshEvery <= 3600)) {
     err(`${at}.props.refreshEvery`, 'must be a whole number of seconds from 10 to 3600')
   }
+  if (props.empty !== undefined && typeof props.empty !== 'string') err(`${at}.props.empty`, 'must be a string — what shows when there are no rows')
   if (props.rowOpen !== undefined && typeof props.rowOpen !== 'boolean') err(`${at}.props.rowOpen`, 'must be true or false')
   if (props.rowOpen && !props.editScreen) err(`${at}.props.rowOpen`, 'needs "Edit in" (editScreen) — the screen a row opens in')
   if (props.bulkAdd !== undefined && typeof props.bulkAdd !== 'boolean') err(`${at}.props.bulkAdd`, 'must be true or false')
@@ -643,13 +653,13 @@ const ASK_FILE_KEYS = ['label', 'required', 'accept', 'maxSize', 'multiple', 'ma
  * server checks the names against what is registered when the screen is
  * published (functionProblems). Here: the shape.
  */
-const ASK_FIELD_KEYS = ['name', 'label', 'type', 'unit', 'required', 'min', 'max', 'fill', 'optionsFrom', 'options', 'newRow']
+const ASK_FIELD_KEYS = ['name', 'label', 'type', 'unit', 'required', 'min', 'max', 'fill', 'optionsFrom', 'options', 'newRow', 'fields', 'rowLabel', 'addLabel', 'startFrom']
 // How the popup is laid out: wider, and how many fields to a line.
 const ASK_LAYOUT_KEYS = ['wide', 'columns']
 export const MAX_ASK_COLUMNS = 4
 
 /** A button's `ask.fields`: the values a press asks for, each reaching the function under its name. */
-function checkAskFields(fields, params, at, err) {
+function checkAskFields(fields, params, at, err, inRow) {
   if (!Array.isArray(fields)) { err(at, 'must be a list of { name, label, type, unit?, required?, min?, max?, fill?, options? }'); return }
   const seen = new Set()
   fields.forEach((f, i) => {
@@ -659,7 +669,7 @@ function checkAskFields(fields, params, at, err) {
     if (bad.length) err(p, `only ${ASK_FIELD_KEYS.map((k) => `"${k}"`).join(', ')} are used — remove: ${bad.join(', ')}`)
     if (!(nonEmptyString(f.name) && /^[A-Za-z][A-Za-z0-9_]{0,62}$/.test(f.name))) err(`${p}.name`, 'must be letters, digits or _ — what the function receives it as, e.g. "lengthIn"')
     else if (seen.has(f.name)) err(`${p}.name`, `"${f.name}" is asked twice`)
-    else if (f.name === NOTE_INPUT || f.name === FILES_INPUT) err(`${p}.name`, `"${f.name}" is the note's or the files' own name — use ask.note or ask.file`)
+    else if (!inRow && (f.name === NOTE_INPUT || f.name === FILES_INPUT)) err(`${p}.name`, `"${f.name}" is the note's or the files' own name — use ask.note or ask.file`)
     else if (params && Object.prototype.hasOwnProperty.call(params, f.name)) err(`${p}.name`, `"${f.name}" is already one of the button's parameters — the screen gives it, so nobody should be asked`)
     else seen.add(f.name)
     if (!nonEmptyString(f.label)) err(`${p}.label`, 'must be what the person sees, e.g. "Length"')
@@ -675,7 +685,23 @@ function checkAskFields(fields, params, at, err) {
       if (f.fill !== undefined) err(`${p}.fill`, 'is for a number, text or date field — a checklist starts empty')
       return
     }
-    if (f.optionsFrom !== undefined) err(`${p}.optionsFrom`, 'is for a checklist')
+    if (f.type === 'rows') {
+      // The same few fields once per thing: number or text, checked as those are.
+      if (!Array.isArray(f.fields) || !f.fields.length) err(`${p}.fields`, 'must list what each row asks for, e.g. [{ name: "lengthCm", label: "Length", type: "number", unit: "cm" }]')
+      else {
+        f.fields.forEach((c, k) => { if (c && !ROW_FIELD_TYPES.includes(c.type)) err(`${p}.fields[${k}].type`, `must be one of: ${ROW_FIELD_TYPES.join(', ')} — a row holds numbers and text`) })
+        // A row's own names: only one another's — never the button's note or files.
+        checkAskFields(f.fields, null, `${p}.fields`, err, true)
+      }
+      ;['min', 'max'].forEach((k) => { if (f[k] !== undefined && !(Number.isInteger(f[k]) && f[k] >= 0 && f[k] <= MAX_ASK_ROWS)) err(`${p}.${k}`, `must be how many rows, a whole number up to ${MAX_ASK_ROWS}`) })
+      if (Number.isInteger(f.min) && Number.isInteger(f.max) && f.min > f.max) err(`${p}.min`, 'is more than max')
+      ;['rowLabel', 'addLabel'].forEach((k) => { if (f[k] !== undefined && !(typeof f[k] === 'string' && f[k].length <= 40)) err(`${p}.${k}`, 'must be a short text, e.g. "Packet"') })
+      if (f.startFrom !== undefined && !(nonEmptyString(f.startFrom) && FUNCTION_NAME.test(f.startFrom))) err(`${p}.startFrom`, 'must be the name of a registered function (event "buttonOptions") that answers the rows to start with, e.g. "orderParcels"')
+      ;['unit', 'fill', 'options', 'optionsFrom'].forEach((k) => { if (f[k] !== undefined) err(`${p}.${k}`, 'is not for rows — give it to the row\'s own fields') })
+      return
+    }
+    ;['fields', 'rowLabel', 'addLabel', 'startFrom'].forEach((k) => { if (f[k] !== undefined) err(`${p}.${k}`, 'is for a rows field') })
+    if (f.optionsFrom !== undefined && f.type !== 'choice') err(`${p}.optionsFrom`, 'is for a checklist or a choice')
     if (f.type === 'checkbox') {
       ;['min', 'max', 'unit', 'options', 'optionsFrom'].forEach((k) => { if (f[k] !== undefined) err(`${p}.${k}`, 'is not for a checkbox') })
       if (f.fill !== undefined && !(nonEmptyString(f.fill) && /^[A-Za-z_][A-Za-z0-9_]*$/.test(f.fill))) err(`${p}.fill`, 'must be a field of the record, e.g. "localDelivery"')
@@ -684,7 +710,15 @@ function checkAskFields(fields, params, at, err) {
     if (f.type === 'choice') {
       const list = Array.isArray(f.options) ? f.options : null
       const values = (list || []).map((o) => (o && typeof o === 'object' && !Array.isArray(o) ? o.value : o))
-      if (!list || !list.length) err(`${p}.options`, 'must list what can be chosen: values, or { value, label }')
+      if (f.optionsFrom !== undefined) {
+        // Worked out for the record by a function, instead of listed here.
+        if (!(nonEmptyString(f.optionsFrom) && FUNCTION_NAME.test(f.optionsFrom))) err(`${p}.optionsFrom`, 'must be the name of a registered function (event "buttonOptions") that lists what can be chosen, e.g. "mergeCandidates"')
+        if (f.options !== undefined) err(`${p}.options`, 'give the options, or optionsFrom — not both')
+        if (f.fill !== undefined) err(`${p}.fill`, 'is not for a choice its function lists — it starts empty')
+        ;['min', 'max', 'unit'].forEach((k) => { if (f[k] !== undefined) err(`${p}.${k}`, 'is not for a choice') })
+        return
+      }
+      if (!list || !list.length) err(`${p}.options`, 'must list what can be chosen — values, or { value, label } — or name a function that does (optionsFrom)')
       else if (values.some((v) => !(typeof v === 'string' && v.trim()) && !(typeof v === 'number' && Number.isFinite(v)))) err(`${p}.options`, 'each must be a value, or { value, label } with a value')
       else if (new Set(values.map(String)).size !== values.length) err(`${p}.options`, 'a value is listed twice')
       ;['min', 'max', 'unit'].forEach((k) => { if (f[k] !== undefined) err(`${p}.${k}`, 'is not for a choice') })
@@ -782,6 +816,26 @@ function checkSubform(props, doc, at, err) {
   if (!(nonEmptyString(props.belongsTo) && /^[A-Za-z_][\w]*$/.test(props.belongsTo))) {
     err(`${at}.props.belongsTo`, 'is required — the field on that form pointing back at this record, e.g. "employeeId"')
   }
+}
+
+// A record's feed: its entries come from a function given THE RECORD, so the
+// screen must say which table that record is in.
+function checkFeed(props, doc, at, err) {
+  if (!(nonEmptyString(props.entriesFrom) && FUNCTION_NAME.test(props.entriesFrom))) {
+    err(`${at}.props.entriesFrom`, `is required — the name of a registered function (event "${FEED_EVENT}") that returns the record's entries, e.g. "orderFeed"`)
+  }
+  feedProblems(props, at).forEach((e) => err(e.path, e.message))
+  if (!nonEmptyString(doc.source)) err(`${at}.props.entriesFrom`, 'needs the screen to have a "source" — the feed is about one record of that table')
+  if (props.compose && props.compose.screen === doc.id) err(`${at}.props.compose.screen`, 'cannot be this screen — a comment is saved through a form of its own')
+}
+
+// A record's details: worked out by a function given THE RECORD.
+function checkDetails(props, doc, at, err) {
+  if (!(nonEmptyString(props.detailsFrom) && FUNCTION_NAME.test(props.detailsFrom))) {
+    err(`${at}.props.detailsFrom`, `is required — the name of a registered function (event "${DETAILS_EVENT}") that returns what is known about the record, e.g. "orderDetails"`)
+  }
+  detailsProblems(props, at).forEach((e) => err(e.path, e.message))
+  if (!nonEmptyString(doc.source)) err(`${at}.props.detailsFrom`, 'needs the screen to have a "source" — the details are about one record of that table')
 }
 
 function nonEmptyString(v) {

@@ -4,6 +4,8 @@ import { stepsOf } from '../document.js'
 import { addTag, removeTag, setTagQty, tagLimit } from '../suggest.js'
 import ListView from './ListView.jsx'
 import ButtonsView from './ButtonsView.jsx'
+import FeedView from './FeedView.jsx'
+import DetailsView from './DetailsView.jsx'
 import FileField from './FileField.jsx'
 import { fieldStyle, labelStyle, boxStyle } from './styles.js'
 
@@ -16,7 +18,7 @@ import { fieldStyle, labelStyle, boxStyle } from './styles.js'
 
 const ids = (node) => `xeplr-factory-${node.id}`
 
-export default function ControlView({ node, mode = 'live', value, error, options, onChange, onBlur, disabled, list, upload, readFile, stepper, subform, rows, buttons, suggest, onPick }) {
+export default function ControlView({ node, mode = 'live', value, error, options, onChange, onBlur, disabled, list, upload, readFile, stepper, subform, rows, buttons, feed, details, suggest, onPick }) {
   const View = VIEWS[node.type]
   if (!View) {
     return <div className="xeplr-factory-unknown">Unknown control “{node.type}”</div>
@@ -40,6 +42,8 @@ export default function ControlView({ node, mode = 'live', value, error, options
       subform={subform}
       rows={rows}
       buttons={buttons}
+      feed={feed}
+      details={details}
       suggest={suggest}
       onPick={onPick}
     />
@@ -559,6 +563,7 @@ function StepperView({ node, p, design, stepper }) {
   const active = stepper && Number.isInteger(stepper.active) ? stepper.active : 0
   const go = stepper && stepper.onStep
   const text = boxStyle(p.style)
+  if (p.display === 'tabs') return <TabsView node={node} p={p} design={design} steps={steps} active={active} go={go} stepper={stepper} />
   return (
     <div className="xeplr-factory-stepper" style={{ ...fieldStyle(p.style), ...text }}>
       <ol className="xeplr-factory-steps">
@@ -584,6 +589,43 @@ function StepperView({ node, p, design, stepper }) {
           )
         })}
       </ol>
+    </div>
+  )
+}
+
+/**
+ * The same steps as a row of tabs: any one opens with a click (the app's
+ * `step` hook still has the last word), arrow keys move along the row. On the
+ * canvas a click opens a tab too, which is how its controls are reached.
+ */
+function TabsView({ node, p, design, steps, active, go, stepper }) {
+  const keyDown = (e) => {
+    if (!go || (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft')) return
+    e.preventDefault()
+    const way = e.key === 'ArrowRight' ? 1 : -1
+    for (let i = active + way; i >= 0 && i < steps.length; i += way) {
+      if (!(stepper && stepper.isDisabled && stepper.isDisabled(i))) { go(i); return }
+    }
+  }
+  return (
+    <div className="xeplr-factory-tabs" role="tablist" aria-label={node.id} style={{ ...fieldStyle(p.style), ...boxStyle(p.style) }} onKeyDown={keyDown}>
+      {steps.map((s, i) => {
+        const off = Boolean(stepper && stepper.isDisabled && stepper.isDisabled(i))
+        return (
+          <button
+            key={s.key}
+            type="button"
+            role="tab"
+            aria-selected={i === active}
+            className={'xeplr-factory-tab' + (i === active ? ' is-active' : '')}
+            onClick={(e) => { if (go && !off) { e.stopPropagation(); go(i) } }}
+            disabled={off}
+            tabIndex={design ? -1 : i === active ? 0 : -1}
+          >
+            {s.label}
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -716,6 +758,8 @@ export const VIEWS = {
   label: LabelView,
   list: ListControl,
   buttons: ({ node, design, buttons }) => <ButtonsView node={node} design={design} panel={buttons} />,
+  feed: ({ node, design, feed }) => <FeedView node={node} design={design} feed={feed} />,
+  details: ({ node, design, details }) => <DetailsView node={node} design={design} details={details} />,
   table: TableView,
   subform: SubformView
 }

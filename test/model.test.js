@@ -213,6 +213,17 @@ console.log('\nvalues')
   check('server rejects a missing required field too', serverRejects({ ...good, firstName: undefined }))
   check('...a static option that is not listed', serverRejects({ ...good, employmentType: 'freelance' }))
   check('...a fraction where whole numbers are required', serverRejects({ ...good, salary: 1.5 }))
+  {
+    const bound = JSON.parse(JSON.stringify(doc))
+    const notes = bound.nodes.find((n) => n.props && n.props.name === 'notes')
+    notes.props.default = '{params.note}'
+    const typed = JSON.parse(JSON.stringify(doc))
+    typed.nodes.find((n) => n.props && n.props.name === 'notes').props.default = 'n/a'
+    check('a default that is a reference ({params.x}) is not in the schema — the server would save the braces',
+      !('default' in formSchema(bound).find((f) => f.name === 'notes')))
+    check('...and left empty, it is saved empty', applySchema(formSchema(bound), { ...good, notes: undefined }).notes === undefined)
+    check('a typed default still is', formSchema(typed).find((f) => f.name === 'notes').default === 'n/a')
+  }
   check('...a pattern mismatch', serverRejects({ ...good, email: 'nope' }))
   check('...text over maxLength', serverRejects({ ...good, notes: 'far too long for ten' }))
 }
@@ -575,7 +586,7 @@ console.log('\nthe stylesheet')
     'xeplr-factory-modal-title', 'xeplr-factory-modal-close',
     // ONE LIST, TWO VIEWS: a table's records (ListView) and rows a function
     // works out (FedList) are the same card, with the same title and states.
-    'xeplr-factory-list', 'xeplr-factory-list-title', 'xeplr-factory-list-empty', 'xeplr-factory-error-inline',
+    'xeplr-factory-list', 'xeplr-factory-list-title', 'xeplr-factory-list-empty', 'xeplr-factory-error-inline', 'xeplr-factory-list-new',
     // A FED LIST'S CELL, drawn by FedList and by its extra column kinds
     // (listExtras: the journey, the row menu) — one cell, two files.
     'xeplr-factory-cell'

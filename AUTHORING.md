@@ -27,6 +27,9 @@ A request for "a form for employees" is an **entity**. Every entity is the same 
 | a field, a label, a rule, a dropdown, the layout, a colour | the screen JSON (then validate) |
 | "a button that does something to a record" — set a status, confirm, approve | a **Buttons** control naming a function (event `button`) and its parameters; the function in `employee.functions.js` — one function, many buttons with different parameters |
 | "a list whose rows are worked out", "a search box", "filter chips with counts" | a list with `rowsFrom` naming a function (event `listRows`) that returns `{ rows, counts }` — the text it shows is the function's |
+| "show what we know about it", "its contact / address / products" — read only, often not columns | a **details** panel (`type: "details"`) with `detailsFrom` naming a function (event `recordDetails`) that returns sections — see the README's "What is known about a record" |
+| "this record's tasks / lines / orders", as cards, each opening its own screen | a list with `rowsFrom` on the record's screen (it has a `source`): the function gets `ctx.record` / `ctx.id`; `layout: "cards"`, and `editScreen` for what a card opens |
+| "comments on a record", "its history", "what happened to it" | a **feed** (`type: "feed"`) on a screen with that record's `source`: `entriesFrom` naming a function (event `feedEntries`) that returns the entries, and `compose` naming the form a comment is saved through — see Comments and history |
 | "show / hide / filter rows on screen", "fill in X before saving" (browser convenience — web only) | front-end hooks in `EditEmployee.jsx` |
 | "must", "only if", "check against…", "email when…", "only managers see…" | a server function in `employee.functions.js`, named in the screen's `events` |
 | "store as…", "convert…", "comma-separated / array", "work out X from Y" (data shape) | server model in `employee.model.js` |
@@ -163,6 +166,7 @@ Names are derived once and agree everywhere: ids `employee_list` / `employee_edi
 | `fields` | **required** — in reading order |
 | `list` | `true`, or `{ title, source, columns: [{ field, label }], pageSize, actions: ["new","edit","delete"], openIn: "popup" \| "page" }` — saved records below the fields |
 | `width` | design width in px (default `800`) |
+| `layout` | `"fixed"` (default — each control the size placed) or `"flow"` (one under another, each as tall as its content: a record's screen with details, comments, lists) |
 | `style` | screen-wide defaults: `{ fontFamily, fontSize, color, background }` |
 
 Each field:
@@ -173,6 +177,7 @@ Each field:
 | `type` | `text` (default), `textarea`, `number`, `date`, `datetime`, `checkbox`, `dropdown`, `radio`, `multiselect`, `file`, `stepper`, or `label` for a section heading |
 | `name` | the key the value is saved under; defaults to the label in camelCase (`"Date of birth"` → `dateOfBirth`) |
 | `required` | `true` to require a value (a checkbox must be ticked) |
+| `hidden` | `true`: kept and saved, never shown — a value the server fills in (done by, added by) |
 | `placeholder` | text, textarea, number, dropdown |
 | `default` | starting value — a string, a number, `true`/`false`, or a date as `"YYYY-MM-DD"` |
 | `validation` | see below |
@@ -182,6 +187,7 @@ Each field:
 | `layout` | radio, multiselect: `"vertical"` (default) or `"horizontal"` |
 | `accept` | file: the extensions it takes, e.g. `".pdf,.docx"` |
 | `steps` | stepper: `["Connect", "Transform", "Review"]` — at least two |
+| `display` | stepper: `"steps"` (default — Back and Next) or `"tabs"` (a row of tabs, any one opened with a click) |
 | `step` | which step this field is on: the step's label, or its number from 1. Needs a `stepper` earlier in `fields`; without a `step` a field shows on every step |
 | `maxSize` | file: the largest file in megabytes (default 10) |
 | `text`, `variant` | `label` only — `variant` is `heading`, `subheading` (default for a section) or `text` |
@@ -241,9 +247,23 @@ A button is **a registered function and its parameters** — never code. Several
 ] } }
 ```
 
-A button that needs values typed first (a parcel's size before Packed) gets `ask.fields` — `[{ name, label, type: "number" | "text" | "date" | "choice" | "checkbox" | "checklist", unit, required, min, max, fill, options, optionsFrom }]` (a date's `min` / `max`: a day or `"today"`) — and its function takes each `name`. A `checkbox` is a tick that arrives as `true` / `false` (the function takes a `boolean`). A `choice` is a dropdown of its `options` (values, or `{ value, label }`); its value arrives as a string, and one not in the list is refused. `ask.wide: true` widens the popup, `ask.columns` (1–4) puts that many fields to a line, and a field's `newRow: true` starts a new line. A `checklist` ticks entries worked out for the record by a function registered for event `buttonOptions` (named in `optionsFrom`); its value is the ids ticked, and the server refuses one the function did not offer. A list with KPI cards over it gets `kpis: [{ key, label, tone? }]` and `dateRange: { label, default: "last30" }`; its `listRows` function returns `kpis: { key: count }` and reads `ctx.query.kpi`, `from`, `to`.
+A button that needs values typed first (a parcel's size before Packed) gets `ask.fields`; several of the same thing (each packet's size) is one field of `type: "rows"` with its own `fields` — see the README's "Several of the same" — `[{ name, label, type: "number" | "text" | "date" | "choice" | "checkbox" | "checklist", unit, required, min, max, fill, options, optionsFrom }]` (a date's `min` / `max`: a day or `"today"`) — and its function takes each `name`. A `checkbox` is a tick that arrives as `true` / `false` (the function takes a `boolean`). A `choice` is a dropdown of its `options` (values, or `{ value, label }`); its value arrives as a string, and one not in the list is refused. `ask.wide: true` widens the popup, `ask.columns` (1–4) puts that many fields to a line, and a field's `newRow: true` starts a new line. A `checklist` ticks entries worked out for the record by a function registered for event `buttonOptions` (named in `optionsFrom`); its value is the ids ticked, and the server refuses one the function did not offer. A list with KPI cards over it gets `kpis: [{ key, label, tone? }]` and `dateRange: { label, default: "last30" }`; its `listRows` function returns `kpis: { key: count }` and reads `ctx.query.kpi`, `from`, `to`.
 
 Register the function with `event: 'button'` and an `inputSchema` (with `options` for the values allowed, a `note` input if a button asks for one, and a `files` input if its `ask.file` takes photos or documents — `{ "accept": ".png,.jpg,.jpeg", "multiple": true, "source": "any" }`, the same rules as a file field). `when` / `disabledWhen` are `@xeplr/rules` rules on the record. Publishing refuses parameters the function does not take. See the README's "Buttons".
+
+## Comments and history
+
+A **feed** shows one record's comments and history. The screen needs a `source` (the record's table):
+
+```json
+{ "type": "feed", "props": { "title": "Comments", "entriesFrom": "orderFeed", "eventsSwitch": true,
+  "compose": { "screen": "order_comment_edit", "linkField": "orderId", "textField": "body", "fileField": "attachment" } } }
+```
+
+- `entriesFrom` — a function registered with `event: 'feedEntries'`. It gets `ctx.record` / `ctx.id` and returns `[{ id, kind: 'comment' | 'event', text, author?: { name, badge? }, at?, files?: [{ path, name? }], sub? }]`, newest first, every value already worded for people ("Today, 4:00 pm").
+- `compose` — the comments' own form (an entity like `order comment`, with a dropdown back to the record, a textarea and optionally a file field). Leave `compose` out for a feed that only reads.
+- `convert` — `{ screen, linkField?, label?, openScreen? }`: a "Convert to task" button on each comment, opening that form filled in. The function gives each convertible comment `convert: { field: value, … }` (what the form starts with) and each converted one `converted: { id, text }`. Whether a comment may be converted twice is the target form's rule, not the feed's.
+- Comments are records of that form: telling people about a new one is that form's `afterSave`, not the feed's.
 
 ## When the document cannot say it
 
@@ -298,8 +318,11 @@ Rules you give merge over the ready-made ones (`"validation": { "max": 120 }`).
 | a document, a contract, a spreadsheet, a photo | `file` with `accept` (`".pdf,.docx"`) |
 | several photos, several documents | `file` with `multiple: true` (and `maxFiles`) — the value is a list of paths |
 | a photo taken now, at the door / on site | `file` with `source: "camera"` and images in `accept` — the phone opens its camera |
+| comments on a record, its history | a `feed` — see Comments and history |
+| a record's facts shown read only — contact, address, products | a `details` panel |
 | a section title between groups | `{ "type": "label", "text": "…", "variant": "subheading" }` |
 | a long form people work through in stages | a `stepper`, then `step` on each field |
+| parts of one screen side by side, opened in any order (Comments / Tasks) | a `stepper` with `"display": "tabs"`, then `step` on each control |
 
 Keep labels short and in sentence case ("Start date", not "START DATE:"). Mark only what the request needs as required.
 

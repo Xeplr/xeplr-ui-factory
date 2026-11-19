@@ -18,7 +18,7 @@ export default function ListView({ node, doc, design, list, onEdit, onDelete, on
   const [bulkOpen, setBulkOpen] = useState(false)
   // Rows a function works out: their own view — search, chips, the server's text.
   if (!design && p.rowsFrom && list) {
-    return <FedList node={node} list={list} query={query || { q: '', filter: '', setQ: () => {}, setFilter: () => {} }} onOpen={onOpen || onEdit} rowDetails={rowDetails} recordKey={recordKey} extraActions={extraActions} />
+    return <FedList node={node} list={list} query={query || { q: '', filter: '', setQ: () => {}, setFilter: () => {} }} onOpen={onOpen || onEdit} onNew={onNew} rowDetails={rowDetails} recordKey={recordKey} extraActions={extraActions} />
   }
   // The rows are passed in because a list of ANOTHER table has no other
   // description of itself — see listColumns.

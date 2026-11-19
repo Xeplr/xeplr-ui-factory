@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef } from 'react'
 import { useUrlState } from '@xeplr/ui-utils/src/url/useUrlState.js'
-import { factoryUrlKeys, encodeSteps, decodeSteps, replacesHistory } from './urlState.js'
+import { factoryUrlKeys, encodeSteps, decodeSteps, replacesHistory, encodeOpen, decodeOpen } from './urlState.js'
 
 // The two places the factory's controllers keep, each in useState's shape so
 // a controller swaps one line. In the URL under the host's `urlKey`; without
@@ -70,4 +70,23 @@ export function useUrlListQuery(urlKey, which) {
   const [value, setValue] = useUrlState(keys ? keys[which] : which, { inUrl: Boolean(keys), replace: true })
   const set = useCallback((next) => setValue(next === undefined || next === null || next === '' ? null : String(next)), [setValue])
   return [value || '', set]
+}
+
+/**
+ * [open, setOpen] — the record open in the screen's popup, { screen, id } or
+ * null. Opening one adds a history entry, so Back closes it; closing it
+ * replaces nothing — it goes back to the screen.
+ */
+export function useUrlOpen(urlKey) {
+  const keys = factoryUrlKeys(urlKey)
+  const [value, setValue] = useUrlState(keys ? keys.open : 'open', { inUrl: Boolean(keys) })
+  const open = useMemo(() => decodeOpen(value), [value])
+  const valueRef = useRef(value); valueRef.current = value
+  const setOpen = useCallback((place) => {
+    const encoded = encodeOpen(place)
+    if (encoded === (valueRef.current || null)) return
+    setValue(encoded, { replace: replacesHistory(valueRef.current, encoded) })
+    valueRef.current = encoded
+  }, [setValue])
+  return [open, setOpen]
 }

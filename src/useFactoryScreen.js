@@ -4,10 +4,13 @@ import { inputNodes, nodesForSteps, steppers, stepsOf, stepOf, resolveStep, reac
 import { validateDocument } from './validateDocument.js'
 import { initialValues, parseInput, saveState, fieldError, optionValue, recordValues, listSource, resolveBinding } from './values.js'
 import { hookMethod } from './hooks.js'
-import { useUrlSteps, useUrlListQuery } from './useUrlPlaces.js'
+import { useUrlSteps, useUrlListQuery, useUrlOpen } from './useUrlPlaces.js'
+import { openableScreens } from './urlState.js'
 import { buttonShown, buttonDisabled, buttonPressed } from './buttons.js'
 import { resolveRange, rangePresets, dayOf } from './listRange.js'
 import { suggestionsOf, shouldSuggest, pickValues, MAX_SUGGEST_QUERY, isTagField } from './suggest.js'
+import { useFeeds } from './useFeeds.js'
+import { useRecordDetails } from './useRecordDetails.js'
 
 // A saved screen, running. No JSX — designs/ScreenSample.jsx draws it.
 //
@@ -61,8 +64,10 @@ import { suggestionsOf, shouldSuggest, pickValues, MAX_SUGGEST_QUERY, isTagField
  * @param onDirtyChange (dirty) → void — whether there are unsaved changes, as that changes
  * @param controls      the control registry (default: the built-ins)
  * @param hooks         a FactoryHooks (or an object with some of its methods) — get / save / delete / actions
- * @param fetchRows     async ({ screen, node, q, filter, kpi, from, to }) → { rows, counts, kpis } — a list whose rows a function works out (rowsFrom)
+ * @param fetchRows     async ({ screen, node, q, filter, kpi, from, to, id }) → { rows, counts, kpis } — a list whose rows a function works out (rowsFrom)
  * @param suggest       async ({ screen, node, q }) → [{ value, label, sub?, image?, fill? }] — an autocomplete's suggestions (suggestFrom)
+ * @param fetchDetails  async ({ screen, node, id, more }) → { sections, more } — a details panel's sections for this record (detailsFrom)
+ * @param fetchFeed     async ({ screen, node, id }) → { entries } — a feed's comments and history for this record (entriesFrom)
  * @param fetchRowDetails async ({ screen, node, column, id }) → [{ text, sub?, at?, open? }] — an activity cell's hover box
  * @param pressButton   async ({ screen, button, id, note, files, values }) → { message } — a button's press, run on the server
  * @param buttonOptions async ({ screen, button, id, field }) → [{ id, label, sub?, image? }] — what a button's checklist offers for this record
@@ -91,7 +96,7 @@ export function useFactoryScreen({
   document: doc, record, recordKey = 'id', onSave, fetchOptions, fetchRecords, fetchRecord, onDelete, onChange, screens, loadScreen, hooks, uploadFile, fileUrl, readFile,
   onOpenRecord, onDone, onDirtyChange, params, urlKey, previous,
   fetchRows, fetchRowDetails, pressButton, uploadButtonFile, buttonOptions, onButtonDone, reloadKey,
-  suggest, link, onReady,
+  suggest, link, onReady, fetchFeed, fetchDetails,
   controls = CONTROLS
 } = {}) {
   const check = useMemo(() => validateDocument(doc, controls), [doc, controls])
@@ -223,9 +228,16 @@ export function useFactoryScreen({
   // have branches; which of them apply is the app's to say, from its hooks.
   const [disabledSteps, setDisabledSteps] = useState({})
   const stepperNodes = useMemo(() => (check.ok ? steppers(doc, controls) : []), [check.ok, doc, controls])
+  // A field filled in by whoever opened the screen — its default is
+  // {params.x} and x was given (the order a new task belongs to) — is not
+  // shown: the person never has to know, or change, which order it is.
+  const givenParam = (n) => {
+    const m = n.props && typeof n.props.default === 'string' ? /^\{params\.([A-Za-z_][\w]*)\}$/.exec(n.props.default) : null
+    return Boolean(m && params && params[m[1]] !== undefined && params[m[1]] !== null && params[m[1]] !== '')
+  }
   const visibleNodes = useMemo(
-    () => (check.ok ? nodesForSteps(doc, openSteps, controls).filter((n) => !(embedded && n.props && n.props.name === link)) : []),
-    [check.ok, doc, openSteps, controls, embedded, link]
+    () => (check.ok ? nodesForSteps(doc, openSteps, controls).filter((n) => !(embedded && n.props && n.props.name === link) && !givenParam(n) && !(n.props && n.props.hidden === true)) : []),
+    [check.ok, doc, openSteps, controls, embedded, link, params] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   // A screen whose steps changed under it (a field moved to another step, a
@@ -686,11 +698,15 @@ export function useFactoryScreen({
               if (!fetchRowsRef.current) throw new Error(`No fetchRows was provided — the list's rows come from "${node.props.rowsFrom}"`)
               const range = rangeFor(node)
               const kpis = Array.isArray(node.props.kpis) ? node.props.kpis : []
+              // On a screen about one record (it has a source, and a saved
+              // record is open) the function is told which: this order's tasks.
+              const about = doc.source && live.current.recordId !== null && live.current.recordId !== undefined ? live.current.recordId : undefined
               return fetchRowsRef.current({
                 screen: doc.id, node: node.id, q: askedQ, filter: listFilter || undefined,
                 kpi: kpis.some((k) => k.key === listKpi) ? listKpi : undefined,
                 from: range && range.from ? range.from : undefined,
-                to: range && range.to ? range.to : undefined
+                to: range && range.to ? range.to : undefined,
+                id: about
               })
             }
             if (!fetchRecordsRef.current) throw new Error(`No fetchRecords was provided to list "${src}"`)
@@ -718,7 +734,7 @@ export function useFactoryScreen({
         .catch((err) => { if (!cancelled) setLists((l) => ({ ...l, [node.id]: { rows: l[node.id]?.rows || [], counts: l[node.id]?.counts || {}, loading: false, error: err.message || 'Could not load records' } })) })
     })
     return () => { cancelled = true }
-  }, [listNodes, listVersion, doc, askedQ, listFilter, listKpi, rangeFor, reloadKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [listNodes, listVersion, doc, askedQ, listFilter, listKpi, rangeFor, reloadKey, recordId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /** What a function-fed list is narrowed to, and how to change it. */
   const listQuery = useMemo(() => ({
@@ -772,7 +788,13 @@ export function useFactoryScreen({
   }, [doc, recordKey, openRecord])
 
   // ── popup: a list's Edit / New in its edit screen ─────────────────────
-  const [popup, setPopup] = useState(null)   // { node, screenId, record, document, loading, error, label }
+  const [popup, setPopup] = useState(null)   // { node, screenId, record, document, loading, error, label, place }
+  // The RECORD open in it lives in the URL (`<urlKey>Open`): a refresh, Back,
+  // or a link from a notification lands on it. A new record's form does not.
+  const [openPlace, setOpenPlaceNow] = useUrlOpen(urlKey)
+  // The setter changes with the URL; the popup's callbacks are made once.
+  const setOpenPlaceRef = useRef(setOpenPlaceNow); setOpenPlaceRef.current = setOpenPlaceNow
+  const setOpenPlace = useCallback((place) => setOpenPlaceRef.current(place), [])
   const screensRef = useRef(knownScreens); screensRef.current = knownScreens
   const fetchRecordRef = useRef(fetchRecord); fetchRecordRef.current = fetchRecord
   const loadScreenRef = useRef(loadScreen); loadScreenRef.current = loadScreen
@@ -786,7 +808,8 @@ export function useFactoryScreen({
   // `where`: a page opened at one part of the record — what a hover box's
   // entry points at ({ task: 'tk_3' }), handed to onOpenRecord as params.
   const openEditor = useCallback(async (node, rec, where) => {
-    const screenId = node.props.editScreen
+    // New may open a form of its own (newScreen) while a row opens a view.
+    const screenId = !rec && node.props.newScreen ? node.props.newScreen : node.props.editScreen
 
     // WHAT THE CHILD IS CALLED WITH. A sub-table's row belongs to THIS
     // record, so the link column is handed to the screen that adds one — the
@@ -805,7 +828,20 @@ export function useFactoryScreen({
     // column ("#GA1025"), so a screen of buttons says what it acts on.
     const head = node.props.rowsFrom && rec && Array.isArray(node.props.columns) ? node.props.columns[0] : null
     const label = head && rec[head.text || head.field] !== undefined && rec[head.text || head.field] !== null ? String(rec[head.text || head.field]) : null
-    const base = { node, screenId, record: rec || null, document: null, loading: true, error: null, params: given, label }
+    return openPopup({ node, screenId, rec, params: given, label })
+  }, [])
+
+  /**
+   * Opens screen `screenId` in the popup: a record (`rec`, or just its `id`,
+   * read again as it is now) or a new one called with `params`. A list's Edit / New open it
+   * so, and so does a feed turning a comment into a task.
+   */
+  const openPopup = useCallback(async ({ node = null, screenId, rec = null, id, params: given = null, label = null }) => {
+    if (!rec && id !== undefined && id !== null && id !== '') rec = { [live.current.recordKey]: id }
+    const placeId = rec ? rec[live.current.recordKey] : undefined
+    const place = placeId !== undefined && placeId !== null && placeId !== ''
+    if (place) setOpenPlace({ screen: screenId, id: placeId })
+    const base = { node, screenId, record: rec || null, document: null, loading: true, error: null, params: given, label, place }
     setPopup(base)
     try {
       let found = screensRef.current && screensRef.current[screenId]
@@ -816,7 +852,11 @@ export function useFactoryScreen({
       // Edit opens the record as it is NOW, through the server's get hooks —
       // not the list's copy, which may be stale or shaped for the list.
       let fresh = rec || null
-      if (rec && rec[live.current.recordKey] !== undefined) {
+      // A VIEW of the record — its details and comments, no fields and no
+      // buttons — reads what it shows itself, by the id; there is nothing to
+      // read through a form (and no form to read it through).
+      const viewOnly = !inputNodes(found, live.current.controls).length && !found.nodes.some((n) => n.type === 'buttons')
+      if (rec && rec[live.current.recordKey] !== undefined && !viewOnly) {
         const id = rec[live.current.recordKey]
         fresh = await hook('get')({
           many: false, id, screen: screenId, document: found,
@@ -828,6 +868,28 @@ export function useFactoryScreen({
       setPopup((p) => (p && p.screenId === screenId ? { ...p, loading: false, error: err.message } : p))
     }
   }, [])
+
+  // THE URL SAYS WHICH RECORD IS OPEN: opened from a link or a refresh, it
+  // opens; gone from it (Back), the popup closes. Only a screen this document
+  // itself opens records in is honoured — a link cannot make it open another.
+  const openable = useMemo(() => (check.ok ? openableScreens(doc) : new Set()), [check.ok, doc])
+  useEffect(() => {
+    if (!openPlace) {
+      if (popup && popup.place) setPopup(null)
+      return
+    }
+    if (!openable.has(openPlace.screen)) return
+    const shown = popup && popup.record ? popup.record[recordKey] : undefined
+    if (popup && popup.screenId === openPlace.screen && String(shown) === openPlace.id) return
+    // Called as a click would call it: a list's sub-table hands its link to
+    // this record (so the form hides it), a feed's conversion its linkField.
+    const owner = live.current.recordId
+    const lists = doc.nodes.filter((n) => n.type === 'list' && (n.props.editScreen === openPlace.screen || n.props.newScreen === openPlace.screen))
+    const feeds = doc.nodes.filter((n) => n.type === 'feed' && n.props.convert && n.props.convert.openScreen === openPlace.screen)
+    const link = (lists.find((n) => n.props.belongsTo) || { props: {} }).props.belongsTo || (feeds[0] && feeds[0].props.convert.linkField)
+    const given = link && owner !== null && owner !== undefined && owner !== '' ? { [link]: owner } : null
+    openPopup({ node: lists[0] || null, screenId: openPlace.screen, id: openPlace.id, params: given })
+  }, [openPlace, openable]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── subforms: the form each draws, and this record's row of it ────────
   //
@@ -902,6 +964,7 @@ export function useFactoryScreen({
 
   const closeEditor = useCallback(() => {
     setPopup(null)
+    setOpenPlace(null)
     setListVersion((v) => v + 1)
   }, [])
 
@@ -930,6 +993,14 @@ export function useFactoryScreen({
   }, [])
   const [pressing, setPressing] = useState(null)        // button id on the wire
   const [buttonNote, setButtonNote] = useState(null)    // { kind: 'done' | 'error', text, button }
+  // A record's comments and history (feed controls) — useFeeds.js.
+  // A comment turned into a task opens the task's form in the popup, and the
+  // feed asks again once that popup saves (listVersion), so the comment shows
+  // the task it became.
+  const { feedFor } = useFeeds({ doc, recordId, fetchFeed, onSave, uploadFile, loadScreen, reloadKey: `${reloadKey ?? ''}:${listVersion}`, openPopup })
+  // What is known about the record (details panels) — useRecordDetails.js.
+  const { detailsFor } = useRecordDetails({ doc, recordId, fetchDetails, reloadKey })
+
   const buttonRecord = useMemo(() => ({ ...(record || {}), ...values, [recordKey]: recordId }), [record, values, recordKey, recordId])
   const buttonsFor = useCallback((node) => ({
     record: buttonRecord,
@@ -1012,6 +1083,8 @@ export function useFactoryScreen({
     listQuery,
     rowDetails,
     buttonsFor,
+    feedFor,
+    detailsFor,
     deleteRecord,
     recordKey,
     canDelete: Boolean(onDelete) || Boolean(hooks && typeof hooks.delete === 'function'),

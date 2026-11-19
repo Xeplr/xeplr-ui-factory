@@ -132,7 +132,12 @@ export function createFactoryApi({ fetch: doFetch, fetchFile, base = '' } = {}) 
 
     // ROWS A FUNCTION WORKS OUT, for a list with rowsFrom: { rows, counts }.
     // Only what the person typed goes with it — the function is the screen's.
-    fetchRows: async ({ screen, node, q, filter, kpi, from, to }) => one(await call('GET', `/rows/${enc(screen)}${query({ node, q, filter, kpi, from, to })}`)),
+    // `id`: the record the screen is about, when it is about one — this order's tasks.
+    fetchRows: async ({ screen, node, q, filter, kpi, from, to, id }) => one(await call('GET', `/rows/${enc(screen)}${query({ node, q, filter, kpi, from, to, id })}`)),
+    // A RECORD'S FEED: its comments and history, for a feed control: { entries }.
+    fetchFeed: async ({ screen, node, id }) => one(await call('GET', `/feed/${enc(screen)}${query({ node, id })}`)),
+    // A RECORD'S DETAILS, for a details panel: { sections, more }; `more` asks for the rest.
+    fetchDetails: async ({ screen, node, id, more }) => one(await call('GET', `/details/${enc(screen)}${query({ node, id, more: more ? 1 : undefined })}`)),
     // AN AUTOCOMPLETE'S SUGGESTIONS for what was typed: [{ value, label, sub?, image?, fill? }].
     // The function is the screen's (suggestFrom); only the text goes with it.
     suggest: async ({ screen, node, q }) => {
@@ -174,7 +179,7 @@ export function createFactoryApi({ fetch: doFetch, fetchFile, base = '' } = {}) 
     readFile: typeof fetchFile === 'function' ? (path) => fetchFile(api.fileUrl(path)) : undefined
   }
   api.screenProps = { loadScreen: api.loadScreen, onSave: api.onSave, fetchRecords: api.fetchRecords, fetchRecord: api.fetchRecord, onDelete: api.onDelete, fetchOptions: api.fetchOptions, uploadFile: api.uploadFile, fileUrl: api.fileUrl, readFile: api.readFile,
-    fetchRows: api.fetchRows, fetchRowDetails: api.fetchRowDetails, suggest: api.suggest, pressButton: api.pressButton, uploadButtonFile: api.uploadButtonFile, buttonOptions: api.buttonOptions }
+    fetchRows: api.fetchRows, fetchRowDetails: api.fetchRowDetails, fetchFeed: api.fetchFeed, fetchDetails: api.fetchDetails, suggest: api.suggest, pressButton: api.pressButton, uploadButtonFile: api.uploadButtonFile, buttonOptions: api.buttonOptions }
   // makeChildTable: a list on a form can make the table it is about to point
   // at — rows belonging to this record — without leaving the designer. A
   // server act, which is why the builder is given it rather than doing it.

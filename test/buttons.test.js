@@ -146,6 +146,8 @@ console.log('\na list whose rows a function works out')
   check('a list may grow with its rows when it is the screen\'s one control', validateDocument(fedList({ rowsFrom: 'orderList', actions: [], grow: true })).ok)
   check('…and not beside anything else', (() => { const d = fedList({ rowsFrom: 'orderList', actions: [], grow: true }); return /only for a list that is the screen's one control/.test(errs(addControl(d, 'label').document)) })())
   check('refreshing more often than every 10 seconds is refused', /from 10 to 3600/.test(errs(fedList({ rowsFrom: 'orderList', actions: [], refreshEvery: 2 }))))
+  check('its own words for no rows: allowed', !/empty/.test(errs(fedList({ rowsFrom: 'orderList', actions: [], empty: 'No action items due today.' }))))
+  check('...as text only', /empty must be a string/.test(errs(fedList({ rowsFrom: 'orderList', actions: [], empty: 3 }))))
 }
 
 console.log('\nweb-only pages, for a menu to tag')

@@ -516,6 +516,30 @@ Packed asks for the parcel's size, for the courier:
 - Publishing refuses a field the function does not take, or takes as another type. A required input the button asks for is not "missing" from its `params`.
 - In the builder: **Asks for** under the button's Ask first, listing the function's inputs the button does not already give.
 
+#### Several of the same — `rows`
+
+The same few fields once per thing, as many as there are — the packets an
+order went out in, each with its size:
+
+```json
+{ "name": "parcels", "label": "Packets", "type": "rows", "rowLabel": "Packet", "addLabel": "Add packet",
+  "required": true, "min": 1, "max": 10, "startFrom": "orderParcels",
+  "fields": [
+    { "name": "lengthCm", "label": "Length", "type": "number", "unit": "cm", "required": true, "min": 0.1 },
+    { "name": "weightKg", "label": "Weight", "type": "number", "unit": "kg", "required": true, "min": 0.01 } ] }
+```
+
+- Each row is "Packet 1", its fields side by side (two to a line on a phone),
+  × to remove one; **+ Add packet** under them, up to `max` (at most 50).
+- A row's fields are `number` or `text`, checked as those are; a problem names
+  its row ("Packet 2: Weight is required"). Rows left wholly blank are dropped.
+- The function takes it as an **array** (its inputSchema says `type: "array"`)
+  of `{ name: value }`, numbers as numbers.
+- **`startFrom`** (optional): a function, event `buttonOptions`, that answers
+  the rows to start with for the record pressed on — what was given last time,
+  so a correction starts from it. Without it the popup starts with `min` empty
+  rows (at least one).
+
 #### Laying the popup out — `wide`, `columns`, `newRow`
 
 Many values to ask for read best as a table. `ask.wide` makes the popup wider;
@@ -543,6 +567,17 @@ Why an order came back, picked from a dropdown, beside the reason typed:
 { "name": "rtoType", "label": "RTO type", "type": "choice", "required": true, "fill": "rtoType",
   "options": [{ "value": "not_accepted", "label": "Customer did not accept" }, { "value": "broken", "label": "Broken" }, { "value": "other", "label": "Other" }] }
 ```
+
+Or the list is worked out for the record by a function — the other customers
+this one may be merged with — named in `optionsFrom` (event `buttonOptions`,
+answering `[{ id, label?, sub? }]` as a checklist's does) instead of `options`:
+
+```json
+{ "name": "fromId", "label": "Customer to merge into this one", "type": "choice", "required": true, "optionsFrom": "mergeCandidates" }
+```
+
+It starts empty; the server asks the function again on the press and refuses
+one it no longer offers.
 
 The function takes it as a string input — give that input the same `options`
 and publishing checks the two agree. Asked again, it starts from the record's
@@ -698,11 +733,13 @@ actions.register({ name: 'orderActivity', event: 'rowDetails', execute: async (c
   ```
   The **first column is each card's heading** (20px, its `sub` and badges under it); an **`items` column draws each thing's picture large** — square, the card's full width, one card to a row on a phone — with how many, its name and its `detail` in 18px; every other column is a line under its label. The first `pageSize` cards, then **Show more**. A tap on a card opens it, like a row. Needs `rowsFrom`. Example: `examples/packing-board.screen.json`.
 - **A screen of buttons in the popup** — a row's `editScreen` may be a screen of buttons (`examples/packing-actions.screen.json`: just Packed, asking the parcel's size). They press on the server as on a page, the list behind refreshes after a press, and the popup's title names the row from its first column (`Pack an order · #GA1025`).
+- **`empty`** is what shows when there are no rows (default "Nothing here yet."; a search that finds nothing still says "Nothing matches.").
 - **`refreshEvery`** (seconds, 10–3600) asks again — for text that changes with time. **`reloadKey`** on `<FactoryScreen>` reloads every list when it changes (the host heard something happen).
 - **`grow`** (a list that is its screen's **one** control) lets the page grow with the rows on a desktop, instead of the list scrolling inside the box it was placed in — a full-page list like Orders. Phones always flow.
 - **`rowOpen`** makes a click anywhere on a row open it (the first cell is also a button, for the keyboard); **`highlight`** marks rows whose field is true (tinted, the first cell in the accent — today's row); **`rowMenu`** — `[{ label, action, field? }]` — is the "…" at the end of each row: `open` (the row, as a click on it; needs `rowOpen`), `link` (the URL in `field`, in a new tab), `copy` (the text in `field`); an entry whose field is empty on a row is not offered there. **`dim`** fades them (cancelled orders: there, but not to be looked at — clearer on hover).
-- **Rows that are worked out are not a table's records**: no Delete, and Edit / New only with an `editScreen`.
-- Routes: `GET /factory/rows/:screen` (`?node=&q=&filter=&kpi=&from=&to=`) and `/factory/rows/:screen/details` (`?node=&column=&id=`) — see `@xeplr/factory`.
+- **On a screen about one record** (the screen has a `source` and a saved record is open), the function is told which: `ctx.record` and `ctx.id` — this order's tasks, as cards (`layout: "cards"`) whose click opens the task's own screen in a popup (`editScreen`). The record is read on the server, this company's and active; an id the caller cannot see is a 404. The list asks again when the record changes. Without a record (a board) there is no `ctx.record`.
+- **Rows that are worked out are not a table's records**: no Delete, and Edit / New only with an `editScreen`. **New** (`actions: ["new"]`) shows a + New beside the title; `newScreen` makes it open a different screen from a row's click (rows open the task's view, New opens the task form), and `belongsTo` hands that screen the record the rows belong to — `{ orderId: <this order> }` as its params.
+- Routes: `GET /factory/rows/:screen` (`?node=&q=&filter=&kpi=&from=&to=&id=`) and `/factory/rows/:screen/details` (`?node=&column=&id=`) — see `@xeplr/factory`.
 
 ## Text with suggestions — `autocomplete`
 
@@ -769,6 +806,135 @@ actions.register({ name: 'productSuggestions', event: 'suggest', execute: async 
   field otherwise. `required` is at least one chip.
 - In an entity spec: `{ "label": "Add products", "name": "addProducts", "type": "autocomplete", "suggestFrom": "productSuggestions", "multiple": true, "quantity": true }`.
   A list generated from the spec leaves it out of its columns.
+
+## Comments and history — `feed`
+
+What was said about a record and what happened to it, in one list: comments as
+full rows (round initials, name, badge, when, the text, its file) and the
+record's history as quiet one-line rows between them, with a box under the
+title to write a comment. Palette: **Data → Comments & history**.
+
+```json
+{ "id": "n5", "type": "feed", "props": {
+  "title": "Comments", "entriesFrom": "orderFeed", "order": "newest", "eventsSwitch": true, "refreshEvery": 60,
+  "compose": { "screen": "order_comment_edit", "linkField": "orderId", "textField": "body",
+               "fileField": "attachment", "placeholder": "Write a comment…", "button": "Post" } } }
+```
+
+- **It is about one record**: the screen needs a `source`, and the feed shows
+  nothing (and takes no comment) until the record is saved.
+- **The entries are worked out by a function** of the app, registered for event
+  **`feedEntries`** and named in `entriesFrom` (publishing refuses one nobody
+  registered, or one written for another event). It is given the record —
+  read on the server, this company's and active, so another company's id is a
+  404 — as `ctx.record` and `ctx.id`, and returns entries. Everything an entry
+  shows is **text the server wrote**, so it reads the same in any renderer:
+
+  ```js
+  actions.register({ name: 'orderFeed', event: 'feedEntries', execute: async (ctx) => {
+    var comments = await ctx.db('order_comments').where('orderId', ctx.id).orderBy('id', 'desc');
+    return comments.map((c) => ({
+      id: 'c' + c.id, kind: 'comment', text: c.body,
+      author: { name: c.authorName, badge: c.teamName },      // badge optional
+      at: formatWhen(c.recordCreatedDate),                    // "Today, 4:00 pm"
+      files: c.attachment ? [{ path: c.attachment }] : [],
+      sub: c.taskTitle ? 'on task ' + c.taskTitle : undefined  // a quieter line
+    })).concat(statusChanges.map((s) => ({ id: 's' + s.id, kind: 'event', text: 'Status → ' + s.label, author: { name: s.by }, at: formatWhen(s.at) })));
+  } });
+  ```
+
+  Return them in the order they are shown newest-first; `order: "oldest"`
+  reverses them and puts the box under the list. An entry with no `id`, a
+  repeated `id`, or nothing to show is dropped; at most 500 are kept
+  (`entriesOf`).
+- **A comment is saved through a form of the app** (`compose.screen`): the feed
+  fills in `linkField` with the record's id, `textField` with what was typed
+  and, when `fileField` is set and a file was attached, that field with the
+  stored file. So the form's rules (required, length, the file's `accept` and
+  `maxSize`), its access row and its events — telling everyone in `afterSave`
+  — apply exactly as anywhere else. The file is stored when it is chosen, with
+  the compose form's own rules. Ctrl/⌘ + Enter posts. Without `compose` the
+  feed only reads.
+- **A VIEW opened in the popup** — a screen with no fields and no buttons,
+  only a record's details and comments (a task's own screen) — is not read
+  through a form: its details and feed read the record by id themselves.
+- **A comment can become a record of another form** — "Convert to task":
+  `"convert": { "screen": "order_task_edit", "linkField": "orderId", "label": "Convert to task", "openScreen": "order_task_view" }`.
+  The function decides, per entry: `convert: { name, details, sourceCommentId }`
+  — the values that form opens with (field names to plain values only) — on a
+  comment that can still be converted, or `converted: { id, text }` — the
+  record it became — on one that was. The button opens `convert.screen` in the
+  screen's popup with those values and, when `linkField` is given, that field
+  set to this record (an entry cannot point it at another; leave it out when
+  the new record belongs to nothing — a Tasks-section task made from another's comment); a field whose default is `{params.x}` stays
+  hidden as with New. Saving is that form's own save, so **the app's rules
+  decide whether the comment may still be converted** (Taskie claims it once,
+  in the task's `beforeSave`). Once converted, the comment shows
+  "✓ Became …", which opens the record in `openScreen` (just shown without it).
+  The feed asks again when the popup closes.
+- **`eventsSwitch`** shows a "Comments only" switch when there are events.
+  **`refreshEvery`** (seconds, from 10) asks again — for "2h ago". It also asks
+  again after a post and whenever `reloadKey` changes.
+- **`empty`** is what shows when there is nothing yet (default "Nothing here yet.").
+- Route: `GET /factory/feed/:screen?node=&id=` (same access as a list's rows) —
+  see `@xeplr/factory`. `createFactoryApi(...).fetchFeed({ screen, node, id })`,
+  handed to `FactoryScreen` in `screenProps`.
+- The controller part is `useFeeds` inside `useFactoryScreen` — `ctrl.feedFor(node)`
+  returns `{ entries, hasEvents, loading, error, waiting, commentsOnly,
+  setCommentsOnly, reload, compose: { text, setText, file, upload, removeFile,
+  post, posting, error, placeholder, button, fileRules } | null,
+  convert: { label, can(entry), start(entry), canOpen(entry), open(entry) } | null }` — so a phone
+  renderer draws the same feed from the same calls.
+
+## What is known about a record — `details`
+
+A read-only panel of one record's facts, in sections side by side: an order's
+products, its contact and address, its delivery. Palette: **Data → Details**.
+The sections are worked out by a function, so they can hold what is **not a
+column** — what the shop knows, what the courier said.
+
+```json
+{ "id": "n6", "type": "details", "props": { "title": "", "detailsFrom": "orderDetails", "columns": 2, "moreLabel": "More" } }
+```
+
+```js
+actions.register({ name: 'orderDetails', event: 'recordDetails', execute: async (ctx) => {
+  if (ctx.query.more) return { sections: [{ title: 'Payment', rows: await shopPayment(ctx.record) }] };  // asked on "More"
+  return { more: true, sections: [
+    { title: 'Products', items: ctx.record.lines.map((l) => ({ src: l.image, name: l.title, detail: l.sku, qty: l.qty })) },
+    { title: 'Contact', rows: [
+      { label: 'Phone', text: ctx.record.phone, href: 'tel:' + ctx.record.phone },
+      { label: 'Address', text: ctx.record.address },          // "\n" keeps its lines
+      { label: 'Delivery', text: 'Delivered', tone: 'success' } ] } ] };
+} });
+```
+
+- The screen needs a `source`; the function gets the record — this company's,
+  active — as `ctx.record` / `ctx.id`, and `ctx.query.more`.
+- **Only what the record has is shown**: a row with no text is dropped, and a
+  section left with nothing. A panel with nothing at all draws nothing (or
+  `empty`, when set).
+- `href` makes the value a link — `http(s)`, `tel:` (a phone dials) or
+  `mailto:`; any other link is dropped and the value stays plain text. A
+  picture's `src` must be http(s). `tone` is one of the badge tones.
+- **"More"** shows when the function answers `more: true`; pressing it asks
+  again with `ctx.query.more = true` and draws that answer under the rest.
+  Nothing is saved — it is asked again next time.
+- `columns` (1–3) sections side by side — packed so a short box never
+  leaves a hole, and never more columns than boxes; one under another on a phone.
+- Two sections go across the whole width, above the rest:
+  `{ kind: 'header', title: '#GA3068', badges: [{ text: 'Ordered', tone: 'accent' }], sub: 'Naresh, Chennai', aside: '₹8,883 · COD' }`
+  — the record's own line, big, with coloured pills; and
+  `{ kind: 'journey', title?, steps: [{ label, at, sub, done, tone? }] }` — a
+  dot per step joined by a line, green up to where the record is (the same
+  journey a list column draws with `display: "steps"`).
+- On a screen about a record, set the screen's **`layout: "flow"`** (designer:
+  screen → Size → Heights) so the panel — and a feed or list under it — is as
+  tall as its content rather than the box it was drawn in.
+- Route: `GET /factory/details/:screen?node=&id=&more=1` (same access as a
+  list's rows). `createFactoryApi(...).fetchDetails`, in `screenProps`.
+  Controller: `ctrl.detailsFor(node)` → `{ sections, loading, error, waiting,
+  canShowMore, showMore, more, hideMore }`.
 
 ## Web-only pages — `ui/pages.json`
 
@@ -1064,10 +1230,12 @@ Both walk someone through something, and they answer different questions:
 | `radio` | option id | — |
 | `multiselect` | array of option ids | `minItems`, `maxItems` |
 | `file` | the stored file's path — or, with `multiple`, an array of them | `accept` (extensions), `maxSize` (MB), `multiple`, `maxFiles`, `source` (`any` / `camera`); see [Files: gallery, camera, several](#files-gallery-camera-several) |
-| `stepper` | — | a journey across the top; every other control says which step it is on |
+| `stepper` | — | a journey across the top; every other control says which step it is on — or, with `display: "tabs"`, a row of tabs with no Back / Next |
 | `label` | — | text with a heading, subheading or text preset |
 | `list` | — | saved records, with New / Edit / Delete — or rows a function works out (`rowsFrom`), with search, filter chips and counts; see above |
 | `buttons` | — | a panel of buttons, each a registered function and its parameters — see above (palette: **Actions → Buttons**) |
+| `details` | — | read-only sections about the record from a function (`detailsFrom`, event `recordDetails`), with an optional "More" — see [What is known about a record](#what-is-known-about-a-record--details) |
+| `feed` | — | a record's comments and history from a function (`entriesFrom`, event `feedEntries`), with a box that saves a comment through another form (`compose`) — see [Comments and history](#comments-and-history--feed) |
 | `table` | array of the rows ticked | `minItems`, `maxItems`; `required` = at least one. Rows the screen is **handed** (`rows: '{params.lines}'`), not a table it reads; `columns` (`ref, amount`) or every key of the first row; `selectable` (a tick per row, on by default). Adds no column — see below |
 | `subform` | — | another form drawn inside this one (palette: **Form**), saving into its own table — see below |
 
@@ -1191,6 +1359,33 @@ learns which branch it is on. "Step 2 of 4" counts only the steps that apply.
 saved, whichever step is showing — Save can be pressed on any step. **Next** holds at a step whose own fields are not filled in, and says which,
 rather than moving on and leaving a problem behind where nobody is looking.
 
+#### A hidden field — `hidden: true`
+
+Any input can be **hidden**: still a column, still saved, never drawn — a
+value the server fills in itself (done by, added by). A field filled in by
+whoever opened the screen — its default is `{params.x}` and `x` was given,
+like the order a new task belongs to — is not drawn either. A hidden field
+nobody can fill in cannot be `required`. Designer: the field's **Hidden** switch.
+
+#### A screen that flows — `layout: "flow"`
+
+By default every control is the size it was drawn on the canvas. With
+`layout: "flow"` on the screen they go one under another in reading order,
+**each as tall as its content** (across, each keeps where it was placed) —
+what a phone does anyway. For a record's screen, whose details, comments and
+lists vary in length. Designer: the screen's **Size → Heights**.
+
+#### Tabs — `display: "tabs"`
+
+The same stepper, drawn as a **row of tabs**: any tab opens with a click (or
+the arrow keys along the row), there is no Back / Next and no "Step 2 of 3",
+and the screen keeps its ordinary footer. Controls belong to a tab exactly as
+to a step (`step` on the node; none means every tab), the open tab lives in the
+URL with `urlKey` like a step, and the `step` hook still runs on every click —
+so a tab can be ruled out (`ctx.disable`) or refused. In the designer: the
+stepper's **Shown as → Tabs**. In a spec: `{ "type": "stepper", "steps": ["Comments", "Tasks"], "display": "tabs" }`.
+On a phone the row scrolls sideways rather than wrapping.
+
 ### Options: dropdown, radio group, multi-select
 
 All three **save an `id` and show a `name`**, from either source:
@@ -1261,6 +1456,7 @@ The control whose properties are open, the step a stepper is open at, and the fl
 | `useFactoryBuilder` / `<FactoryBuilder>` | `<urlKey>Selected` | the id of the one selected control | opening or closing its properties adds an entry (Back closes them); moving to another control replaces it |
 | `useFactoryBuilder` / `<FactoryBuilder>` | `<urlKey>Steps` | the step each stepper is open at: `stepperId:index`, comma-separated, step 0 left out | replaces |
 | `useFactoryScreen` / `<FactoryScreen>`, `<FlowRunner>` | `<urlKey>Steps` | as above | replaces |
+| `useFactoryScreen` / `<FactoryScreen>` | `<urlKey>Open` | the record open in the screen's popup: `screen:id` (both URI-encoded) — a task opened from its card, the task a comment became. Only a screen this document opens records in (a list's `editScreen` / `newScreen`, a feed's `convert.openScreen`) is honoured; a NEW record's form is not a place | opening adds an entry (Back closes it); a link or a refresh opens it |
 | `useFlowBuilder` / `<FlowBuilder>` | `<urlKey>Selected` | the key of the selected flow step | as for a control |
 | `useFactoryScreen` / `<FactoryScreen>` | `<urlKey>Q`, `<urlKey>Filter` | a function-fed list's search and chip (the first chip is left out) | replaces |
 
@@ -1315,12 +1511,17 @@ src/
   useFlowBuilder.js      ─ flow designer controller
   buttons.js             ─ buttons and function-fed lists: conditions, what a press sends, asked values (askFieldValues), functionProblems' checks (React-free)
   listRange.js           ─ a list's date range: presets → days (resolveRange) (React-free)
+  details.js             ─ a record's details: detailsOf, safeHref (React-free)
+  useRecordDetails.js    ─ the details panels on a screen, and their "More" (inside useFactoryScreen)
+  tones.js               ─ the badge tones every rule file may name
+  feed.js                ─ a record's feed: entriesOf, composeValues, convertParams, the compose/convert checks (React-free)
+  useFeeds.js            ─ the feeds on a screen: entries, "Comments only", posting (inside useFactoryScreen)
   pagesInventory.js      ─ ui/pages.json: routesIn, pageWarnings, webOnlyMenus (React-free)
   urlState.js            ─ the URL keys and values for selection and steps (React-free)
   useUrlPlaces.js        ─ useUrlSteps, useUrlSelection: those places, in the URL or in memory
   useScreenSource.js     ─ { screens, screenEditor } for @xeplr/ui-workflow's Screen step
   useFilePreview.js      ─ a stored picture as an object URL, through readFile
-  designs/               ─ BuilderSample, ScreenSample, ScreenEditorSample, ControlView, ListView, FedList, ButtonsView, FileField, Palette, PropertyPanel, styles.js, factory.css
+  designs/               ─ BuilderSample, ScreenSample, ScreenEditorSample, ControlView, ListView, FedList, ButtonsView, FeedView, DetailsView, FileField, Palette, PropertyPanel, styles.js, factory.css
   pages.jsx              ─ FactoryBuilder, FactoryScreen
 bin/xeplr-factory.js     ─ screens / generate / validate / controls / schema / pages
 examples/                ─ employee.entity.json and what `screens` makes of it; orders-board and order-actions (a function-fed list, buttons — one takes photos); delivery-photos (several pictures, camera only)
@@ -1333,7 +1534,7 @@ dev/                     ─ the stand-in app for `npm run dev` (not published)
 npm test
 ```
 
-`test/buttons.test.js` covers buttons and function-fed lists in the document: what the checker refuses, when a button shows or is greyed out, what a press sends (the document's parameters, never the request's), and `functionProblems` against a registry. `test/cli.test.js` includes `pages`. `test/dashboard.test.js` covers a list's date range and KPI cards, and a button that asks for values. `test/files.test.js` covers files: several in one field (the value, its column, its checks), camera only, and a button whose press takes files.
+`test/buttons.test.js` covers buttons and function-fed lists in the document: what the checker refuses, when a button shows or is greyed out, what a press sends (the document's parameters, never the request's), and `functionProblems` against a registry. `test/cli.test.js` includes `pages`. `test/dashboard.test.js` covers a list's date range and KPI cards, and a button that asks for values. `test/details.test.js` covers a details panel: what the checker refuses and what an answer becomes (links, tones, empty rows). `test/tabs.test.js` covers a stepper shown as tabs. `test/feed.test.js` covers a feed: what the checker refuses, what a function's answer becomes, and what posting a comment saves. `test/askrows.test.js` covers a button's rows question. `test/files.test.js` covers files: several in one field (the value, its column, its checks), camera only, and a button whose press takes files.
 
 `test/urlState.test.js` covers the URL state: the key format, and the three controllers reading their places back from a real `MemoryRouter` and being clicked through in memory, rendered with `react-dom/server`.
 

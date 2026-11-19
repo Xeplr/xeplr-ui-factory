@@ -101,7 +101,8 @@ const FIELD_BASICS = (extra) => ({
     // props.default, holding a binding instead of a typed value.
     { path: 'props.default', label: 'Fill in from', type: 'fillFrom',
       help: 'What this screen is called with, or — in a flow — what a screen before this one saved. Nothing is checked: a screen not on the way here leaves it empty.' },
-    { path: 'props.required', label: 'Required', type: 'toggle' }
+    { path: 'props.required', label: 'Required', type: 'toggle' },
+    { path: 'props.hidden', label: 'Hidden', type: 'toggle', help: 'Kept and saved, never shown — a value the server fills in (who did it, when)' }
   ]
 })
 
@@ -197,6 +198,12 @@ export function acceptList(accept) {
  *   node.step = { of: '<the stepper node's id>', index: 0 }
  */
 export const STEP_LIMIT = 12
+/** How a stepper is drawn: a journey with Back and Next, or a row of tabs. */
+export const STEPPER_DISPLAYS = ['steps', 'tabs']
+/** Is this stepper drawn as tabs? */
+export function isTabs(node) {
+  return Boolean(node && node.type === 'stepper' && node.props && node.props.display === 'tabs')
+}
 
 /** Largest upload a file field may take, in bytes. */
 export const MAX_FILE_MB = 200
@@ -573,7 +580,9 @@ export const CONTROLS = {
     // Steps are typed as one line — "Connect, Transform, Review" — because
     // that is how someone describes them. Each becomes { key, label }.
     defaults: { steps: [{ key: 'step_1', label: 'Step 1' }, { key: 'step_2', label: 'Step 2' }], showNumbers: true },
-    props: ['steps', 'showNumbers', 'style'],
+    // display "tabs": the same steps as a row of tabs — any one opened by a
+    // click, no Back / Next, and the screen's ordinary Save footer.
+    props: ['steps', 'showNumbers', 'display', 'style'],
     validation: [],
     styles: ['fontFamily', 'fontSize', 'fontWeight', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'],
     properties: [
@@ -582,7 +591,11 @@ export const CONTROLS = {
         title: 'Steps',
         fields: [
           { path: 'props.steps', label: 'Steps', type: 'steps', help: 'One line, separated by commas. Click a step on the canvas to build it.' },
-          { path: 'props.showNumbers', label: 'Number the steps', type: 'toggle' }
+          { path: 'props.display', label: 'Shown as', type: 'select', options: [
+            { value: 'steps', label: 'Steps — a journey, with Back and Next' },
+            { value: 'tabs', label: 'Tabs — open any one, no Back or Next' }
+          ] },
+          { path: 'props.showNumbers', label: 'Number the steps', type: 'toggle', help: 'Steps only' }
         ]
       },
       ...styleGroups(['fontFamily', 'fontSize', 'fontWeight', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'])
@@ -635,7 +648,7 @@ CONTROLS.list = {
   // rowsFrom: rows a registered function works out (event "listRows") —
   // with its search box, filter chips and their counts — instead of one
   // table's records. See buttons.js.
-  props: ['title', 'source', 'belongsTo', 'editScreen', 'openIn', 'columns', 'pageSize', 'actions', 'rowsFrom', 'search', 'filters', 'kpis', 'dateRange', 'refreshEvery', 'rowOpen', 'rowMenu', 'highlight', 'dim', 'grow', 'layout', 'bulkAdd', 'style'],
+  props: ['title', 'source', 'belongsTo', 'editScreen', 'newScreen', 'openIn', 'columns', 'pageSize', 'actions', 'rowsFrom', 'search', 'filters', 'kpis', 'dateRange', 'refreshEvery', 'rowOpen', 'rowMenu', 'highlight', 'dim', 'grow', 'layout', 'bulkAdd', 'empty', 'style'],
   validation: [],
   styles: ['fontFamily', 'fontSize', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'],
   properties: [
@@ -653,6 +666,7 @@ CONTROLS.list = {
           help: 'The column on those records that points back at this one, e.g. materialId. ' +
                 'It is filled in automatically on New and never shown.' },
         { path: 'props.editScreen', label: 'Edit in', type: 'screen', help: 'The screen Edit and New open' },
+        { path: 'props.newScreen', label: 'New opens', type: 'screen', help: 'Blank → the same as "Edit in". For a list whose rows open a view, while New opens the form' },
         { path: 'props.openIn', label: 'Opens in', type: 'select', options: [
           { value: 'popup', label: 'A popup' },
           { value: 'page', label: 'A page of its own' }
@@ -672,6 +686,7 @@ CONTROLS.list = {
         { path: 'props.dateRange', label: 'Date range', type: 'dateRange', presets: DATE_PRESETS,
           help: 'A From–To range above the table, starting at the one chosen here. The function is asked for its rows and counts in it.' },
         { path: 'props.refreshEvery', label: 'Refresh every (seconds)', type: 'number', help: 'For rows whose text changes with time, like "2h ago". Blank → never.' },
+        { path: 'props.empty', label: 'When there is nothing', type: 'text', help: 'Blank → "Nothing here yet."' },
         { path: 'props.layout', label: 'Rows as', type: 'select', options: [
           { value: 'table', label: 'A table' },
           { value: 'cards', label: 'Cards — large pictures, for a phone' }
@@ -809,6 +824,98 @@ CONTROLS.buttons = {
   ]
 }
 
+// A RECORD'S FEED — comments and the record's history in one list, newest
+// first, with a box under it to write a comment. The entries are worked out
+// by a function of the app (event "feedEntries", named in entriesFrom) given
+// the record; a comment is saved through a form of the app (compose.screen),
+// so its rules and events apply. See feed.js.
+CONTROLS.feed = {
+  type: 'feed',
+  label: 'Comments & history',
+  group: 'Data',
+  input: false,
+  defaultSize: { w: 0.92, h: 0.5 },
+  defaults: { title: 'Comments', order: 'newest' },
+  props: ['title', 'entriesFrom', 'compose', 'convert', 'order', 'eventsSwitch', 'refreshEvery', 'empty', 'style'],
+  validation: [],
+  styles: ['fontFamily', 'fontSize', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'],
+  properties: [
+    {
+      key: 'feed',
+      title: 'Feed',
+      fields: [
+        { path: 'props.title', label: 'Title', type: 'text', help: 'Shown above it. Blank → none' },
+        { path: 'props.entriesFrom', label: 'Entries from', type: 'function', event: 'feedEntries',
+          help: 'A function of the app that returns this record\'s comments and history' },
+        { path: 'props.order', label: 'Order', type: 'select', options: [
+          { value: 'newest', label: 'Newest first' },
+          { value: 'oldest', label: 'Oldest first' }
+        ] },
+        { path: 'props.eventsSwitch', label: '"Comments only" switch', type: 'toggle', help: 'Lets people hide the history and read only what was said' },
+        { path: 'props.refreshEvery', label: 'Refresh every (seconds)', type: 'number', help: 'At least 10. Blank → only when something is posted' },
+        { path: 'props.empty', label: 'When there is nothing', type: 'text', help: 'Blank → "Nothing here yet."' }
+      ]
+    },
+    {
+      key: 'compose',
+      title: 'Writing a comment',
+      fields: [
+        { path: 'props.compose.screen', label: 'Saved through', type: 'form', help: 'The form a comment is saved in — its rules and events apply. Blank → nobody can write here' },
+        { path: 'props.compose.linkField', label: 'Linked by', type: 'text', help: 'The field on that form pointing back at this record, e.g. orderId' },
+        { path: 'props.compose.textField', label: 'Text field', type: 'text', help: 'The field the comment is saved in, e.g. body' },
+        { path: 'props.compose.fileField', label: 'File field', type: 'text', help: 'The file field on that form, for a photo or document. Blank → text only' },
+        { path: 'props.compose.placeholder', label: 'Hint in the box', type: 'text' },
+        { path: 'props.compose.button', label: 'Button', type: 'text', help: 'Blank → "Post"' }
+      ]
+    },
+    {
+      key: 'convert',
+      title: 'Turning a comment into a task',
+      fields: [
+        { path: 'props.convert.screen', label: 'Becomes a', type: 'form', help: 'The form a comment opens in, filled in from it — e.g. the task form. Blank → comments stay comments' },
+        { path: 'props.convert.linkField', label: 'Linked by', type: 'text', help: 'The field on that form pointing back at this record, e.g. orderId' },
+        { path: 'props.convert.label', label: 'Button', type: 'text', help: 'On each comment. Blank → "Convert"' },
+        { path: 'props.convert.openScreen', label: 'Opens in', type: 'form', help: 'The screen the record it became opens in, from the comment. Blank → shown, not opened' }
+      ]
+    },
+    ...styleGroups(['fontFamily', 'fontSize', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'])
+  ]
+}
+
+// A RECORD'S DETAILS — what is known about one record, read only, in
+// sections, worked out by a function of the app (event "recordDetails",
+// named in detailsFrom) given the record — so it can show what is not a
+// column. A "More" button, when the function says there is more, asks again
+// for the rest. See details.js.
+CONTROLS.details = {
+  type: 'details',
+  label: 'Details',
+  group: 'Data',
+  input: false,
+  defaultSize: { w: 0.92, h: 0.3 },
+  defaults: { title: '', columns: 2 },
+  props: ['title', 'detailsFrom', 'columns', 'moreLabel', 'empty', 'style'],
+  validation: [],
+  styles: ['fontFamily', 'fontSize', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'],
+  properties: [
+    {
+      key: 'details',
+      title: 'Details',
+      fields: [
+        { path: 'props.title', label: 'Title', type: 'text', help: 'Shown above it. Blank → none' },
+        { path: 'props.detailsFrom', label: 'Details from', type: 'function', event: 'recordDetails',
+          help: 'A function of the app that returns what is known about this record, in sections' },
+        { path: 'props.columns', label: 'Sections side by side', type: 'select', options: [
+          { value: 1, label: 'One' }, { value: 2, label: 'Two' }, { value: 3, label: 'Three' }
+        ], help: 'On a phone they are always one under another' },
+        { path: 'props.moreLabel', label: '"More" button', type: 'text', help: 'Blank → "More". Shown only when the function says there is more' },
+        { path: 'props.empty', label: 'When there is nothing', type: 'text', help: 'Blank → nothing is shown' }
+      ]
+    },
+    ...styleGroups(['fontFamily', 'fontSize', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'])
+  ]
+}
+
 export const LABEL_VARIANTS = ['heading', 'subheading', 'text']
 
 /** The sizes a label preset starts from, in px at the design width. */
@@ -817,6 +924,11 @@ export const LABEL_PRESETS = {
   subheading: { fontSize: 18, fontWeight: 600 },
   text: { fontSize: 14, fontWeight: 400 }
 }
+
+// EVERY INPUT MAY BE HIDDEN: a column the form keeps and saves, never drawn —
+// what the server fills in itself (done by, added by). Added to each input
+// here, once, rather than in every control's own list.
+Object.values(CONTROLS).forEach((c) => { if (c.input && !c.props.includes('hidden')) c.props.push('hidden') })
 
 /** Palette order: grouped, in declaration order. */
 export function controlGroups(controls = CONTROLS) {

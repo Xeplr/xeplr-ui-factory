@@ -3,9 +3,9 @@
 //
 //   import { screenFromSpec, validateDocument, formSchema } from '@xeplr/ui-factory/model'
 
-export { CONTROLS, OPTION_ID, OPTION_LABEL, LABEL_VARIANTS, LABEL_PRESETS, LIST_ACTIONS, STYLE_KEYS, SCREEN_STYLE_KEYS, FONT_FAMILIES, LAYOUTS, CHOICE_TYPES, STEP_LIMIT, MULTI_SEPARATOR, FILE_KINDS, MAX_FILE_MB, IMAGE_EXTENSIONS, FILE_SOURCES, MAX_FILES, isImageFile, filePicker, acceptList, controlGroups, withControls } from './controls.js'
+export { CONTROLS, OPTION_ID, OPTION_LABEL, LABEL_VARIANTS, LABEL_PRESETS, LIST_ACTIONS, STYLE_KEYS, SCREEN_STYLE_KEYS, FONT_FAMILIES, LAYOUTS, CHOICE_TYPES, STEP_LIMIT, MULTI_SEPARATOR, STEPPER_DISPLAYS, isTabs, FILE_KINDS, MAX_FILE_MB, IMAGE_EXTENSIONS, FILE_SOURCES, MAX_FILES, isImageFile, filePicker, acceptList, controlGroups, withControls } from './controls.js'
 export {
-  DOCUMENT_KIND, DOCUMENT_VERSION, DEFAULT_ASPECT, DEFAULT_WIDTH, MARGIN, GAP,
+  DOCUMENT_KIND, DOCUMENT_VERSION, SCREEN_LAYOUTS, DEFAULT_ASPECT, DEFAULT_WIDTH, MARGIN, GAP,
   createScreen, renameScreen, setScreenProperty, addControl, moveNode, setNodeProperty, getNodeProperty, removeNodes,
   inputNodes, readingOrder, contentBottom, camelName, slugify, uniqueFieldName, nextPosition,
   screenParams, paramsText, setScreenParams,
@@ -18,10 +18,14 @@ export { SCREEN_EVENTS, SCREEN_EVENT_KEYS, DECIDE_EVENT, FUNCTION_NAME, screenFu
 // Buttons and lists whose rows a function works out — names and values only.
 export {
   BUTTON_EVENT, LIST_ROWS_EVENT, ROW_DETAILS_EVENT, BUTTON_VARIANTS, COLUMN_DISPLAYS, LIST_LAYOUTS, BADGE_TONES, COLUMN_ICONS, NOTE_INPUT, FILES_INPUT, CONDITION_OPERATORS,
-  conditionMet, buttonShown, buttonDisabled, buttonPressed, screenButtons, buttonById, buttonInput, askFile, askFileProblem, askFields, askFieldStart, askFieldValues, askChoiceOptions, askDayLimit, ASK_FIELD_TYPES, BUTTON_OPTIONS_EVENT, MAX_CHECKLIST_OPTIONS, checklistOptionsOf, checklistFields, nodeFunctions, paramProblems, optionValues
+  conditionMet, buttonShown, buttonDisabled, buttonPressed, screenButtons, buttonById, buttonInput, askFile, askFileProblem, askFields, askFieldStart, askFieldValues, askChoiceOptions, askDayLimit, ASK_FIELD_TYPES, ROW_FIELD_TYPES, MAX_ASK_ROWS, emptyRow, startRowsOf, startedRowsFields, BUTTON_OPTIONS_EVENT, MAX_CHECKLIST_OPTIONS, checklistOptionsOf, checklistFields, isFedChoice, nodeFunctions, paramProblems, optionValues
 } from './buttons.js'
 // An autocomplete field's suggestions — what a suggest function may answer, and what picking one writes.
 export { SUGGEST_EVENT, MAX_SUGGESTIONS, DEFAULT_MIN_CHARS, MAX_SUGGEST_QUERY, suggestionsOf, shouldSuggest, pickValues, MAX_TAGS, MAX_TAG_QTY, isTagField, tagLimit, addTag, setTagQty, removeTag, tagsOf } from './suggest.js'
+// A record's feed: comments and its history, from a function (event "feedEntries").
+export { FEED_EVENT, FEED_KINDS, FEED_ORDERS, MAX_FEED_ENTRIES, MAX_ENTRY_TEXT, MIN_FEED_REFRESH, entriesOf, shownEntries, initials, composeValues, convertParams, feedProblems } from './feed.js'
+// A record's details: read-only sections from a function (event "recordDetails").
+export { DETAILS_EVENT, MAX_SECTIONS, MAX_ROWS, MAX_ITEMS, MAX_DETAIL_TEXT, safeHref, detailsOf, detailsProblems } from './details.js'
 // Which pages are drawn from documents and which are web only (ui/pages.json).
 export { checkInventory, routesIn, pageWarnings, webOnlyMenus } from './pagesInventory.js'
 export { formSchema, initialValues, parseInput, validateValues, fieldError, sameId, optionValue, chooseable, saveState, recordValues, displayValue, fileLabel, isMultiFile, toDbValue, fromDbValue, listColumns, listSource } from './values.js'

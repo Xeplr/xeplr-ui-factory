@@ -119,7 +119,7 @@ export function FactoryScreen(props) {
       )}
       renderPopup={(popup) => (
         <ScreenModal
-          title={popup.document ? [popup.document.name, popup.label].filter(Boolean).join(' · ') : 'Loading…'}
+          title={popup.document ? [popup.document.name, popup.label].filter(Boolean).join(' · ') : (popup.error ? 'Could not open' : 'Loading…')}
           width={popup.document ? popup.document.width : undefined}
           onClose={closePopup}
         >
@@ -154,6 +154,9 @@ export function FactoryScreen(props) {
               fetchRows={props.fetchRows}
               suggest={props.suggest}
               fetchRowDetails={props.fetchRowDetails}
+              // A record's view — its details and comments — reads them like the page.
+              fetchFeed={props.fetchFeed}
+              fetchDetails={props.fetchDetails}
               onButtonDone={ctrl.popupPressed}
               screens={props.screens}
               loadScreen={props.loadScreen}
