@@ -568,6 +568,17 @@ Why an order came back, picked from a dropdown, beside the reason typed:
   "options": [{ "value": "not_accepted", "label": "Customer did not accept" }, { "value": "broken", "label": "Broken" }, { "value": "other", "label": "Other" }] }
 ```
 
+Or the list is worked out for the record by a function — the other customers
+this one may be merged with — named in `optionsFrom` (event `buttonOptions`,
+answering `[{ id, label?, sub? }]` as a checklist's does) instead of `options`:
+
+```json
+{ "name": "fromId", "label": "Customer to merge into this one", "type": "choice", "required": true, "optionsFrom": "mergeCandidates" }
+```
+
+It starts empty; the server asks the function again on the press and refuses
+one it no longer offers.
+
 The function takes it as a string input — give that input the same `options`
 and publishing checks the two agree. Asked again, it starts from the record's
 `fill` field when that is still one of the options. In the builder, an input

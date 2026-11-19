@@ -700,7 +700,7 @@ function checkAskFields(fields, params, at, err, inRow) {
       return
     }
     ;['fields', 'rowLabel', 'addLabel', 'startFrom'].forEach((k) => { if (f[k] !== undefined) err(`${p}.${k}`, 'is for a rows field') })
-    if (f.optionsFrom !== undefined) err(`${p}.optionsFrom`, 'is for a checklist')
+    if (f.optionsFrom !== undefined && f.type !== 'choice') err(`${p}.optionsFrom`, 'is for a checklist or a choice')
     if (f.type === 'checkbox') {
       ;['min', 'max', 'unit', 'options', 'optionsFrom'].forEach((k) => { if (f[k] !== undefined) err(`${p}.${k}`, 'is not for a checkbox') })
       if (f.fill !== undefined && !(nonEmptyString(f.fill) && /^[A-Za-z_][A-Za-z0-9_]*$/.test(f.fill))) err(`${p}.fill`, 'must be a field of the record, e.g. "localDelivery"')
@@ -709,7 +709,15 @@ function checkAskFields(fields, params, at, err, inRow) {
     if (f.type === 'choice') {
       const list = Array.isArray(f.options) ? f.options : null
       const values = (list || []).map((o) => (o && typeof o === 'object' && !Array.isArray(o) ? o.value : o))
-      if (!list || !list.length) err(`${p}.options`, 'must list what can be chosen: values, or { value, label }')
+      if (f.optionsFrom !== undefined) {
+        // Worked out for the record by a function, instead of listed here.
+        if (!(nonEmptyString(f.optionsFrom) && FUNCTION_NAME.test(f.optionsFrom))) err(`${p}.optionsFrom`, 'must be the name of a registered function (event "buttonOptions") that lists what can be chosen, e.g. "mergeCandidates"')
+        if (f.options !== undefined) err(`${p}.options`, 'give the options, or optionsFrom — not both')
+        if (f.fill !== undefined) err(`${p}.fill`, 'is not for a choice its function lists — it starts empty')
+        ;['min', 'max', 'unit'].forEach((k) => { if (f[k] !== undefined) err(`${p}.${k}`, 'is not for a choice') })
+        return
+      }
+      if (!list || !list.length) err(`${p}.options`, 'must list what can be chosen — values, or { value, label } — or name a function that does (optionsFrom)')
       else if (values.some((v) => !(typeof v === 'string' && v.trim()) && !(typeof v === 'number' && Number.isFinite(v)))) err(`${p}.options`, 'each must be a value, or { value, label } with a value')
       else if (new Set(values.map(String)).size !== values.length) err(`${p}.options`, 'a value is listed twice')
       ;['min', 'max', 'unit'].forEach((k) => { if (f[k] !== undefined) err(`${p}.${k}`, 'is not for a choice') })

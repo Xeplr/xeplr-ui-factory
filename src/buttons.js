@@ -203,6 +203,10 @@ export function checklistOptionsOf(out) {
  *
  * `options` are plain values or { value, label }; the value reaches the
  * function as a string, and one not in the list is refused on both sides.
+ *
+ * Or the list is worked out for the record by a function (`optionsFrom`,
+ * event "buttonOptions", answering [{ id, label?, sub? }] as a checklist's
+ * does) — the other customers this one may be merged with.
  * @returns {{ value: string, label: string }[]}
  */
 export function askChoiceOptions(field) {
@@ -213,9 +217,19 @@ export function askChoiceOptions(field) {
   }).filter((o) => o.value !== '')
 }
 
-/** The checklist fields a button asks for. */
+/**
+ * The fields whose entries a function works out for the record (optionsFrom):
+ * every checklist, and a choice fed by one — the customer to merge into this
+ * one. The server asks the function again on the press and refuses what it
+ * did not offer.
+ */
 export function checklistFields(button) {
-  return askFields(button).filter((f) => f.type === 'checklist')
+  return askFields(button).filter((f) => f.type === 'checklist' || isFedChoice(f))
+}
+
+/** A choice whose options a function gives (optionsFrom), not the screen. */
+export function isFedChoice(f) {
+  return Boolean(f && f.type === 'choice' && typeof f.optionsFrom === 'string' && f.optionsFrom)
 }
 
 /** The rows fields whose starting rows a function gives (startFrom). */
@@ -305,7 +319,7 @@ export function askFieldStart(field, record) {
   if (field.type === 'checkbox') return v === true || v === 'true' || v === 1 || v === '1'
   if (v === undefined || v === null) return ''
   // A choice starts from the record's value only when it is still one of the options.
-  if (field.type === 'choice') return askChoiceOptions(field).some((o) => o.value === String(v)) ? String(v) : ''
+  if (field.type === 'choice') return !isFedChoice(field) && askChoiceOptions(field).some((o) => o.value === String(v)) ? String(v) : ''
   if (field.type === 'date') {
     const day = v instanceof Date ? localDay(v) : String(v).slice(0, 10)
     return isAskDay(day) ? day : ''
@@ -386,7 +400,11 @@ export function askFieldValues(button, given, now, offered) {
     }
     if (f.type === 'choice') {
       const picked = String(v).trim()
-      if (!askChoiceOptions(f).some((o) => o.value === picked)) { errors.push({ field: f.name, message: `${label}: choose one of the list` }); return }
+      // Fed by a function: one it offered (`offered`, when known — always on the server).
+      const allowed = isFedChoice(f)
+        ? (offered && Array.isArray(offered[f.name]) ? offered[f.name].map(String) : null)
+        : askChoiceOptions(f).map((o) => o.value)
+      if (allowed && !allowed.includes(picked)) { errors.push({ field: f.name, message: isFedChoice(f) ? `${label}: that one is no longer offered — reopen to see the list as it is` : `${label}: choose one of the list` }); return }
       values[f.name] = picked
       return
     }
@@ -447,7 +465,7 @@ export function nodeFunctions(doc) {
         if (b && typeof b.action === 'string' && b.action) out.push({ event: BUTTON_EVENT, name: b.action, at: `nodes[${i}].props.buttons[${j}].action`, button: b })
         if (!b) return
         askFields(b).forEach((f, k) => {
-          if (f.type === 'checklist' && typeof f.optionsFrom === 'string' && f.optionsFrom) {
+          if ((f.type === 'checklist' || f.type === 'choice') && typeof f.optionsFrom === 'string' && f.optionsFrom) {
             out.push({ event: BUTTON_OPTIONS_EVENT, name: f.optionsFrom, at: `nodes[${i}].props.buttons[${j}].ask.fields[${k}].optionsFrom` })
           }
           if (f.type === 'rows' && typeof f.startFrom === 'string' && f.startFrom) {

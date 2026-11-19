@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { boxStyle, fieldStyle } from './styles.js'
 import FileField from './FileField.jsx'
-import { askFields, askFieldStart, askFieldValues, askDayLimit, checklistOptionsOf, askChoiceOptions, emptyRow, startRowsOf, MAX_ASK_ROWS } from '../buttons.js'
+import { askFields, askFieldStart, askFieldValues, askDayLimit, checklistOptionsOf, askChoiceOptions, isFedChoice, emptyRow, startRowsOf, MAX_ASK_ROWS } from '../buttons.js'
 
 // A PANEL OF BUTTONS. Each runs a function of the app on the server, with the
 // parameters the screen gives it; which ones show, and which are greyed out,
@@ -98,7 +98,7 @@ function AskDialog({ button, busy, error, onCancel, onConfirm, upload, readFile,
   const [offered, setOffered] = useState({})
   useEffect(() => {
     let live = true
-    fields.filter((f) => f.type === 'checklist').forEach((f) => {
+    fields.filter((f) => f.type === 'checklist' || isFedChoice(f)).forEach((f) => {
       if (!options) { setOffered((o) => ({ ...o, [f.name]: { list: [], error: 'No buttonOptions was provided, so this list cannot be loaded' } })); return }
       setOffered((o) => ({ ...o, [f.name]: { loading: true, list: [] } }))
       Promise.resolve(options(f.name))
@@ -129,7 +129,7 @@ function AskDialog({ button, busy, error, onCancel, onConfirm, upload, readFile,
     setShown((m) => ({ ...m, [name]: undefined }))
   }
   const confirm = () => {
-    const offeredIds = Object.fromEntries(fields.filter((f) => f.type === 'checklist').map((f) => [f.name, ((offered[f.name] || {}).list || []).map((o) => o.id)]))
+    const offeredIds = Object.fromEntries(fields.filter((f) => f.type === 'checklist' || isFedChoice(f)).map((f) => [f.name, ((offered[f.name] || {}).list || []).map((o) => o.id)]))
     const out = askFieldValues(button, given, undefined, offeredIds)
     if (out.errors.length) { setShown(Object.fromEntries(out.errors.map((e) => [e.field, e.message]))); return }
     setShown({})
@@ -245,6 +245,8 @@ function AskDialog({ button, busy, error, onCancel, onConfirm, upload, readFile,
                   )
                 }
                 if (f.type === 'choice') {
+                  const fed = isFedChoice(f) ? (offered[f.name] || { loading: true, list: [] }) : null
+                  const choices = fed ? fed.list.map((o) => ({ value: o.id, label: o.sub ? `${o.label} · ${o.sub}` : o.label })) : askChoiceOptions(f)
                   return (
                     <div key={f.name} style={rowStart(f)} className="xeplr-factory-ask-field">
                       <label className="xeplr-factory-ask-label" htmlFor={fid}>{f.label}{f.required ? ' *' : ''}</label>
@@ -257,9 +259,10 @@ function AskDialog({ button, busy, error, onCancel, onConfirm, upload, readFile,
                         aria-describedby={shown[f.name] ? `${fid}-error` : undefined}
                         onChange={(e) => { const v = e.target.value; setGiven((g) => ({ ...g, [f.name]: v })); setShown((m) => ({ ...m, [f.name]: undefined })) }}
                       >
-                        <option value="">Choose…</option>
-                        {askChoiceOptions(f).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        <option value="">{fed && fed.loading ? 'Loading…' : fed && !fed.list.length && !fed.error ? 'Nothing to choose' : 'Choose…'}</option>
+                        {choices.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </select>
+                      {fed && fed.error && <span className="xeplr-factory-ask-field-error" role="alert">{fed.error}</span>}
                       {shown[f.name] && <span className="xeplr-factory-ask-field-error" id={`${fid}-error`} role="alert">{shown[f.name]}</span>}
                     </div>
                   )

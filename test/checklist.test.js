@@ -5,7 +5,7 @@
 // Plain script: prints its checks, exits non-zero on failure. No framework.
 import {
   validateDocument, createScreen, addControl, setNodeProperty, functionProblems, nodeFunctions,
-  askFieldValues, askFieldStart, checklistOptionsOf, checklistFields, paramProblems,
+  askFieldValues, askFieldStart, checklistOptionsOf, checklistFields, isFedChoice, paramProblems,
   BUTTON_OPTIONS_EVENT, MAX_CHECKLIST_OPTIONS, ASK_FIELD_TYPES
 } from '../src/model.js'
 import { createFactoryApi } from '../src/remote.js'
@@ -87,6 +87,24 @@ console.log('the host')
   check('a FactoryScreen gets it', typeof api.screenProps.buttonOptions === 'function')
   const empty = createFactoryApi({ fetch: async () => ({ dataArray: null }) })
   check('nothing back: none', same(await empty.buttonOptions({ screen: 's', button: 'b', id: '1', field: 'f' }), []))
+}
+
+console.log('a choice whose options a function gives')
+{
+  const MERGE = (field) => ({ id: 'merge', label: 'Merge…', action: 'mergeCustomer', ask: { title: 'Merge', fields: [field] } })
+  const fed = { name: 'fromId', label: 'Customer to merge into this one', type: 'choice', optionsFrom: 'mergeCandidates', required: true }
+  check('a choice with optionsFrom: valid', errs(screen(MERGE(fed))).length === 0, errs(screen(MERGE(fed))).join('; '))
+  check('its function is listed under buttonOptions', nodeFunctions(screen(MERGE(fed))).some((f) => f.event === BUTTON_OPTIONS_EVENT && f.name === 'mergeCandidates'))
+  check('options and optionsFrom both: refused', errs(screen(MERGE({ ...fed, options: ['a'] }))).some((e) => /options: give the options, or optionsFrom/.test(e)))
+  check('neither: refused, naming both ways', errs(screen(MERGE({ name: 'x', label: 'X', type: 'choice' }))).some((e) => /options: must list .*(optionsFrom)/.test(e)))
+  check('fill on a fed choice: refused', errs(screen(MERGE({ ...fed, fill: 'x' }))).some((e) => /fill: is not for a choice its function lists/.test(e)))
+  check('it is asked for as a checklist is', isFedChoice(fed) && checklistFields(MERGE(fed)).map((f) => f.name).join() === 'fromId')
+  check('a listed choice is not', !isFedChoice({ name: 'r', type: 'choice', options: ['a'] }))
+  check('it starts empty', askFieldStart(fed, { fromId: 'c1' }) === '')
+  const b = MERGE(fed)
+  check('one the function offered: taken', same(askFieldValues(b, { fromId: 'c2' }, undefined, { fromId: ['c2', 'c3'] }).values, { fromId: 'c2' }))
+  check('one it did not: refused, saying to reopen', /no longer offered/.test(askFieldValues(b, { fromId: 'c9' }, undefined, { fromId: ['c2'] }).errors[0].message))
+  check('nothing chosen: required', /is required/.test(askFieldValues(b, {}, undefined, { fromId: ['c2'] }).errors[0].message))
 }
 
 const failed = results.filter(([, ok]) => !ok)
