@@ -101,7 +101,8 @@ const FIELD_BASICS = (extra) => ({
     // props.default, holding a binding instead of a typed value.
     { path: 'props.default', label: 'Fill in from', type: 'fillFrom',
       help: 'What this screen is called with, or — in a flow — what a screen before this one saved. Nothing is checked: a screen not on the way here leaves it empty.' },
-    { path: 'props.required', label: 'Required', type: 'toggle' }
+    { path: 'props.required', label: 'Required', type: 'toggle' },
+    { path: 'props.hidden', label: 'Hidden', type: 'toggle', help: 'Kept and saved, never shown — a value the server fills in (who did it, when)' }
   ]
 })
 
@@ -647,7 +648,7 @@ CONTROLS.list = {
   // rowsFrom: rows a registered function works out (event "listRows") —
   // with its search box, filter chips and their counts — instead of one
   // table's records. See buttons.js.
-  props: ['title', 'source', 'belongsTo', 'editScreen', 'openIn', 'columns', 'pageSize', 'actions', 'rowsFrom', 'search', 'filters', 'kpis', 'dateRange', 'refreshEvery', 'rowOpen', 'rowMenu', 'highlight', 'dim', 'grow', 'layout', 'bulkAdd', 'style'],
+  props: ['title', 'source', 'belongsTo', 'editScreen', 'newScreen', 'openIn', 'columns', 'pageSize', 'actions', 'rowsFrom', 'search', 'filters', 'kpis', 'dateRange', 'refreshEvery', 'rowOpen', 'rowMenu', 'highlight', 'dim', 'grow', 'layout', 'bulkAdd', 'style'],
   validation: [],
   styles: ['fontFamily', 'fontSize', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'],
   properties: [
@@ -665,6 +666,7 @@ CONTROLS.list = {
           help: 'The column on those records that points back at this one, e.g. materialId. ' +
                 'It is filled in automatically on New and never shown.' },
         { path: 'props.editScreen', label: 'Edit in', type: 'screen', help: 'The screen Edit and New open' },
+        { path: 'props.newScreen', label: 'New opens', type: 'screen', help: 'Blank → the same as "Edit in". For a list whose rows open a view, while New opens the form' },
         { path: 'props.openIn', label: 'Opens in', type: 'select', options: [
           { value: 'popup', label: 'A popup' },
           { value: 'page', label: 'A page of its own' }
@@ -911,6 +913,11 @@ export const LABEL_PRESETS = {
   subheading: { fontSize: 18, fontWeight: 600 },
   text: { fontSize: 14, fontWeight: 400 }
 }
+
+// EVERY INPUT MAY BE HIDDEN: a column the form keeps and saves, never drawn —
+// what the server fills in itself (done by, added by). Added to each input
+// here, once, rather than in every control's own list.
+Object.values(CONTROLS).forEach((c) => { if (c.input && !c.props.includes('hidden')) c.props.push('hidden') })
 
 /** Palette order: grouped, in declaration order. */
 export function controlGroups(controls = CONTROLS) {

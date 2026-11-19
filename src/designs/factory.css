@@ -1288,7 +1288,7 @@ button.xeplr-factory-activity-item:hover, button.xeplr-factory-activity-item:foc
    where it was placed. What a phone already does, on a desktop too. */
 .xeplr-factory-page--flow {
   height: auto; display: flex; flex-direction: column; gap: 14px;
-  padding: calc(var(--xf-margin) * .5) 0 calc(var(--xf-margin) * .5);
+  padding: 0 0 calc(var(--xf-margin) * .5);
 }
 .xeplr-factory-page--flow > .xeplr-factory-node {
   position: static; order: var(--xf-order); height: auto; min-height: 0;

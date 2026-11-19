@@ -702,7 +702,7 @@ actions.register({ name: 'orderActivity', event: 'rowDetails', execute: async (c
 - **`grow`** (a list that is its screen's **one** control) lets the page grow with the rows on a desktop, instead of the list scrolling inside the box it was placed in — a full-page list like Orders. Phones always flow.
 - **`rowOpen`** makes a click anywhere on a row open it (the first cell is also a button, for the keyboard); **`highlight`** marks rows whose field is true (tinted, the first cell in the accent — today's row); **`rowMenu`** — `[{ label, action, field? }]` — is the "…" at the end of each row: `open` (the row, as a click on it; needs `rowOpen`), `link` (the URL in `field`, in a new tab), `copy` (the text in `field`); an entry whose field is empty on a row is not offered there. **`dim`** fades them (cancelled orders: there, but not to be looked at — clearer on hover).
 - **On a screen about one record** (the screen has a `source` and a saved record is open), the function is told which: `ctx.record` and `ctx.id` — this order's tasks, as cards (`layout: "cards"`) whose click opens the task's own screen in a popup (`editScreen`). The record is read on the server, this company's and active; an id the caller cannot see is a 404. The list asks again when the record changes. Without a record (a board) there is no `ctx.record`.
-- **Rows that are worked out are not a table's records**: no Delete, and Edit / New only with an `editScreen`.
+- **Rows that are worked out are not a table's records**: no Delete, and Edit / New only with an `editScreen`. **New** (`actions: ["new"]`) shows a + New beside the title; `newScreen` makes it open a different screen from a row's click (rows open the task's view, New opens the task form), and `belongsTo` hands that screen the record the rows belong to — `{ orderId: <this order> }` as its params.
 - Routes: `GET /factory/rows/:screen` (`?node=&q=&filter=&kpi=&from=&to=&id=`) and `/factory/rows/:screen/details` (`?node=&column=&id=`) — see `@xeplr/factory`.
 
 ## Text with suggestions — `autocomplete`
@@ -1304,6 +1304,14 @@ learns which branch it is on. "Step 2 of 4" counts only the steps that apply.
 **A step is not a separate form.** Every field is a column, is checked, and is
 saved, whichever step is showing — Save can be pressed on any step. **Next** holds at a step whose own fields are not filled in, and says which,
 rather than moving on and leaving a problem behind where nobody is looking.
+
+#### A hidden field — `hidden: true`
+
+Any input can be **hidden**: still a column, still saved, never drawn — a
+value the server fills in itself (done by, added by). A field filled in by
+whoever opened the screen — its default is `{params.x}` and `x` was given,
+like the order a new task belongs to — is not drawn either. A hidden field
+nobody can fill in cannot be `required`. Designer: the field's **Hidden** switch.
 
 #### A screen that flows — `layout: "flow"`
 

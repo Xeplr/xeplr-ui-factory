@@ -152,6 +152,8 @@ export function validateDocument(doc, controls = CONTROLS) {
 
       if (!nonEmptyString(props.label)) err(`${at}.props.label`, 'is required — the text shown above the field')
       if (props.required !== undefined && typeof props.required !== 'boolean') err(`${at}.props.required`, 'must be true or false')
+      if (props.hidden !== undefined && typeof props.hidden !== 'boolean') err(`${at}.props.hidden`, 'must be true or false')
+      if (props.hidden === true && props.required === true && !isBinding(props.default)) err(`${at}.props.hidden`, 'a hidden field nobody can fill in cannot be required — give it "Fill in from", or let the server fill it in and drop Required')
       if (props.placeholder !== undefined && typeof props.placeholder !== 'string') err(`${at}.props.placeholder`, 'must be a string')
       // Where the field came from (a ready-made field's key), or false: plain on purpose.
       if (props.preset !== undefined && props.preset !== false && !presetFor(props.preset)) err(`${at}.props.preset`, `"${props.preset}" is not a ready-made field — one of: ${FIELD_PRESETS.map((p) => p.key).join(', ')}, or false`)
@@ -459,6 +461,7 @@ function checkList(props, doc, at, err) {
   // The page grows with it, so nothing can be placed beside or under it.
   if (props.grow && doc.nodes.length !== 1) err(`${at}.props.grow`, 'only for a list that is the screen\'s one control — the page grows with it, so nothing else has a place')
   if (props.editScreen !== undefined && !(nonEmptyString(props.editScreen) && SCREEN_ID.test(props.editScreen))) err(`${at}.props.editScreen`, 'must be the id of the screen that edits a record, e.g. "employee_edit"')
+  if (props.newScreen !== undefined && !(nonEmptyString(props.newScreen) && SCREEN_ID.test(props.newScreen))) err(`${at}.props.newScreen`, 'must be the id of the screen New opens, e.g. "order_task_edit"')
 
   // THE LINK BACK, for a sub-table on a form: this material's
   // characteristics. A column name, checked as one — a value that could never
@@ -466,8 +469,8 @@ function checkList(props, doc, at, err) {
   if (props.belongsTo !== undefined && props.belongsTo !== '') {
     if (!(nonEmptyString(props.belongsTo) && /^[A-Za-z_][\w]*$/.test(props.belongsTo))) {
       err(`${at}.props.belongsTo`, 'must be a column name, e.g. "materialId"')
-    } else if (!props.source) {
-      err(`${at}.props.belongsTo`, 'only means something with "Records from" set — a list of this screen\'s own table already belongs to this record')
+    } else if (!props.source && !props.rowsFrom) {
+      err(`${at}.props.belongsTo`, 'only means something with "Records from" set (or rows from a function) — a list of this screen\'s own table already belongs to this record')
     }
   }
   if (props.pageSize !== undefined && !(Number.isInteger(props.pageSize) && props.pageSize >= 1 && props.pageSize <= 200)) err(`${at}.props.pageSize`, 'must be a whole number from 1 to 200')

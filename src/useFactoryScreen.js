@@ -227,9 +227,16 @@ export function useFactoryScreen({
   // have branches; which of them apply is the app's to say, from its hooks.
   const [disabledSteps, setDisabledSteps] = useState({})
   const stepperNodes = useMemo(() => (check.ok ? steppers(doc, controls) : []), [check.ok, doc, controls])
+  // A field filled in by whoever opened the screen — its default is
+  // {params.x} and x was given (the order a new task belongs to) — is not
+  // shown: the person never has to know, or change, which order it is.
+  const givenParam = (n) => {
+    const m = n.props && typeof n.props.default === 'string' ? /^\{params\.([A-Za-z_][\w]*)\}$/.exec(n.props.default) : null
+    return Boolean(m && params && params[m[1]] !== undefined && params[m[1]] !== null && params[m[1]] !== '')
+  }
   const visibleNodes = useMemo(
-    () => (check.ok ? nodesForSteps(doc, openSteps, controls).filter((n) => !(embedded && n.props && n.props.name === link)) : []),
-    [check.ok, doc, openSteps, controls, embedded, link]
+    () => (check.ok ? nodesForSteps(doc, openSteps, controls).filter((n) => !(embedded && n.props && n.props.name === link) && !givenParam(n) && !(n.props && n.props.hidden === true)) : []),
+    [check.ok, doc, openSteps, controls, embedded, link, params] // eslint-disable-line react-hooks/exhaustive-deps
   )
 
   // A screen whose steps changed under it (a field moved to another step, a
@@ -794,7 +801,8 @@ export function useFactoryScreen({
   // `where`: a page opened at one part of the record — what a hover box's
   // entry points at ({ task: 'tk_3' }), handed to onOpenRecord as params.
   const openEditor = useCallback(async (node, rec, where) => {
-    const screenId = node.props.editScreen
+    // New may open a form of its own (newScreen) while a row opens a view.
+    const screenId = !rec && node.props.newScreen ? node.props.newScreen : node.props.editScreen
 
     // WHAT THE CHILD IS CALLED WITH. A sub-table's row belongs to THIS
     // record, so the link column is handed to the screen that adds one — the

@@ -177,6 +177,7 @@ Each field:
 | `type` | `text` (default), `textarea`, `number`, `date`, `datetime`, `checkbox`, `dropdown`, `radio`, `multiselect`, `file`, `stepper`, or `label` for a section heading |
 | `name` | the key the value is saved under; defaults to the label in camelCase (`"Date of birth"` → `dateOfBirth`) |
 | `required` | `true` to require a value (a checkbox must be ticked) |
+| `hidden` | `true`: kept and saved, never shown — a value the server fills in (done by, added by) |
 | `placeholder` | text, textarea, number, dropdown |
 | `default` | starting value — a string, a number, `true`/`false`, or a date as `"YYYY-MM-DD"` |
 | `validation` | see below |

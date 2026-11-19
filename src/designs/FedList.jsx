@@ -33,7 +33,7 @@ const STEPS_BOX_WIDTH = 760
 const BOX_MAX_HEIGHT = 360
 const MIN_BELOW = 200
 
-export default function FedList({ node, list, query, onOpen, rowDetails, recordKey = 'id', extraActions = [] }) {
+export default function FedList({ node, list, query, onOpen, onNew, rowDetails, recordKey = 'id', extraActions = [] }) {
   const p = node.props || {}
   const columns = Array.isArray(p.columns) ? p.columns : []
   const rows = list.rows || []
@@ -117,6 +117,11 @@ export default function FedList({ node, list, query, onOpen, rowDetails, recordK
       )}
       <div className="xeplr-factory-list-tools">
         {p.title && <span className="xeplr-factory-list-title">{p.title}</span>}
+        {/* New: the list's edit (or newScreen) form, called with the record
+            these rows belong to (belongsTo) — this order's new task. */}
+        {onNew && (p.actions || []).includes('new') && (p.newScreen || p.editScreen) && (
+          <button type="button" className="xeplr-factory-list-new" onClick={onNew}>+ New</button>
+        )}
         {p.search && p.search.placeholder && (
           <input
             type="search"

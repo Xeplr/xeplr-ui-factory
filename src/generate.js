@@ -47,7 +47,7 @@ export const SPEC_HEIGHTS = {
  */
 export const ROW_GAP = 0.04
 
-const FIELD_KEYS = ['type', 'preset', 'label', 'name', 'required', 'placeholder', 'default', 'validation', 'data', 'options', 'table', 'layout', 'accept', 'maxSize', 'multiple', 'maxFiles', 'suggestFrom', 'minChars', 'quantity', 'maxTags', 'step', 'steps', 'showNumbers', 'display', 'width', 'text', 'variant', 'style']
+const FIELD_KEYS = ['type', 'preset', 'label', 'name', 'required', 'hidden', 'placeholder', 'default', 'validation', 'data', 'options', 'table', 'layout', 'accept', 'maxSize', 'multiple', 'maxFiles', 'suggestFrom', 'minChars', 'quantity', 'maxTags', 'step', 'steps', 'showNumbers', 'display', 'width', 'text', 'variant', 'style']
 const SPEC_KEYS = ['name', 'id', 'source', 'columns', 'heading', 'fields', 'list', 'aspect', 'width', 'layout', 'style']
 const LIST_KEYS = ['title', 'source', 'columns', 'pageSize', 'actions', 'style']
 
@@ -206,7 +206,7 @@ function propsFromField(type, field, at, fromPreset) {
   }
   if (!field.label && !fromPreset) throw new Error(`screenFromSpec: ${at}.label is required`)
   const props = field.label ? { label: field.label } : {}
-  ;['name', 'required', 'placeholder', 'default', 'validation', 'style'].forEach((k) => {
+  ;['name', 'required', 'hidden', 'placeholder', 'default', 'validation', 'style'].forEach((k) => {
     if (field[k] !== undefined) props[k] = field[k]
   })
   if (type === 'dropdown' && props.placeholder === undefined && !fromPreset) props.placeholder = 'Select…'
