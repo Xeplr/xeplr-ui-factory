@@ -9,6 +9,7 @@ import { buttonShown, buttonDisabled, buttonPressed } from './buttons.js'
 import { resolveRange, rangePresets, dayOf } from './listRange.js'
 import { suggestionsOf, shouldSuggest, pickValues, MAX_SUGGEST_QUERY, isTagField } from './suggest.js'
 import { useFeeds } from './useFeeds.js'
+import { useRecordDetails } from './useRecordDetails.js'
 
 // A saved screen, running. No JSX — designs/ScreenSample.jsx draws it.
 //
@@ -64,6 +65,7 @@ import { useFeeds } from './useFeeds.js'
  * @param hooks         a FactoryHooks (or an object with some of its methods) — get / save / delete / actions
  * @param fetchRows     async ({ screen, node, q, filter, kpi, from, to }) → { rows, counts, kpis } — a list whose rows a function works out (rowsFrom)
  * @param suggest       async ({ screen, node, q }) → [{ value, label, sub?, image?, fill? }] — an autocomplete's suggestions (suggestFrom)
+ * @param fetchDetails  async ({ screen, node, id, more }) → { sections, more } — a details panel's sections for this record (detailsFrom)
  * @param fetchFeed     async ({ screen, node, id }) → { entries } — a feed's comments and history for this record (entriesFrom)
  * @param fetchRowDetails async ({ screen, node, column, id }) → [{ text, sub?, at?, open? }] — an activity cell's hover box
  * @param pressButton   async ({ screen, button, id, note, files, values }) → { message } — a button's press, run on the server
@@ -93,7 +95,7 @@ export function useFactoryScreen({
   document: doc, record, recordKey = 'id', onSave, fetchOptions, fetchRecords, fetchRecord, onDelete, onChange, screens, loadScreen, hooks, uploadFile, fileUrl, readFile,
   onOpenRecord, onDone, onDirtyChange, params, urlKey, previous,
   fetchRows, fetchRowDetails, pressButton, uploadButtonFile, buttonOptions, onButtonDone, reloadKey,
-  suggest, link, onReady, fetchFeed,
+  suggest, link, onReady, fetchFeed, fetchDetails,
   controls = CONTROLS
 } = {}) {
   const check = useMemo(() => validateDocument(doc, controls), [doc, controls])
@@ -934,6 +936,8 @@ export function useFactoryScreen({
   const [buttonNote, setButtonNote] = useState(null)    // { kind: 'done' | 'error', text, button }
   // A record's comments and history (feed controls) — useFeeds.js.
   const { feedFor } = useFeeds({ doc, recordId, fetchFeed, onSave, uploadFile, loadScreen, reloadKey })
+  // What is known about the record (details panels) — useRecordDetails.js.
+  const { detailsFor } = useRecordDetails({ doc, recordId, fetchDetails, reloadKey })
 
   const buttonRecord = useMemo(() => ({ ...(record || {}), ...values, [recordKey]: recordId }), [record, values, recordKey, recordId])
   const buttonsFor = useCallback((node) => ({
@@ -1018,6 +1022,7 @@ export function useFactoryScreen({
     rowDetails,
     buttonsFor,
     feedFor,
+    detailsFor,
     deleteRecord,
     recordKey,
     canDelete: Boolean(onDelete) || Boolean(hooks && typeof hooks.delete === 'function'),

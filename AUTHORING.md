@@ -27,6 +27,7 @@ A request for "a form for employees" is an **entity**. Every entity is the same 
 | a field, a label, a rule, a dropdown, the layout, a colour | the screen JSON (then validate) |
 | "a button that does something to a record" — set a status, confirm, approve | a **Buttons** control naming a function (event `button`) and its parameters; the function in `employee.functions.js` — one function, many buttons with different parameters |
 | "a list whose rows are worked out", "a search box", "filter chips with counts" | a list with `rowsFrom` naming a function (event `listRows`) that returns `{ rows, counts }` — the text it shows is the function's |
+| "show what we know about it", "its contact / address / products" — read only, often not columns | a **details** panel (`type: "details"`) with `detailsFrom` naming a function (event `recordDetails`) that returns sections — see the README's "What is known about a record" |
 | "comments on a record", "its history", "what happened to it" | a **feed** (`type: "feed"`) on a screen with that record's `source`: `entriesFrom` naming a function (event `feedEntries`) that returns the entries, and `compose` naming the form a comment is saved through — see Comments and history |
 | "show / hide / filter rows on screen", "fill in X before saving" (browser convenience — web only) | front-end hooks in `EditEmployee.jsx` |
 | "must", "only if", "check against…", "email when…", "only managers see…" | a server function in `employee.functions.js`, named in the screen's `events` |
@@ -314,6 +315,7 @@ Rules you give merge over the ready-made ones (`"validation": { "max": 120 }`).
 | several photos, several documents | `file` with `multiple: true` (and `maxFiles`) — the value is a list of paths |
 | a photo taken now, at the door / on site | `file` with `source: "camera"` and images in `accept` — the phone opens its camera |
 | comments on a record, its history | a `feed` — see Comments and history |
+| a record's facts shown read only — contact, address, products | a `details` panel |
 | a section title between groups | `{ "type": "label", "text": "…", "variant": "subheading" }` |
 | a long form people work through in stages | a `stepper`, then `step` on each field |
 | parts of one screen side by side, opened in any order (Comments / Tasks) | a `stepper` with `"display": "tabs"`, then `step` on each control |

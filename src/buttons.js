@@ -21,6 +21,7 @@
 //   rowDetails  what a list cell's hover box lists for one row.
 //   suggest     an autocomplete field's suggestions as the person types (suggest.js).
 //   feedEntries a record's comments and history, for a feed (feed.js).
+//   recordDetails  what is known about a record, for a details panel (details.js).
 //   buttonOptions  what a button's checklist offers, worked out for the record
 //               it is pressed on: the products still out on this movement.
 //
@@ -35,6 +36,7 @@
 import { matches, OPERATORS } from '@xeplr/rules'
 import { SUGGEST_EVENT as SUGGEST } from './suggest.js'
 import { FEED_EVENT } from './feed.js'
+import { DETAILS_EVENT } from './details.js'
 
 export const BUTTON_EVENT = 'button'
 export const LIST_ROWS_EVENT = 'listRows'
@@ -65,8 +67,7 @@ export const COLUMN_DISPLAYS = ['text', 'images', 'activity', 'items', 'chip', '
  */
 export const LIST_LAYOUTS = ['table', 'cards']
 
-/** A badge's colour — and a column's, a cell's (toneFrom) and a chip's. */
-export const BADGE_TONES = ['accent', 'success', 'warning', 'danger', 'muted', 'info', 'violet']
+export { BADGE_TONES } from './tones.js'
 
 /** The icons a list column's header may show before its label (designs/icons.jsx draws them). */
 export const COLUMN_ICONS = ['file', 'clock', 'box', 'layers', 'truck', 'check-circle', 'return', 'warehouse', 'x-circle', 'rupee', 'calendar', 'user']
@@ -361,6 +362,9 @@ export function nodeFunctions(doc) {
       ;(Array.isArray(p.columns) ? p.columns : []).forEach((c, j) => {
         if (c && typeof c.details === 'string' && c.details) out.push({ event: ROW_DETAILS_EVENT, name: c.details, at: `nodes[${i}].props.columns[${j}].details` })
       })
+    }
+    if (node.type === 'details' && typeof p.detailsFrom === 'string' && p.detailsFrom) {
+      out.push({ event: DETAILS_EVENT, name: p.detailsFrom, at: `nodes[${i}].props.detailsFrom` })
     }
     if (node.type === 'feed' && typeof p.entriesFrom === 'string' && p.entriesFrom) {
       out.push({ event: FEED_EVENT, name: p.entriesFrom, at: `nodes[${i}].props.entriesFrom` })

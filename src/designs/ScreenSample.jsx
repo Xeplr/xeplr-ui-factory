@@ -189,7 +189,7 @@ export default function ScreenSample({ ctrl, className, style, renderPopup, rend
   // narrow screen) — its screen's one control: the page is as tall as it is,
   // rather than it scrolling or spilling out of a fixed box.
   const only = shown.length === 1 ? shown[0] : null
-  const grows = Boolean(only && ((only.type === 'list' && only.props && only.props.grow) || only.type === 'buttons' || only.type === 'feed'))
+  const grows = Boolean(only && ((only.type === 'list' && only.props && only.props.grow) || only.type === 'buttons' || only.type === 'feed' || only.type === 'details'))
 
   return (
     <div
@@ -261,6 +261,7 @@ export default function ScreenSample({ ctrl, className, style, renderPopup, rend
               // A form inside this one: the page draws it (renderSubform).
               subform={node.type === 'subform' ? { sub: ctrl.subformFor(node), render: renderSubform } : undefined}
               buttons={node.type === 'buttons' && ctrl.buttonsFor ? ctrl.buttonsFor(node) : undefined}
+              details={node.type === 'details' && ctrl.detailsFor ? ctrl.detailsFor(node) : undefined}
               feed={node.type === 'feed' && ctrl.feedFor ? { ...ctrl.feedFor(node), readFile: ctrl.readFile } : undefined}
             />
           </div>

@@ -5,6 +5,7 @@ import { addTag, removeTag, setTagQty, tagLimit } from '../suggest.js'
 import ListView from './ListView.jsx'
 import ButtonsView from './ButtonsView.jsx'
 import FeedView from './FeedView.jsx'
+import DetailsView from './DetailsView.jsx'
 import FileField from './FileField.jsx'
 import { fieldStyle, labelStyle, boxStyle } from './styles.js'
 
@@ -17,7 +18,7 @@ import { fieldStyle, labelStyle, boxStyle } from './styles.js'
 
 const ids = (node) => `xeplr-factory-${node.id}`
 
-export default function ControlView({ node, mode = 'live', value, error, options, onChange, onBlur, disabled, list, upload, readFile, stepper, subform, rows, buttons, feed, suggest, onPick }) {
+export default function ControlView({ node, mode = 'live', value, error, options, onChange, onBlur, disabled, list, upload, readFile, stepper, subform, rows, buttons, feed, details, suggest, onPick }) {
   const View = VIEWS[node.type]
   if (!View) {
     return <div className="xeplr-factory-unknown">Unknown control “{node.type}”</div>
@@ -42,6 +43,7 @@ export default function ControlView({ node, mode = 'live', value, error, options
       rows={rows}
       buttons={buttons}
       feed={feed}
+      details={details}
       suggest={suggest}
       onPick={onPick}
     />
@@ -757,6 +759,7 @@ export const VIEWS = {
   list: ListControl,
   buttons: ({ node, design, buttons }) => <ButtonsView node={node} design={design} panel={buttons} />,
   feed: ({ node, design, feed }) => <FeedView node={node} design={design} feed={feed} />,
+  details: ({ node, design, details }) => <DetailsView node={node} design={design} details={details} />,
   table: TableView,
   subform: SubformView
 }

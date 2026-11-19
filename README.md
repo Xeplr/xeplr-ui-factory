@@ -831,6 +831,46 @@ title to write a comment. Palette: **Data → Comments & history**.
   post, posting, error, placeholder, button, fileRules } | null }` — so a phone
   renderer draws the same feed from the same calls.
 
+## What is known about a record — `details`
+
+A read-only panel of one record's facts, in sections side by side: an order's
+products, its contact and address, its delivery. Palette: **Data → Details**.
+The sections are worked out by a function, so they can hold what is **not a
+column** — what the shop knows, what the courier said.
+
+```json
+{ "id": "n6", "type": "details", "props": { "title": "", "detailsFrom": "orderDetails", "columns": 2, "moreLabel": "More" } }
+```
+
+```js
+actions.register({ name: 'orderDetails', event: 'recordDetails', execute: async (ctx) => {
+  if (ctx.query.more) return { sections: [{ title: 'Payment', rows: await shopPayment(ctx.record) }] };  // asked on "More"
+  return { more: true, sections: [
+    { title: 'Products', items: ctx.record.lines.map((l) => ({ src: l.image, name: l.title, detail: l.sku, qty: l.qty })) },
+    { title: 'Contact', rows: [
+      { label: 'Phone', text: ctx.record.phone, href: 'tel:' + ctx.record.phone },
+      { label: 'Address', text: ctx.record.address },          // "\n" keeps its lines
+      { label: 'Delivery', text: 'Delivered', tone: 'success' } ] } ] };
+} });
+```
+
+- The screen needs a `source`; the function gets the record — this company's,
+  active — as `ctx.record` / `ctx.id`, and `ctx.query.more`.
+- **Only what the record has is shown**: a row with no text is dropped, and a
+  section left with nothing. A panel with nothing at all draws nothing (or
+  `empty`, when set).
+- `href` makes the value a link — `http(s)`, `tel:` (a phone dials) or
+  `mailto:`; any other link is dropped and the value stays plain text. A
+  picture's `src` must be http(s). `tone` is one of the badge tones.
+- **"More"** shows when the function answers `more: true`; pressing it asks
+  again with `ctx.query.more = true` and draws that answer under the rest.
+  Nothing is saved — it is asked again next time.
+- `columns` (1–3) sections side by side; one under another on a phone.
+- Route: `GET /factory/details/:screen?node=&id=&more=1` (same access as a
+  list's rows). `createFactoryApi(...).fetchDetails`, in `screenProps`.
+  Controller: `ctrl.detailsFor(node)` → `{ sections, loading, error, waiting,
+  canShowMore, showMore, more, hideMore }`.
+
 ## Web-only pages — `ui/pages.json`
 
 Each app keeps an inventory of its pages: drawn from documents, or
@@ -1129,6 +1169,7 @@ Both walk someone through something, and they answer different questions:
 | `label` | — | text with a heading, subheading or text preset |
 | `list` | — | saved records, with New / Edit / Delete — or rows a function works out (`rowsFrom`), with search, filter chips and counts; see above |
 | `buttons` | — | a panel of buttons, each a registered function and its parameters — see above (palette: **Actions → Buttons**) |
+| `details` | — | read-only sections about the record from a function (`detailsFrom`, event `recordDetails`), with an optional "More" — see [What is known about a record](#what-is-known-about-a-record--details) |
 | `feed` | — | a record's comments and history from a function (`entriesFrom`, event `feedEntries`), with a box that saves a comment through another form (`compose`) — see [Comments and history](#comments-and-history--feed) |
 | `table` | array of the rows ticked | `minItems`, `maxItems`; `required` = at least one. Rows the screen is **handed** (`rows: '{params.lines}'`), not a table it reads; `columns` (`ref, amount`) or every key of the first row; `selectable` (a tick per row, on by default). Adds no column — see below |
 | `subform` | — | another form drawn inside this one (palette: **Form**), saving into its own table — see below |
@@ -1388,6 +1429,9 @@ src/
   useFlowBuilder.js      ─ flow designer controller
   buttons.js             ─ buttons and function-fed lists: conditions, what a press sends, asked values (askFieldValues), functionProblems' checks (React-free)
   listRange.js           ─ a list's date range: presets → days (resolveRange) (React-free)
+  details.js             ─ a record's details: detailsOf, safeHref (React-free)
+  useRecordDetails.js    ─ the details panels on a screen, and their "More" (inside useFactoryScreen)
+  tones.js               ─ the badge tones every rule file may name
   feed.js                ─ a record's feed: entriesOf, composeValues, the compose checks (React-free)
   useFeeds.js            ─ the feeds on a screen: entries, "Comments only", posting (inside useFactoryScreen)
   pagesInventory.js      ─ ui/pages.json: routesIn, pageWarnings, webOnlyMenus (React-free)
@@ -1395,7 +1439,7 @@ src/
   useUrlPlaces.js        ─ useUrlSteps, useUrlSelection: those places, in the URL or in memory
   useScreenSource.js     ─ { screens, screenEditor } for @xeplr/ui-workflow's Screen step
   useFilePreview.js      ─ a stored picture as an object URL, through readFile
-  designs/               ─ BuilderSample, ScreenSample, ScreenEditorSample, ControlView, ListView, FedList, ButtonsView, FeedView, FileField, Palette, PropertyPanel, styles.js, factory.css
+  designs/               ─ BuilderSample, ScreenSample, ScreenEditorSample, ControlView, ListView, FedList, ButtonsView, FeedView, DetailsView, FileField, Palette, PropertyPanel, styles.js, factory.css
   pages.jsx              ─ FactoryBuilder, FactoryScreen
 bin/xeplr-factory.js     ─ screens / generate / validate / controls / schema / pages
 examples/                ─ employee.entity.json and what `screens` makes of it; orders-board and order-actions (a function-fed list, buttons — one takes photos); delivery-photos (several pictures, camera only)
@@ -1408,7 +1452,7 @@ dev/                     ─ the stand-in app for `npm run dev` (not published)
 npm test
 ```
 
-`test/buttons.test.js` covers buttons and function-fed lists in the document: what the checker refuses, when a button shows or is greyed out, what a press sends (the document's parameters, never the request's), and `functionProblems` against a registry. `test/cli.test.js` includes `pages`. `test/dashboard.test.js` covers a list's date range and KPI cards, and a button that asks for values. `test/feed.test.js` covers a feed: what the checker refuses, what a function's answer becomes, and what posting a comment saves. `test/files.test.js` covers files: several in one field (the value, its column, its checks), camera only, and a button whose press takes files.
+`test/buttons.test.js` covers buttons and function-fed lists in the document: what the checker refuses, when a button shows or is greyed out, what a press sends (the document's parameters, never the request's), and `functionProblems` against a registry. `test/cli.test.js` includes `pages`. `test/dashboard.test.js` covers a list's date range and KPI cards, and a button that asks for values. `test/details.test.js` covers a details panel: what the checker refuses and what an answer becomes (links, tones, empty rows). `test/tabs.test.js` covers a stepper shown as tabs. `test/feed.test.js` covers a feed: what the checker refuses, what a function's answer becomes, and what posting a comment saves. `test/files.test.js` covers files: several in one field (the value, its column, its checks), camera only, and a button whose press takes files.
 
 `test/urlState.test.js` covers the URL state: the key format, and the three controllers reading their places back from a real `MemoryRouter` and being clicked through in memory, rendered with `react-dom/server`.
 

@@ -869,6 +869,40 @@ CONTROLS.feed = {
   ]
 }
 
+// A RECORD'S DETAILS — what is known about one record, read only, in
+// sections, worked out by a function of the app (event "recordDetails",
+// named in detailsFrom) given the record — so it can show what is not a
+// column. A "More" button, when the function says there is more, asks again
+// for the rest. See details.js.
+CONTROLS.details = {
+  type: 'details',
+  label: 'Details',
+  group: 'Data',
+  input: false,
+  defaultSize: { w: 0.92, h: 0.3 },
+  defaults: { title: '', columns: 2 },
+  props: ['title', 'detailsFrom', 'columns', 'moreLabel', 'empty', 'style'],
+  validation: [],
+  styles: ['fontFamily', 'fontSize', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'],
+  properties: [
+    {
+      key: 'details',
+      title: 'Details',
+      fields: [
+        { path: 'props.title', label: 'Title', type: 'text', help: 'Shown above it. Blank → none' },
+        { path: 'props.detailsFrom', label: 'Details from', type: 'function', event: 'recordDetails',
+          help: 'A function of the app that returns what is known about this record, in sections' },
+        { path: 'props.columns', label: 'Sections side by side', type: 'select', options: [
+          { value: 1, label: 'One' }, { value: 2, label: 'Two' }, { value: 3, label: 'Three' }
+        ], help: 'On a phone they are always one under another' },
+        { path: 'props.moreLabel', label: '"More" button', type: 'text', help: 'Blank → "More". Shown only when the function says there is more' },
+        { path: 'props.empty', label: 'When there is nothing', type: 'text', help: 'Blank → nothing is shown' }
+      ]
+    },
+    ...styleGroups(['fontFamily', 'fontSize', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'])
+  ]
+}
+
 export const LABEL_VARIANTS = ['heading', 'subheading', 'text']
 
 /** The sizes a label preset starts from, in px at the design width. */
