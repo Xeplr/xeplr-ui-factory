@@ -961,6 +961,58 @@ app's pre-commit hook; it never blocks a commit. `webOnlyMenus(inventory)`
 gives `{ menu key → reason }`, for a menu-settings screen to tag those items
 "Web only".
 
+## On a phone — `@xeplr/ui-factory/native`
+
+The same screen documents, drawn with **React Native** components for a phone
+app — not a web view. The controllers and the model are the web's own
+(`useFactoryScreen`, `buttons.js`, `feed.js`…), so a screen's rules, checks,
+lists, buttons, comments and details behave exactly as in a browser; only the
+views differ.
+
+```jsx
+import { NativeScreen, useScreenDocument } from '@xeplr/ui-factory/native'
+import { createFactoryApi } from '@xeplr/ui-factory/model'
+
+const factory = createFactoryApi({ fetch: authFetch, fetchFile: authFetchFile, base: '/api' })
+const screen = useScreenDocument(factory.loadScreen, 'orders_board')
+<NativeScreen document={screen.doc} {...factory.screenProps} record={record}
+              onOpenRecord={({ id }) => router.push(`/orders/${id}`)}
+              host={{ pickFile, pickDate, baseUrl }} />
+```
+
+- **Every control one under another, in reading order** — what the web does
+  below 640px. Lists are a **card per row** (the first column the heading,
+  pictures large, every other column a labelled line), with the date range,
+  KPI cards, search and chips above. A popup (Edit, New, a task opened from its
+  card, Convert to task, a button's question) is a **full-screen sheet**;
+  Android's Back closes it.
+- **`host`** is what only the app can do: `pickFile({ camera, multiple, accept })
+  → [{ uri, name, type, size }]` (expo-image-picker / expo-document-picker),
+  `pickDate({ mode, value }) → 'YYYY-MM-DD' | 'YYYY-MM-DDTHH:mm'` (the phone's
+  own picker), and `baseUrl` for pictures the server names by a path. Without
+  `pickDate` a date is typed; without `pickFile` files are shown only.
+- **Not on the phone yet:** a `table` control and a `subform` say so and point
+  to a computer; a list fed from a table (not `rowsFrom`) too.
+- **No URL.** Open steps, a list's search and the open popup are kept in memory.
+  `@xeplr/ui-utils`' URL state imports `react-router-dom`, which does not
+  compile for Hermes, so the app points it at `@xeplr/ui-factory/native/noRouter`
+  — in **metro.config.js**:
+
+  ```js
+  const noRouter = require.resolve('@xeplr/ui-factory/native/noRouter')
+  config.resolver.resolveRequest = (context, name, platform) =>
+    name === 'react-router-dom' ? { type: 'sourceFile', filePath: noRouter } : context.resolveRequest(context, name, platform)
+  ```
+- **Look:** `<NativeTheme value={palette}>`, else the phone's own setting picks
+  (`DARK` by default, `LIGHT`); tones are named as on the web. A full-screen
+  sheet keeps clear of the notch with `<NativeInsets value={useSafeAreaInsets()}>`.
+  `Btn`, `Field`, `Pill`, `Sheet` and `PickList` are exported, so an app's own
+  pages (sign-in, a menu) look the same.
+- `react-native` is an **optional peer**: a web-only app installs nothing new.
+  `useScreenDocument(loadScreen, key)` is exported from the main entry too.
+
+Taskie's phone app (`taskie/mobile`, Expo) is the worked example.
+
 ## The flow designer, as a list — `<FlowDesigner>`
 
 Your screens as a journey: the steps down the left; for the one picked, its
@@ -1521,6 +1573,8 @@ src/
   useUrlPlaces.js        ─ useUrlSteps, useUrlSelection: those places, in the URL or in memory
   useScreenSource.js     ─ { screens, screenEditor } for @xeplr/ui-workflow's Screen step
   useFilePreview.js      ─ a stored picture as an object URL, through readFile
+  native/                ─ the phone's views (React Native): NativeScreen, NativeList, NativeButtons, NativeDetails, NativeFeed, inputs, parts, theme, noRouter
+  useScreenDocument.js   ─ a published screen, loaded once per visit, for a page that is one screen
   designs/               ─ BuilderSample, ScreenSample, ScreenEditorSample, ControlView, ListView, FedList, ButtonsView, FeedView, DetailsView, FileField, Palette, PropertyPanel, styles.js, factory.css
   pages.jsx              ─ FactoryBuilder, FactoryScreen
 bin/xeplr-factory.js     ─ screens / generate / validate / controls / schema / pages
@@ -1535,6 +1589,8 @@ npm test
 ```
 
 `test/buttons.test.js` covers buttons and function-fed lists in the document: what the checker refuses, when a button shows or is greyed out, what a press sends (the document's parameters, never the request's), and `functionProblems` against a registry. `test/cli.test.js` includes `pages`. `test/dashboard.test.js` covers a list's date range and KPI cards, and a button that asks for values. `test/details.test.js` covers a details panel: what the checker refuses and what an answer becomes (links, tones, empty rows). `test/tabs.test.js` covers a stepper shown as tabs. `test/feed.test.js` covers a feed: what the checker refuses, what a function's answer becomes, and what posting a comment saves. `test/askrows.test.js` covers a button's rows question. `test/files.test.js` covers files: several in one field (the value, its column, its checks), camera only, and a button whose press takes files.
+
+`test/native.test.js` covers the phone's views: nothing of the web's (designs, CSS, react-dom, ui-table) is reached from `@xeplr/ui-factory/native`, the router stand-in answers "no router", and the controller calls no browser-only function without one. Drawing them is checked in an Expo app.
 
 `test/urlState.test.js` covers the URL state: the key format, and the three controllers reading their places back from a real `MemoryRouter` and being clicked through in memory, rendered with `react-dom/server`.
 

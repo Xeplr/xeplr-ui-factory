@@ -549,13 +549,15 @@ export function useFactoryScreen({
    */
   const confirmDiscard = useCallback(() => {
     if (!unsaved()) return true
+    // A phone app (React Native) has a window but no confirm: its design asks
+    // itself, before it calls this, and here it is a yes.
     // eslint-disable-next-line no-alert
-    return typeof window === 'undefined' || window.confirm('Discard your unsaved changes?')
+    return typeof window === 'undefined' || typeof window.confirm !== 'function' || window.confirm('Discard your unsaved changes?')
   }, [])
 
   // Closing the tab or reloading with unsaved changes: the browser's own prompt.
   useEffect(() => {
-    if (!dirty || typeof window === 'undefined') return undefined
+    if (!dirty || typeof window === 'undefined' || typeof window.addEventListener !== 'function') return undefined
     const warn = (e) => { e.preventDefault(); e.returnValue = '' }
     window.addEventListener('beforeunload', warn)
     return () => window.removeEventListener('beforeunload', warn)
@@ -763,7 +765,7 @@ export function useFactoryScreen({
       onClick: (rec) => Promise.resolve().then(() => a.onClick(rec, ctx)).catch((err) => {
         console.error('[factory] action "' + a.label + '" failed:', err)
         // eslint-disable-next-line no-alert
-        if (typeof window !== 'undefined') window.alert(err.message || 'Could not ' + a.label)
+        if (typeof window !== 'undefined' && typeof window.alert === 'function') window.alert(err.message || 'Could not ' + a.label)
       })
     }))
   }, [doc, lists])                                              // eslint-disable-line react-hooks/exhaustive-deps
