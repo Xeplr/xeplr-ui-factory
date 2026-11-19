@@ -26,7 +26,10 @@ export function formSchema(doc, controls = CONTROLS) {
     if (isTagField(node)) { if (p.label) field.description = p.label; return field }
     if (p.label) field.description = p.label
     if (p.required) field.required = true
-    if (p.default !== undefined) field.default = p.default
+    // A default that is a REFERENCE ({params.customerId}) is filled in when
+    // the screen opens, from what it was called with — never a value to save:
+    // the server would write the braces themselves into a field left empty.
+    if (p.default !== undefined && !isBinding(p.default)) field.default = p.default
     // A multi-select's value is an array, so schema-handler's `options` (which
     // compares one value) cannot check it — chooseable(node) does, on both sides.
     if ((node.type === 'dropdown' || node.type === 'radio') && p.data?.source === 'static') {
