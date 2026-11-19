@@ -866,7 +866,17 @@ actions.register({ name: 'orderDetails', event: 'recordDetails', execute: async 
 - **"More"** shows when the function answers `more: true`; pressing it asks
   again with `ctx.query.more = true` and draws that answer under the rest.
   Nothing is saved — it is asked again next time.
-- `columns` (1–3) sections side by side; one under another on a phone.
+- `columns` (1–3) sections side by side — packed so a short box never
+  leaves a hole, and never more columns than boxes; one under another on a phone.
+- Two sections go across the whole width, above the rest:
+  `{ kind: 'header', title: '#GA3068', badges: [{ text: 'Ordered', tone: 'accent' }], sub: 'Naresh, Chennai', aside: '₹8,883 · COD' }`
+  — the record's own line, big, with coloured pills; and
+  `{ kind: 'journey', title?, steps: [{ label, at, sub, done, tone? }] }` — a
+  dot per step joined by a line, green up to where the record is (the same
+  journey a list column draws with `display: "steps"`).
+- On a screen about a record, set the screen's **`layout: "flow"`** (designer:
+  screen → Size → Heights) so the panel — and a feed or list under it — is as
+  tall as its content rather than the box it was drawn in.
 - Route: `GET /factory/details/:screen?node=&id=&more=1` (same access as a
   list's rows). `createFactoryApi(...).fetchDetails`, in `screenProps`.
   Controller: `ctrl.detailsFor(node)` → `{ sections, loading, error, waiting,
@@ -1294,6 +1304,14 @@ learns which branch it is on. "Step 2 of 4" counts only the steps that apply.
 **A step is not a separate form.** Every field is a column, is checked, and is
 saved, whichever step is showing — Save can be pressed on any step. **Next** holds at a step whose own fields are not filled in, and says which,
 rather than moving on and leaving a problem behind where nobody is looking.
+
+#### A screen that flows — `layout: "flow"`
+
+By default every control is the size it was drawn on the canvas. With
+`layout: "flow"` on the screen they go one under another in reading order,
+**each as tall as its content** (across, each keeps where it was placed) —
+what a phone does anyway. For a record's screen, whose details, comments and
+lists vary in length. Designer: the screen's **Size → Heights**.
 
 #### Tabs — `display: "tabs"`
 

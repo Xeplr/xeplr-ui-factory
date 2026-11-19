@@ -166,6 +166,7 @@ Names are derived once and agree everywhere: ids `employee_list` / `employee_edi
 | `fields` | **required** — in reading order |
 | `list` | `true`, or `{ title, source, columns: [{ field, label }], pageSize, actions: ["new","edit","delete"], openIn: "popup" \| "page" }` — saved records below the fields |
 | `width` | design width in px (default `800`) |
+| `layout` | `"fixed"` (default — each control the size placed) or `"flow"` (one under another, each as tall as its content: a record's screen with details, comments, lists) |
 | `style` | screen-wide defaults: `{ fontFamily, fontSize, color, background }` |
 
 Each field:
