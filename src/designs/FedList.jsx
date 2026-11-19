@@ -154,7 +154,7 @@ export default function FedList({ node, list, query, onOpen, onNew, rowDetails, 
         {list.error && <span className="xeplr-factory-error-inline" role="alert">{list.error}</span>}
       </div>
       {rows.length === 0
-        ? !list.loading && !list.error && <div className="xeplr-factory-list-empty">{query.q || query.kpi || (range && range.from) ? 'Nothing matches.' : 'Nothing here yet.'}</div>
+        ? !list.loading && !list.error && <div className="xeplr-factory-list-empty">{query.q || query.kpi || (range && range.from) ? 'Nothing matches.' : p.empty || 'Nothing here yet.'}</div>
         : p.layout === 'cards'
           ? <Cards rows={rows} columns={columns} pageSize={pageSize} open={open} highlight={p.highlight} dim={p.dim} />
           : (

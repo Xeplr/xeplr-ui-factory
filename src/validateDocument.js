@@ -578,6 +578,7 @@ function checkFedList(props, fed, at, err) {
   if (props.refreshEvery !== undefined && !(Number.isInteger(props.refreshEvery) && props.refreshEvery >= 10 && props.refreshEvery <= 3600)) {
     err(`${at}.props.refreshEvery`, 'must be a whole number of seconds from 10 to 3600')
   }
+  if (props.empty !== undefined && typeof props.empty !== 'string') err(`${at}.props.empty`, 'must be a string — what shows when there are no rows')
   if (props.rowOpen !== undefined && typeof props.rowOpen !== 'boolean') err(`${at}.props.rowOpen`, 'must be true or false')
   if (props.rowOpen && !props.editScreen) err(`${at}.props.rowOpen`, 'needs "Edit in" (editScreen) — the screen a row opens in')
   if (props.bulkAdd !== undefined && typeof props.bulkAdd !== 'boolean') err(`${at}.props.bulkAdd`, 'must be true or false')
