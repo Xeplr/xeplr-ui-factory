@@ -12,7 +12,7 @@
 //
 // Props are FactoryScreen's (@xeplr/ui-factory's createFactoryApi(...).screenProps,
 // record, onOpenRecord, onDone, onButtonDone, reloadKey, params), plus:
-//   host  { pickFile, pickDate, baseUrl } — what only the app can do (inputs.jsx)
+//   host  { pickFile, pickDate, scanCode, baseUrl } — what only the app can do (inputs.jsx)
 //   header  an element drawn above the screen, inside its scroll (a page title)
 //   scroll  false when the app scrolls the screen itself
 import { useRef } from 'react'
@@ -164,6 +164,8 @@ function Control({ node, ctrl, host }) {
           options={CHOICE_TYPES.includes(node.type) ? ctrl.optionsFor(node) : undefined}
           upload={node.type === 'file' ? (file) => ctrl.upload(file, node) : undefined}
           readFile={node.type === 'file' ? ctrl.readFile : undefined}
+          suggest={node.type === 'autocomplete' && ctrl.suggestFor ? ctrl.suggestFor(node) : undefined}
+          onPick={node.type === 'autocomplete' && ctrl.pickSuggestion ? (s) => ctrl.pickSuggestion(node, s) : undefined}
           onChange={(raw) => ctrl.setValue(node, raw)}
           onBlur={() => ctrl.touch(node)}
           host={host}

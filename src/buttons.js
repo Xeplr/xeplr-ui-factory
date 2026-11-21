@@ -34,7 +34,7 @@
 // record the screen is about. Every rule must match.
 
 import { matches, OPERATORS } from '@xeplr/rules'
-import { SUGGEST_EVENT as SUGGEST } from './suggest.js'
+import { SUGGEST_EVENT as SUGGEST, MAX_CODE, sameCode } from './suggest.js'
 import { FEED_EVENT } from './feed.js'
 import { DETAILS_EVENT } from './details.js'
 
@@ -173,10 +173,34 @@ export const MAX_ASK_ROWS = 50
  *
  *   { "name": "back", "label": "Came back fine", "type": "checklist", "optionsFrom": "movementItemsOut" }
  *
- * The function returns [{ id, label?, sub?, image? }]. The value is the ids
+ * The function returns [{ id, label?, sub?, image?, codes? }]. The value is the ids
  * ticked; `required` is at least one, `min` / `max` how many. The server asks
  * the function again on the press and refuses an id it did not offer.
+ *
+ * `"scan": true` ticks by code: a Scan button on a phone (the app's
+ * host.scanCode — its camera), and on a computer a box a handheld scanner (or
+ * a person) types the code into. The entry whose `codes` hold it is ticked
+ * (tickByCode) — a product's barcode and SKU, say.
  */
+/** Most codes one checklist entry carries. */
+export const MAX_OPTION_CODES = 10
+
+/**
+ * A code scanned (or typed) into a checklist: { ticked, option, message }.
+ * The entry whose codes hold it is ticked — `message` says what happened
+ * (ticked, already ticked, or no entry has that code), `option` is the entry.
+ */
+export function tickByCode(options, ticked, code) {
+  const list = Array.isArray(options) ? options : []
+  const now = Array.isArray(ticked) ? ticked : []
+  const c = String(code === undefined || code === null ? '' : code).trim()
+  if (!c) return { ticked: now, option: null, message: null }
+  const option = list.find((o) => o && Array.isArray(o.codes) && o.codes.some((x) => sameCode(x, c))) || null
+  if (!option) return { ticked: now, option: null, message: `Nothing here has the code ${c}` }
+  if (now.includes(option.id)) return { ticked: now, option, message: `${option.label} is ticked already` }
+  return { ticked: [...now, option.id], option, message: `Ticked ${option.label}` }
+}
+
 export function checklistOptionsOf(out) {
   if (!Array.isArray(out)) return []
   const list = []
@@ -189,6 +213,10 @@ export function checklistOptionsOf(out) {
     const one = { id, label: (o.label === undefined || o.label === null ? '' : String(o.label).trim()) || id }
     if (o.sub !== undefined && o.sub !== null && String(o.sub).trim()) one.sub = String(o.sub).trim()
     if (typeof o.image === 'string' && o.image.trim()) one.image = o.image.trim()
+    const codes = (Array.isArray(o.codes) ? o.codes : [])
+      .map((c) => (c === undefined || c === null || typeof c === 'object' ? '' : String(c).trim().slice(0, MAX_CODE)))
+      .filter(Boolean).slice(0, MAX_OPTION_CODES)
+    if (codes.length) one.codes = codes
     list.push(one)
   })
   return list

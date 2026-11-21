@@ -191,6 +191,7 @@ export function validateDocument(doc, controls = CONTROLS) {
       if (props.maxTags !== undefined && !(Number.isInteger(props.maxTags) && props.maxTags >= 1 && props.maxTags <= 100)) err(`${at}.props.maxTags`, 'must be a whole number from 1 to 100')
       else if (props.maxTags !== undefined && !props.multiple) err(`${at}.props.maxTags`, 'is for several values — set "multiple" too')
       if (props.multiple && props.default !== undefined) err(`${at}.props.default`, 'several values start empty — remove the default')
+      if (props.scan !== undefined && typeof props.scan !== 'boolean') err(`${at}.props.scan`, 'must be true or false — a Scan button on a phone, the code searched as if typed')
     }
     if (node.type === 'stepper') checkSteps(props, at, err)
     checkStep(node, doc, at, err)
@@ -653,7 +654,7 @@ const ASK_FILE_KEYS = ['label', 'required', 'accept', 'maxSize', 'multiple', 'ma
  * server checks the names against what is registered when the screen is
  * published (functionProblems). Here: the shape.
  */
-const ASK_FIELD_KEYS = ['name', 'label', 'type', 'unit', 'required', 'min', 'max', 'fill', 'optionsFrom', 'options', 'newRow', 'fields', 'rowLabel', 'addLabel', 'startFrom']
+const ASK_FIELD_KEYS = ['name', 'label', 'type', 'unit', 'required', 'min', 'max', 'fill', 'optionsFrom', 'options', 'newRow', 'fields', 'rowLabel', 'addLabel', 'startFrom', 'scan']
 // How the popup is laid out: wider, and how many fields to a line.
 const ASK_LAYOUT_KEYS = ['wide', 'columns']
 export const MAX_ASK_COLUMNS = 4
@@ -677,12 +678,14 @@ function checkAskFields(fields, params, at, err, inRow) {
     if (f.unit !== undefined && !(typeof f.unit === 'string' && f.unit.length <= 12)) err(`${p}.unit`, 'must be a short text, e.g. "in" or "kg"')
     if (f.required !== undefined && typeof f.required !== 'boolean') err(`${p}.required`, 'must be true or false')
     if (f.newRow !== undefined && typeof f.newRow !== 'boolean') err(`${p}.newRow`, 'must be true or false — starts a new line of fields')
+    if (f.scan !== undefined && f.type !== 'checklist') err(`${p}.scan`, 'is for a checklist — it ticks by code')
     if (f.type === 'checklist') {
       if (!(nonEmptyString(f.optionsFrom) && FUNCTION_NAME.test(f.optionsFrom))) err(`${p}.optionsFrom`, 'must be the name of a registered function (event "buttonOptions") that lists what to tick, e.g. "movementItemsOut"')
       ;['min', 'max'].forEach((k) => { if (f[k] !== undefined && !(Number.isInteger(f[k]) && f[k] >= 0)) err(`${p}.${k}`, 'must be how many, a whole number') })
       if (Number.isInteger(f.min) && Number.isInteger(f.max) && f.min > f.max) err(`${p}.min`, 'is more than max')
       if (f.unit !== undefined) err(`${p}.unit`, 'is for a number or text field')
       if (f.fill !== undefined) err(`${p}.fill`, 'is for a number, text or date field — a checklist starts empty')
+      if (f.scan !== undefined && typeof f.scan !== 'boolean') err(`${p}.scan`, 'must be true or false — ticks the entry whose codes hold the code scanned')
       return
     }
     if (f.type === 'rows') {

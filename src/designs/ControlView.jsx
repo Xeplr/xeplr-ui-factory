@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { tableColumns, LABEL_PRESETS } from '../controls.js'
 import { stepsOf } from '../document.js'
-import { addTag, removeTag, setTagQty, tagLimit } from '../suggest.js'
+import { addTag, removeTag, setTagQty, tagLimit, suggestionForCode } from '../suggest.js'
 import ListView from './ListView.jsx'
 import ButtonsView from './ButtonsView.jsx'
 import FeedView from './FeedView.jsx'
@@ -226,7 +226,13 @@ function TagsView({ node, p, design, value, error, onChange, onBlur, disabled, s
     else if (e.key === 'Enter') {
       e.preventDefault()
       if (sg.open && sg.active >= 0 && sg.items[sg.active]) add(sg.items[sg.active])
-      else if (typed.trim()) add({ value: typed.trim() })
+      else if (typed.trim()) {
+        // A code (a handheld scanner types it and Enter): the suggestion that has it, asked now if need be.
+        const v = typed.trim()
+        const hit = suggestionForCode(sg.items, v)
+        if (hit || !p.scan || !suggest) add(hit || { value: v })
+        else Promise.resolve(suggest(v)).then((list) => add(suggestionForCode(list, v) || { value: v }), () => add({ value: v }))
+      }
     }
     else if (e.key === 'Backspace' && !typed && tags.length) onChange(removeTag(tags, tags.length - 1))
     else if (e.key === 'Escape') sg.setOpen(false)
