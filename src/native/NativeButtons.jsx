@@ -4,15 +4,16 @@
 //
 // A button that asks first opens a sheet: its message, its fields (number,
 // text, date, a choice, a tick, a checklist, rows — one per packet), a note,
-// and files (camera or gallery). The same checks as the web's dialog run
+// and files (camera or gallery). A checklist with `scan` ticks by code: Scan
+// opens the app's camera (host.scanCode), again after each one found. The same checks as the web's dialog run
 // before anything is sent (askFieldValues), and again on the server.
 // Presentation only — the press and the upload are the controller's.
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Image, Pressable, Text, TextInput, View } from 'react-native'
 import { Btn, Field, PickList, Sheet, styles, GAP, RADIUS } from './parts.jsx'
 import { NativeInput } from './inputs.jsx'
 import { toneOf, useNativeTheme } from './theme.js'
-import { askFields, askFieldStart, askFieldValues, checklistOptionsOf, askChoiceOptions, isFedChoice, emptyRow, startRowsOf, MAX_ASK_ROWS } from '../buttons.js'
+import { askFields, askFieldStart, askFieldValues, checklistOptionsOf, askChoiceOptions, isFedChoice, emptyRow, startRowsOf, MAX_ASK_ROWS, tickByCode } from '../buttons.js'
 
 export default function NativeButtons({ node, panel, host }) {
   const t = useNativeTheme()
@@ -81,7 +82,26 @@ function AskSheet({ button, busy, error, onCancel, onConfirm, upload, readFile, 
     return () => { live = false }
   }, [button.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const set = (name, v) => { setGiven((g) => ({ ...g, [name]: v })); setShown((m) => ({ ...m, [name]: undefined })) }
+  const set = (name, v) => { givenRef.current = { ...givenRef.current, [name]: v }; setGiven((g) => ({ ...g, [name]: v })); setShown((m) => ({ ...m, [name]: undefined })) }
+  const givenRef = useRef(given); givenRef.current = given
+  const [scanned, setScanned] = useState({})   // { [field]: { text, bad } } — what the last scan did
+
+  // A checklist's Scan: tick the entry with that code, then the camera again —
+  // until the person is done, or a code nothing here has (said, and stopped).
+  const scanInto = async (f) => {
+    const list = (offered[f.name] || {}).list || []
+    let note = null
+    for (;;) {
+      let code
+      try { code = await host.scanCode({ title: f.label, note, many: true }) } catch (err) { setScanned((m) => ({ ...m, [f.name]: { text: err.message || 'Could not open the camera', bad: true } })); return }
+      if (!code || !String(code).trim()) return
+      const out = tickByCode(list, givenRef.current[f.name], code)
+      if (!out.option) { setScanned((m) => ({ ...m, [f.name]: { text: out.message, bad: true } })); return }
+      set(f.name, out.ticked)
+      note = out.message
+      setScanned((m) => ({ ...m, [f.name]: { text: out.message, bad: false } }))
+    }
+  }
   const fileList = Array.isArray(files) ? files : files ? [files] : []
   const missing = Boolean(file && file.required && !fileList.length)
   const confirm = () => {
@@ -106,6 +126,12 @@ function AskSheet({ button, busy, error, onCancel, onConfirm, upload, readFile, 
           const ticked = Array.isArray(given[f.name]) ? given[f.name] : []
           return (
             <Field key={f.name} label={f.label} required={f.required} error={err || o.error}>
+              {f.scan && host && host.scanCode && o.list.length ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <Btn label="Scan" small onPress={() => scanInto(f)} disabled={busy} accessibilityLabel={`Scan into ${f.label}`} />
+                  {scanned[f.name] ? <Text style={[styles.small, { flex: 1, color: scanned[f.name].bad ? t.danger : t.muted }]} accessibilityRole={scanned[f.name].bad ? 'alert' : 'text'}>{scanned[f.name].text}</Text> : null}
+                </View>
+              ) : null}
               {o.loading ? <Text style={{ color: t.muted }}>Loading…</Text> : null}
               {!o.loading && !o.error && !o.list.length ? <Text style={{ color: t.muted }}>Nothing to choose</Text> : null}
               {o.list.map((opt) => {

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { boxStyle, fieldStyle } from './styles.js'
 import FileField from './FileField.jsx'
-import { askFields, askFieldStart, askFieldValues, askDayLimit, checklistOptionsOf, askChoiceOptions, isFedChoice, emptyRow, startRowsOf, MAX_ASK_ROWS } from '../buttons.js'
+import { askFields, askFieldStart, askFieldValues, askDayLimit, checklistOptionsOf, askChoiceOptions, isFedChoice, emptyRow, startRowsOf, MAX_ASK_ROWS, tickByCode } from '../buttons.js'
 
 // A PANEL OF BUTTONS. Each runs a function of the app on the server, with the
 // parameters the screen gives it; which ones show, and which are greyed out,
@@ -94,6 +94,7 @@ function AskDialog({ button, busy, error, onCancel, onConfirm, upload, readFile,
   // Each asked value starts from the record (`fill`): asked again, it shows what was given last.
   const [given, setGiven] = useState(() => Object.fromEntries(fields.map((f) => [f.name, askFieldStart(f, record)])))
   const [shown, setShown] = useState({})          // field → message, after a try
+  const [codes, setCodes] = useState({})          // a scan checklist's code box: field → { typed, said, bad }
   // A CHECKLIST's entries, asked for when the dialog opens: field → { loading, list, error }.
   const [offered, setOffered] = useState({})
   useEffect(() => {
@@ -164,6 +165,28 @@ function AskDialog({ button, busy, error, onCancel, onConfirm, upload, readFile,
                   return (
                     <fieldset key={f.name} style={rowStart(f)} className="xeplr-factory-ask-field xeplr-factory-ask-checklist" aria-describedby={shown[f.name] ? `${fid}-error` : undefined}>
                       <legend className="xeplr-factory-ask-label">{f.label}{f.required ? ' *' : ''}</legend>
+                      {f.scan && o.list.length > 0 && (
+                        <div className="xeplr-factory-ask-scan">
+                          <input
+                            className="xeplr-factory-ask-input"
+                            type="text"
+                            autoComplete="off"
+                            placeholder="Scan or type a code, then Enter"
+                            aria-label={`${f.label}: tick by code`}
+                            value={(codes[f.name] || {}).typed || ''}
+                            disabled={busy}
+                            onChange={(e) => setCodes((c) => ({ ...c, [f.name]: { ...(c[f.name] || {}), typed: e.target.value } }))}
+                            onKeyDown={(e) => {
+                              if (e.key !== 'Enter') return
+                              e.preventDefault()
+                              const out = tickByCode(o.list, given[f.name], e.target.value)
+                              if (out.option) setGiven((g) => ({ ...g, [f.name]: out.ticked }))
+                              setCodes((c) => ({ ...c, [f.name]: { typed: out.option ? '' : e.target.value, said: out.message, bad: !out.option } }))
+                            }}
+                          />
+                          {(codes[f.name] || {}).said && <span className={(codes[f.name] || {}).bad ? 'xeplr-factory-ask-field-error' : 'xeplr-factory-hint'} role={(codes[f.name] || {}).bad ? 'alert' : 'status'}>{codes[f.name].said}</span>}
+                        </div>
+                      )}
                       {o.loading && <span className="xeplr-factory-hint">Loading…</span>}
                       {o.error && <span className="xeplr-factory-ask-field-error" role="alert">{o.error}</span>}
                       {!o.loading && !o.error && !o.list.length && <span className="xeplr-factory-hint">Nothing to choose</span>}

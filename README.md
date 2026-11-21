@@ -616,7 +616,12 @@ actions.register({ name: 'receiveMovementItems', event: 'button',
 - The popup asks `GET /factory/buttons/:screen/:button/options?id=&field=` when it opens (`createFactoryApi(...).buttonOptions`, in `screenProps`). Nothing to tick shows "Nothing to choose".
 - **The server asks the function again on the press** and refuses an id it did not offer (400 on that field) — a browser cannot tick a product that is already back.
 - At most 200 entries; one without an `id` is dropped; `label` falls back to the id.
-- **Web now**; a phone view follows.
+- **`"scan": true` ticks by code.** Each entry may carry `codes` (at most 10,
+  e.g. `[barcode, sku]`). On a phone a **Scan** button opens the app's camera
+  (`host.scanCode`) and ticks the entry with the code read, then opens it again
+  for the next — until the person is done, or a code nothing here has (said).
+  On a computer a box takes the code a handheld scanner types, with Enter.
+  `tickByCode(options, ticked, code)` is the rule both use.
 
 ### A button that takes files — `ask.file`
 
@@ -779,8 +784,14 @@ actions.register({ name: 'productSuggestions', event: 'suggest', execute: async 
 - Route: `GET /factory/suggest/:screen?node=&q=` (same access as a list's rows)
   — see `@xeplr/factory`. `createFactoryApi(...).suggest({ screen, node, q })`,
   handed to `FactoryScreen` in `screenProps`.
-- **Web now**; a phone app's view follows — the document and the route are
-  already all it needs.
+- On a phone the suggestions come under the box; a tap picks one.
+- **`"scan": true` — a code picks.** A suggestion may carry `code` (a
+  barcode). On a phone a **Scan** button opens the app's camera
+  (`host.scanCode`), searches the code as if typed and picks the suggestion
+  whose `code` it is — with `multiple`, adds it (or one more of it) and opens
+  the camera again for the next. On a computer a handheld scanner types the
+  code and Enter: the same match picks. Nothing with that code says so; the
+  only suggestion is never picked unless its code matches.
 
 ### Several values, as chips — `multiple`
 
@@ -989,8 +1000,11 @@ const screen = useScreenDocument(factory.loadScreen, 'orders_board')
 - **`host`** is what only the app can do: `pickFile({ camera, multiple, accept })
   → [{ uri, name, type, size }]` (expo-image-picker / expo-document-picker),
   `pickDate({ mode, value }) → 'YYYY-MM-DD' | 'YYYY-MM-DDTHH:mm'` (the phone's
-  own picker), and `baseUrl` for pictures the server names by a path. Without
-  `pickDate` a date is typed; without `pickFile` files are shown only.
+  own picker), `scanCode({ title, note, many }) → the code | null` (the camera
+  reading a barcode or QR code — expo-camera; `note` is what the last scan did,
+  `many` that another follows; null when the person is done), and `baseUrl`
+  for pictures the server names by a path. Without `pickDate` a date is typed;
+  without `pickFile` files are shown only; without `scanCode` there is no Scan.
 - **Not on the phone yet:** a `table` control and a `subform` say so and point
   to a computer; a list fed from a table (not `rowsFrom`) too.
 - **No URL.** Open steps, a list's search and the open popup are kept in memory.
@@ -1273,7 +1287,7 @@ Both walk someone through something, and they answer different questions:
 |---|---|---|
 | `text` | string | `minLength`, `maxLength`, `pattern`, `patternMessage` — and `inputType` (`text`, `email`, `tel`, `url`): the phone keyboard and autofill |
 | `textarea` | string | `minLength`, `maxLength` |
-| `autocomplete` | string — whatever is typed; with `multiple`, a list of chips and **no column** | `minLength`, `maxLength`; `suggestFrom` (event `suggest`), `minChars`; `multiple`, `quantity`, `maxTags` — see [Text with suggestions](#text-with-suggestions--autocomplete) |
+| `autocomplete` | string — whatever is typed; with `multiple`, a list of chips and **no column** | `minLength`, `maxLength`; `suggestFrom` (event `suggest`), `minChars`; `multiple`, `quantity`, `maxTags`, `scan` — see [Text with suggestions](#text-with-suggestions--autocomplete) |
 | `number` | number | `min`, `max`, `integer` |
 | `date` | `"YYYY-MM-DD"` | `min`, `max`, `notFuture` (on or before today, whenever it is filled in) |
 | `datetime` | `"YYYY-MM-DDTHH:MM"` | `min`, `max` |

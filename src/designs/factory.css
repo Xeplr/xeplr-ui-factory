@@ -1054,6 +1054,7 @@ button.xeplr-factory-activity-item:hover, button.xeplr-factory-activity-item:foc
 .xeplr-factory-autocomplete-none { padding: 8px 12px; color: var(--xf-muted, #6b7280); font-size: 0.9em; }
 /* A checklist in a button's popup: a tick per entry, with its picture. */
 .xeplr-factory-ask-checklist { grid-column: 1 / -1; border: 0; margin: 0; padding: 0; min-width: 0; }
+.xeplr-factory-ask-scan { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
 .xeplr-factory-ask-checks { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow-y: auto; border: 1px solid var(--xf-border, #d1d5db); border-radius: 8px; }
 .xeplr-factory-ask-checks li + li { border-top: 1px solid var(--xf-border, #d1d5db); }
 .xeplr-factory-ask-check { display: flex; align-items: center; gap: 10px; padding: 6px 10px; min-height: 44px; cursor: pointer; }

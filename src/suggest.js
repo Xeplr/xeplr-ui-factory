@@ -10,7 +10,13 @@
 // returns suggestions:
 //
 //   [{ value: 'Silver Gallop Horse', label?, sub?: 'SKU GA-HR-01', image?: 'https://…',
-//      fill?: { sku: 'GA-HR-01', productImage: 'https://…' } }]
+//      code?: '22292500', fill?: { sku: 'GA-HR-01', productImage: 'https://…' } }]
+//
+// SCANNING: with `scan: true` the field has a Scan button on a phone (the
+// app's host.scanCode — its camera) and the code is searched as if typed. The
+// suggestion whose `code` is the code scanned is picked straight away (a tag
+// field adds it, or one more of it); none, and the person is told. On a
+// computer a handheld scanner types the code and Enter: the same match picks.
 //
 // Picking one sets the field to `value`, and every field named in `fill` that
 // is on the same screen (any other name is left alone — a function written for
@@ -49,6 +55,7 @@ export function suggestionsOf(out) {
     const one = { value, label: text(s.label).trim() || value }
     if (s.sub !== undefined && s.sub !== null && text(s.sub).trim()) one.sub = text(s.sub).trim()
     if (typeof s.image === 'string' && s.image.trim()) one.image = s.image.trim()
+    if (s.code !== undefined && s.code !== null && text(s.code).trim()) one.code = text(s.code).trim().slice(0, MAX_CODE)
     if (s.fill && typeof s.fill === 'object' && !Array.isArray(s.fill)) {
       const fill = {}
       Object.keys(s.fill).forEach((k) => {
@@ -61,6 +68,20 @@ export function suggestionsOf(out) {
     list.push(one)
   })
   return list
+}
+
+/** Longest code a scan reads, or a suggestion / checklist entry carries. */
+export const MAX_CODE = 64
+
+/** A code as matched: trimmed, case ignored. */
+export function sameCode(a, b) {
+  const x = text(a).trim().toLowerCase()
+  return Boolean(x) && x === text(b).trim().toLowerCase()
+}
+
+/** The suggestion a scanned (or typed) code means: the one whose `code` it is, or null. */
+export function suggestionForCode(list, code) {
+  return (Array.isArray(list) ? list : []).find((s) => s && sameCode(s.code, code)) || null
 }
 
 /** Whether a field asks for suggestions yet: `q` (trimmed) at least its minChars long. */

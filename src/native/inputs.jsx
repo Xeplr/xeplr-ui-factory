@@ -6,25 +6,29 @@
 // phone's own date picker — is handed in as `host`:
 //   host.pickFile({ camera, multiple, accept }) → [{ uri, name, type, size }]
 //   host.pickDate({ mode: 'date' | 'datetime', value }) → 'YYYY-MM-DD' | 'YYYY-MM-DDTHH:mm' | null
-// Without pickDate, a date is typed; without pickFile, files are shown only.
-import { useEffect, useState } from 'react'
+//   host.scanCode({ title }) → the code read by the camera (a barcode, a QR code), or null
+// Without pickDate, a date is typed; without pickFile, files are shown only;
+// without scanCode, a field with `scan` has no Scan button (the code is typed).
+import { useEffect, useRef, useState } from 'react'
 import { Image, Pressable, Switch, Text, TextInput, View } from 'react-native'
 import { Btn, Field, PickList, styles, GAP } from './parts.jsx'
 import { useNativeTheme } from './theme.js'
 import { fileLabel, isMultiFile } from '../values.js'
 import { isImageFile } from '../controls.js'
+import { addTag, removeTag, setTagQty, tagLimit, suggestionForCode } from '../suggest.js'
 
 const KEYBOARD = { email: 'email-address', tel: 'phone-pad', url: 'url' }
 
-export function NativeInput({ node, value, error, onChange, onBlur, options, upload, readFile, host }) {
+export function NativeInput({ node, value, error, onChange, onBlur, options, upload, readFile, host, suggest, onPick }) {
   const t = useNativeTheme()
   const p = node.props || {}
   const field = (child, hint) => <Field label={p.label} required={p.required} error={error} hint={hint}>{child}</Field>
   const box = [styles.input, { color: t.ink, borderColor: error ? t.danger : t.border, backgroundColor: t.field }]
 
   switch (node.type) {
-    case 'text':
     case 'autocomplete':
+      return field(<Autocomplete node={node} value={value} onChange={onChange} onBlur={onBlur} invalid={Boolean(error)} suggest={suggest} onPick={onPick} host={host} />)
+    case 'text':
     case 'id':
       return field(
         <TextInput style={box} value={value === undefined || value === null ? '' : String(value)}
@@ -219,6 +223,143 @@ function Files({ node, value, onChange, onBlur, upload, readFile, host }) {
       ) : null}
       {!host || !host.pickFile ? <Text style={[styles.small, { color: t.muted }]}>Files can be added from a computer.</Text> : null}
       {failed ? <Text style={[styles.small, { color: t.danger }]}>{failed}</Text> : null}
+    </View>
+  )
+}
+
+/** How long typing pauses before an autocomplete asks. */
+const SUGGEST_PAUSE_MS = 300
+
+/**
+ * TEXT WITH SUGGESTIONS (suggest.js), on a phone. Typing asks after a pause;
+ * the suggestions come under the box — a tap picks one. With `multiple`, each
+ * pick is a chip (with how many, with `quantity`); "Add as typed" keeps what
+ * was typed. With `scan` and the app's camera (host.scanCode), Scan reads a
+ * code and picks the suggestion that has it.
+ */
+function Autocomplete({ node, value, onChange, onBlur, invalid, suggest, onPick, host }) {
+  const t = useNativeTheme()
+  const p = node.props || {}
+  const multiple = Boolean(p.multiple)
+  const tags = multiple && Array.isArray(value) ? value : []
+  const [typed, setTyped] = useState(multiple ? '' : null)
+  const [items, setItems] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [said, setSaid] = useState(null)       // { text, bad } — what a scan did
+  const [scanning, setScanning] = useState(false)
+  const asking = useRef(0)
+  const suggestRef = useRef(suggest); suggestRef.current = suggest
+  const text = multiple ? typed : (value === undefined || value === null ? '' : String(value))
+  const full = multiple && tags.length >= tagLimit(p)
+  const canScan = Boolean(p.scan && host && host.scanCode && suggest)
+
+  // Asked after a pause, only for what was typed (never for a value loaded with the record).
+  const [asked, setAsked] = useState(null)
+  useEffect(() => {
+    if (asked === null || !suggestRef.current) return undefined
+    const timer = setTimeout(() => {
+      const mine = ++asking.current
+      setLoading(true)
+      Promise.resolve(suggestRef.current(asked))
+        .then((list) => { if (mine === asking.current) setItems(list || []) })
+        .catch(() => { if (mine === asking.current) setItems([]) })
+        .finally(() => { if (mine === asking.current) setLoading(false) })
+    }, SUGGEST_PAUSE_MS)
+    return () => clearTimeout(timer)
+  }, [asked])
+  const close = () => { asking.current += 1; setItems([]); setLoading(false); setAsked(null) }
+
+  const take = (s) => {
+    close()
+    if (multiple) { setTyped(''); onChange(addTag(tags, s, Boolean(p.quantity))) }
+    else if (onPick) onPick(s)
+    else onChange(s.value)
+    if (onBlur) onBlur()
+  }
+  const type = (s) => {
+    setSaid(null)
+    if (multiple) setTyped(s); else onChange(s)
+    setAsked(s)
+  }
+
+  // Scan: the camera again after each code found, until the person is done —
+  // a box of products is scanned one after another. The last result is shown
+  // over the camera. A code nothing has stops it, and says so.
+  const tagsRef = useRef(tags); tagsRef.current = tags
+  const scan = async () => {
+    setSaid(null)
+    let note = null
+    for (;;) {
+      let code
+      try { code = await host.scanCode({ title: p.label || 'Scan', note, many: multiple }) } catch (err) { setSaid({ text: err.message || 'Could not open the camera', bad: true }); return }
+      code = String(code || '').trim()
+      if (!code) return
+      setScanning(true)
+      let hit
+      try { hit = suggestionForCode(await suggestRef.current(code), code) } catch (err) { setSaid({ text: err.message || 'Could not look the code up', bad: true }); return } finally { setScanning(false) }
+      if (!hit) { setSaid({ text: `Nothing has the code ${code}`, bad: true }); return }
+      const name = hit.label || hit.value
+      if (!multiple) { take(hit); setSaid({ text: `Picked ${name}`, bad: false }); return }
+      const before = tagsRef.current
+      const again = before.some((x) => x && x.value === hit.value)
+      const next = addTag(before, hit, Boolean(p.quantity))
+      tagsRef.current = next
+      close(); setTyped(''); onChange(next)
+      note = !again ? `Added ${name}` : p.quantity ? `One more ${name}` : `${name} is added already`
+      setSaid({ text: note, bad: false })
+      if (next.length >= tagLimit(p)) return
+    }
+  }
+
+  const box = [styles.input, { flex: 1, color: t.ink, borderColor: invalid ? t.danger : t.border, backgroundColor: t.field }]
+  return (
+    <View>
+      {tags.map((tag, i) => (
+        <View key={`${tag.value}-${i}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+          {tag.image ? <Image source={{ uri: tag.image }} style={{ width: 44, height: 44, borderRadius: 6 }} /> : null}
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: t.ink }} numberOfLines={2}>{tag.label || tag.value}</Text>
+            {tag.sub ? <Text style={[styles.small, { color: t.muted }]} numberOfLines={1}>{tag.sub}</Text> : null}
+          </View>
+          {p.quantity ? (
+            <TextInput value={tag.qty === undefined || tag.qty === null ? '1' : String(tag.qty)} keyboardType="number-pad"
+                       accessibilityLabel={`How many ${tag.label || tag.value}`}
+                       onChangeText={(s) => onChange(setTagQty(tags, i, s === '' ? '' : Number(s)))}
+                       style={[styles.input, { width: 64, textAlign: 'center', color: t.ink, borderColor: t.border, backgroundColor: t.field }]} />
+          ) : null}
+          <Btn label="×" small variant="plain" accessibilityLabel={`Remove ${tag.label || tag.value}`} onPress={() => onChange(removeTag(tags, i))} />
+        </View>
+      ))}
+      <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+        <TextInput style={box} value={text} editable={!full} onChangeText={type}
+                   onBlur={() => { if (!multiple && onBlur) onBlur() }}
+                   onSubmitEditing={() => { if (multiple && typed.trim()) take(suggestionForCode(items, typed) || { value: typed.trim() }) }}
+                   returnKeyType={multiple ? 'done' : 'default'} autoCapitalize="sentences"
+                   placeholder={full ? `At most ${tagLimit(p)}` : (p.placeholder || '')} placeholderTextColor={t.muted}
+                   maxLength={p.validation && p.validation.maxLength} accessibilityLabel={p.label} />
+        {canScan ? <Btn label={scanning ? 'Looking' : 'Scan'} small busy={scanning} disabled={full} onPress={scan} accessibilityLabel={`Scan ${p.label || 'a code'}`} /> : null}
+      </View>
+      {loading ? <Text style={[styles.small, { color: t.muted }]}>Looking…</Text> : null}
+      {asked !== null && !loading && (items.length || (multiple && typed.trim())) ? (
+        <View style={{ borderWidth: 1, borderColor: t.border, borderRadius: 8, marginTop: 4, backgroundColor: t.surface }}>
+          {items.map((s, i) => (
+            <Pressable key={`${s.value}-${i}`} onPress={() => take(s)} accessibilityRole="button"
+                       style={[styles.option, { borderBottomColor: t.border }]}>
+              {s.image ? <Image source={{ uri: s.image }} style={{ width: 40, height: 40, borderRadius: 6 }} /> : null}
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: t.ink }}>{s.label || s.value}</Text>
+                {s.sub ? <Text style={[styles.small, { color: t.muted }]}>{s.sub}</Text> : null}
+              </View>
+            </Pressable>
+          ))}
+          {multiple && typed.trim() && !items.some((s) => s.value === typed.trim()) ? (
+            <Pressable onPress={() => take({ value: typed.trim() })} accessibilityRole="button" style={[styles.option, { borderBottomColor: t.border }]}>
+              <Text style={{ color: t.accent }}>Add “{typed.trim()}” as typed</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
+      {said ? <Text style={[styles.small, { color: said.bad ? t.danger : t.muted }]} accessibilityRole={said.bad ? 'alert' : 'text'}>{said.text}</Text> : null}
     </View>
   )
 }
