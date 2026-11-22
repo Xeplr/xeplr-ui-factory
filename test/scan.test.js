@@ -82,6 +82,17 @@ console.log('a checklist entry\'s codes')
   check('again: ticked already, nothing changes', same(out.ticked, ['a']) && /ticked already/.test(out.message))
   out = tickByCode(opts, ['a'], '999')
   check('a code nothing has: said, nothing ticked', same(out.ticked, ['a']) && out.option === null && out.message === 'Nothing here has the code 999')
+  const box = checklistOptionsOf([
+    { id: 'a', label: 'Brass bell', codes: ['PL-BOX1', 'B1'] },
+    { id: 'b', label: 'Brass bowl', codes: ['PL-BOX1'] },
+    { id: 'c', label: 'Lamp', codes: ['L1'] }
+  ])
+  out = tickByCode(box, [], 'pl-box1')
+  check('a box\'s code ticks every product in it', same(out.ticked, ['a', 'b']) && out.message === 'Ticked 2: Brass bell, Brass bowl' && out.options.length === 2)
+  out = tickByCode(box, ['a'], 'PL-BOX1')
+  check('…the ones not ticked yet', same(out.ticked, ['a', 'b']) && out.message === 'Ticked Brass bowl')
+  out = tickByCode(box, ['a', 'b'], 'PL-BOX1')
+  check('…all ticked already: said', same(out.ticked, ['a', 'b']) && out.message === 'All 2 are ticked already')
   out = tickByCode(opts, undefined, '  ')
   check('nothing scanned: nothing happens', same(out.ticked, []) && out.message === null)
 }

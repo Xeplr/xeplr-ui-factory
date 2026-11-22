@@ -193,19 +193,23 @@ export const MAX_ASK_ROWS = 50
 export const MAX_OPTION_CODES = 10
 
 /**
- * A code scanned (or typed) into a checklist: { ticked, option, message }.
- * The entry whose codes hold it is ticked — `message` says what happened
- * (ticked, already ticked, or no entry has that code), `option` is the entry.
+ * A code scanned (or typed) into a checklist: { ticked, option, options, message }.
+ * EVERY entry whose codes hold it is ticked — a box's label covers several
+ * products — `message` says what happened (ticked, already ticked, or no
+ * entry has that code); `options` are the entries newly ticked, `option` the first.
  */
 export function tickByCode(options, ticked, code, scanMiss) {
   const list = Array.isArray(options) ? options : []
   const now = Array.isArray(ticked) ? ticked : []
   const c = String(code === undefined || code === null ? '' : code).trim()
-  if (!c) return { ticked: now, option: null, message: null }
-  const option = optionWithCode(list, c)
-  if (!option) return { ticked: now, option: null, message: missMessage(scanMiss, c, 'Nothing here has the code {code}') }
-  if (now.includes(option.id)) return { ticked: now, option, message: `${option.label} is ticked already` }
-  return { ticked: [...now, option.id], option, message: `Ticked ${option.label}` }
+  if (!c) return { ticked: now, option: null, options: [], message: null }
+  // EVERY entry holding the code: a box's label covers several products.
+  const all = list.filter((o) => o && Array.isArray(o.codes) && o.codes.some((x) => sameCode(x, c)))
+  if (!all.length) return { ticked: now, option: null, options: [], message: missMessage(scanMiss, c, 'Nothing here has the code {code}') }
+  const fresh = all.filter((o) => !now.includes(o.id))
+  if (!fresh.length) return { ticked: now, option: all[0], options: all, message: all.length === 1 ? `${all[0].label} is ticked already` : `All ${all.length} are ticked already` }
+  const message = fresh.length === 1 ? `Ticked ${fresh[0].label}` : `Ticked ${fresh.length}: ${fresh.map((o) => o.label).join(', ')}`
+  return { ticked: [...now, ...fresh.map((o) => o.id)], option: fresh[0], options: fresh, message }
 }
 
 /** The entry whose codes hold `code`, or null. */
