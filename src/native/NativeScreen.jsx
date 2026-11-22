@@ -20,7 +20,8 @@ import { Alert, RefreshControl, ScrollView, Text, View } from 'react-native'
 import { useFactoryScreen } from '../useFactoryScreen.js'
 import { readingOrder, inputNodes } from '../document.js'
 import { CHOICE_TYPES, isTabs } from '../controls.js'
-import { NativeInput, Label } from './inputs.jsx'
+import { NativeInput, Label, readableWhen } from './inputs.jsx'
+import { displayValue } from '../values.js'
 import NativeList from './NativeList.jsx'
 import NativeButtons from './NativeButtons.jsx'
 import NativeDetails from './NativeDetails.jsx'
@@ -134,16 +135,39 @@ function popupProps(props) {
   return Object.fromEntries(keep.filter((k) => props[k] !== undefined).map((k) => [k, props[k]]))
 }
 
+/**
+ * A table's records as a list's cards show them — what the web's table shows:
+ * a dropdown's name, Yes / No, a date and time readable. The record itself
+ * rides along (__record), so a tap opens exactly what was saved.
+ */
+function tableRows(node, rows, ctrl) {
+  const byField = Object.fromEntries((ctrl.fieldsFor ? ctrl.fieldsFor(node) : []).map((n) => [n.props.name, n]))
+  const columns = Array.isArray(node.props && node.props.columns) ? node.props.columns : []
+  return (rows || []).map((rec) => {
+    const shown = { id: rec.id, __record: rec }
+    columns.forEach((c) => {
+      const f = byField[c.field]
+      const v = rec[c.field]
+      shown[c.field] = f && (f.type === 'datetime' || f.type === 'date')
+        ? readableWhen(v, f.type === 'datetime')
+        : displayValue(f, v, f && (f.type === 'dropdown' || f.type === 'radio' || f.type === 'multiselect') ? ctrl.optionsFor(f).items : undefined)
+    })
+    return shown
+  })
+}
+
 /** One control of the screen, as a phone draws it. */
 function Control({ node, ctrl, host }) {
   const t = useNativeTheme()
   switch (node.type) {
     case 'label':
       return <Label node={node} />
-    case 'list':
-      return <NativeList node={node} list={ctrl.listFor(node)} query={ctrl.listQuery} host={host}
-                         onOpen={(rec, where) => ctrl.openEditor(node, rec, where)}
+    case 'list': {
+      const list = ctrl.listFor(node)
+      return <NativeList node={node} list={node.props && node.props.rowsFrom ? list : { ...list, rows: tableRows(node, list.rows, ctrl) }} query={ctrl.listQuery} host={host}
+                         onOpen={(rec, where) => ctrl.openEditor(node, rec && rec.__record ? rec.__record : rec, where)}
                          onNew={() => ctrl.openEditor(node, null)} />
+    }
     case 'buttons':
       return <NativeButtons node={node} panel={ctrl.buttonsFor ? ctrl.buttonsFor(node) : null} host={host} />
     case 'details':

@@ -1011,8 +1011,11 @@ const screen = useScreenDocument(factory.loadScreen, 'orders_board')
   `many` that another follows; null when the person is done), and `baseUrl`
   for pictures the server names by a path. Without `pickDate` a date is typed;
   without `pickFile` files are shown only; without `scanCode` there is no Scan.
+- **Lists** — a table's records or rows a function works out — are cards; a
+  table's values read as its web table shows them (a dropdown's name, Yes /
+  No, a readable date), and a tap opens the record.
 - **Not on the phone yet:** a `table` control and a `subform` say so and point
-  to a computer; a list fed from a table (not `rowsFrom`) too.
+  to a computer.
 - **No URL.** Open steps, a list's search and the open popup are kept in memory.
   `@xeplr/ui-utils`' URL state imports `react-router-dom`, which does not
   compile for Hermes, so the app points it at `@xeplr/ui-factory/native/noRouter`

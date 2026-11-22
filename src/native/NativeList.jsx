@@ -1,10 +1,11 @@
-// A LIST WHOSE ROWS A FUNCTION WORKS OUT (rowsFrom), ON A PHONE — always a
-// card per row: the first column is the card's heading (with its badges and
+// A LIST ON A PHONE — a table's records, or rows a function works out
+// (rowsFrom) — always a card per row: the first column is the card's heading (with its badges and
 // second line), pictures and items large, every other column a line under its
 // label. Above them: the date range, the KPI cards, the title with + New,
 // the search box and the filter chips — each chip with its count.
 //
-// Everything a card says is text the server wrote, as on the web. Presentation
+// Everything a card says is text the server wrote — or, for a table's
+// records, the values as the web's table shows them (NativeScreen tableRows). Presentation
 // only: the rows, the query and what a tap does arrive as props.
 import { useEffect, useState } from 'react'
 import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native'
@@ -20,9 +21,6 @@ const isNothing = (v) => v === null || v === undefined || v === '' || v === 0 ||
 export default function NativeList({ node, list, query, onOpen, onNew, host }) {
   const t = useNativeTheme()
   const p = node.props || {}
-  if (!p.rowsFrom) {
-    return <Text style={{ color: t.muted, marginBottom: GAP }}>{p.title ? `${p.title}: ` : ''}this list is not on the phone yet — open it on a computer.</Text>
-  }
   const columns = Array.isArray(p.columns) ? p.columns : []
   const rows = list.rows || []
   const counts = list.counts || {}
