@@ -12,13 +12,13 @@ export {
   steppers, stepsOf, stepOf, setNodeStep, nodesForSteps, resolveStep, reachableStep, nextOpenStep
 } from './document.js'
 export { validateDocument, assertValidDocument } from './validateDocument.js'
-export { ROW_MENU_ACTIONS, journeyOf, menuItemsFor } from './listRows.js'
+export { ROW_MENU_ACTIONS, ROW_RUN_KEYS, rowMenuButton, rowMenuButtons, journeyOf, menuItemsFor } from './listRows.js'
 // A screen's events: functions picked by name, run on the server.
 export { SCREEN_EVENTS, SCREEN_EVENT_KEYS, DECIDE_EVENT, FUNCTION_NAME, screenFunctions, missingFunctions, functionProblems, setEvent, functionsFor } from './events.js'
 // Buttons and lists whose rows a function works out — names and values only.
 export {
   BUTTON_EVENT, LIST_ROWS_EVENT, ROW_DETAILS_EVENT, BUTTON_VARIANTS, COLUMN_DISPLAYS, LIST_LAYOUTS, BADGE_TONES, COLUMN_ICONS, NOTE_INPUT, FILES_INPUT, CONDITION_OPERATORS,
-  conditionMet, buttonShown, buttonDisabled, buttonPressed, screenButtons, buttonById, buttonInput, askFile, askFileProblem, askFields, askFieldStart, askFieldValues, askChoiceOptions, askDayLimit, ASK_FIELD_TYPES, ROW_FIELD_TYPES, MAX_ASK_ROWS, emptyRow, startRowsOf, startedRowsFields, BUTTON_OPTIONS_EVENT, MAX_CHECKLIST_OPTIONS, MAX_OPTION_CODES, checklistOptionsOf, tickByCode, chooseByCode, checklistFields, isFedChoice, nodeFunctions, paramProblems, optionValues
+  conditionMet, buttonShown, buttonDisabled, buttonPressed, screenButtons, nodeButtons, buttonById, buttonInput, askFile, askFileProblem, askFields, askFieldStart, askFieldValues, askChoiceOptions, askDayLimit, ASK_FIELD_TYPES, ROW_FIELD_TYPES, MAX_ASK_ROWS, emptyRow, startRowsOf, startedRowsFields, BUTTON_OPTIONS_EVENT, MAX_CHECKLIST_OPTIONS, MAX_OPTION_CODES, checklistOptionsOf, tickByCode, chooseByCode, checklistFields, isFedChoice, nodeFunctions, paramProblems, optionValues
 } from './buttons.js'
 // An autocomplete field's suggestions — what a suggest function may answer, and what picking one writes.
 export { SUGGEST_EVENT, MAX_SUGGESTIONS, DEFAULT_MIN_CHARS, MAX_SUGGEST_QUERY, suggestionsOf, shouldSuggest, pickValues, MAX_CODE, MAX_SCAN_MISS, sameCode, suggestionForCode, missMessage, MAX_TAGS, MAX_TAG_QTY, isTagField, tagLimit, addTag, setTagQty, removeTag, tagsOf } from './suggest.js'

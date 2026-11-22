@@ -73,6 +73,34 @@ export default function ButtonsView({ node, design, panel }) {
   )
 }
 
+/**
+ * ONE button pressed on its own — a row's "…" entry: its dialog when it asks
+ * first, else pressed at once. `onClose` when it is done or cancelled.
+ */
+export function RunButton({ button, panel, onClose }) {
+  const started = useRef(false)
+  useEffect(() => {
+    if (button.ask || started.current) return
+    started.current = true
+    Promise.resolve(panel.press(button)).finally(onClose)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  if (!button.ask) return null
+  const note = panel.note
+  return (
+    <AskDialog
+      button={button}
+      busy={panel.pressing === button.id}
+      error={note && note.kind === 'error' && note.button === button.id ? note.text : null}
+      onCancel={() => { panel.clearNote(); onClose() }}
+      upload={(file) => panel.upload(file, button)}
+      options={panel.options ? (field) => panel.options(button, field) : null}
+      readFile={panel.readFile}
+      record={panel.record}
+      onConfirm={async (typed, files, values) => { if (await panel.press(button, typed, files, values)) onClose() }}
+    />
+  )
+}
+
 /** "Change status to Packed?" — the button's message, its fields, a note and files when it takes them. */
 
 /** How many fields to a line in a button's popup (`ask.columns`), or none: as many as fit. */

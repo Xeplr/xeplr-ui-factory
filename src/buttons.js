@@ -37,6 +37,7 @@ import { matches, OPERATORS } from '@xeplr/rules'
 import { SUGGEST_EVENT as SUGGEST, MAX_CODE, sameCode, missMessage } from './suggest.js'
 import { FEED_EVENT } from './feed.js'
 import { DETAILS_EVENT } from './details.js'
+import { rowMenuButton, rowMenuButtons } from './listRows.js'
 
 export const BUTTON_EVENT = 'button'
 export const LIST_ROWS_EVENT = 'listRows'
@@ -115,9 +116,15 @@ export function buttonPressed(button, record) {
 
 /** Every button on a screen, with the panel it is on. */
 export function screenButtons(doc) {
-  return ((doc && doc.nodes) || [])
-    .filter((n) => n.type === 'buttons')
-    .flatMap((node) => ((node.props && node.props.buttons) || []).map((button) => ({ node, button })))
+  return ((doc && doc.nodes) || []).flatMap((node) => nodeButtons(node).map((button) => ({ node, button })))
+}
+
+/** A node's buttons: a panel's, or a list's row menu entries that run a function (listRows.js). */
+export function nodeButtons(node) {
+  if (!node) return []
+  if (node.type === 'buttons') return (node.props && node.props.buttons) || []
+  if (node.type === 'list') return rowMenuButtons(node)
+  return []
 }
 
 /** One button by its id — what a press names. Null when the screen has none of that id. */
@@ -506,16 +513,21 @@ export function nodeFunctions(doc) {
     if (node.type === 'autocomplete' && typeof p.suggestFrom === 'string' && p.suggestFrom) {
       out.push({ event: SUGGEST, name: p.suggestFrom, at: `nodes[${i}].props.suggestFrom` })
     }
-    if (node.type === 'buttons') {
-      ;(Array.isArray(p.buttons) ? p.buttons : []).forEach((b, j) => {
-        if (b && typeof b.action === 'string' && b.action) out.push({ event: BUTTON_EVENT, name: b.action, at: `nodes[${i}].props.buttons[${j}].action`, button: b })
+    if (node.type === 'buttons' || node.type === 'list') {
+      const where = node.type === 'list' ? 'rowMenu' : 'buttons'
+      // A list's run entries, at their place in its rowMenu.
+      const placed = node.type === 'list'
+        ? (Array.isArray(p.rowMenu) ? p.rowMenu : []).map((m, j) => ({ b: rowMenuButton(m), j, key: 'run' })).filter((x) => x.b)
+        : (Array.isArray(p.buttons) ? p.buttons : []).map((b, j) => ({ b, j, key: 'action' }))
+      placed.forEach(({ b, j, key }) => {
+        if (b && typeof b.action === 'string' && b.action) out.push({ event: BUTTON_EVENT, name: b.action, at: `nodes[${i}].props.${where}[${j}].${key}`, button: b })
         if (!b) return
         askFields(b).forEach((f, k) => {
           if ((f.type === 'checklist' || f.type === 'choice') && typeof f.optionsFrom === 'string' && f.optionsFrom) {
-            out.push({ event: BUTTON_OPTIONS_EVENT, name: f.optionsFrom, at: `nodes[${i}].props.buttons[${j}].ask.fields[${k}].optionsFrom` })
+            out.push({ event: BUTTON_OPTIONS_EVENT, name: f.optionsFrom, at: `nodes[${i}].props.${where}[${j}].ask.fields[${k}].optionsFrom` })
           }
           if (f.type === 'rows' && typeof f.startFrom === 'string' && f.startFrom) {
-            out.push({ event: BUTTON_OPTIONS_EVENT, name: f.startFrom, at: `nodes[${i}].props.buttons[${j}].ask.fields[${k}].startFrom` })
+            out.push({ event: BUTTON_OPTIONS_EVENT, name: f.startFrom, at: `nodes[${i}].props.${where}[${j}].ask.fields[${k}].startFrom` })
           }
         })
       })
