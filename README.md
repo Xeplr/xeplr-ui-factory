@@ -638,7 +638,7 @@ actions.register({ name: 'receiveMovementItems', event: 'button',
   (`host.scanCode`) and ticks the entry with the code read, then opens it again
   for the next — until the person is done, or a code nothing here has (said).
   On a computer a box takes the code a handheld scanner types, with Enter.
-  `tickByCode(options, ticked, code)` is the rule both use.
+  `tickByCode(options, ticked, code)` is the rule both use. A code several entries hold (a box's label) ticks them all.
 - **A choice its function lists** (`optionsFrom`) takes `"scan": true` too:
   Scan chooses the entry whose `codes` hold the code read (`chooseByCode`) —
   a rack by the label on it.
