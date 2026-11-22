@@ -13,7 +13,7 @@ import { Image, Pressable, Text, TextInput, View } from 'react-native'
 import { Btn, Field, PickList, Sheet, styles, GAP, RADIUS } from './parts.jsx'
 import { NativeInput } from './inputs.jsx'
 import { toneOf, useNativeTheme } from './theme.js'
-import { askFields, askFieldStart, askFieldValues, checklistOptionsOf, askChoiceOptions, isFedChoice, emptyRow, startRowsOf, MAX_ASK_ROWS, tickByCode } from '../buttons.js'
+import { askFields, askFieldStart, askFieldValues, checklistOptionsOf, askChoiceOptions, isFedChoice, emptyRow, startRowsOf, MAX_ASK_ROWS, tickByCode, chooseByCode } from '../buttons.js'
 
 export default function NativeButtons({ node, panel, host }) {
   const t = useNativeTheme()
@@ -86,6 +86,17 @@ function AskSheet({ button, busy, error, onCancel, onConfirm, upload, readFile, 
   const givenRef = useRef(given); givenRef.current = given
   const [scanned, setScanned] = useState({})   // { [field]: { text, bad } } — what the last scan did
 
+  // A fed choice's Scan: the entry with that code is chosen — one code, then back.
+  const scanChoice = async (f) => {
+    const list = (offered[f.name] || {}).list || []
+    let code
+    try { code = await host.scanCode({ title: f.label, many: false }) } catch (err) { setScanned((m) => ({ ...m, [f.name]: { text: err.message || 'Could not open the camera', bad: true } })); return }
+    if (!code || !String(code).trim()) return
+    const out = chooseByCode(list, code, f.scanMiss)
+    if (out.option) set(f.name, String(out.value))
+    setScanned((m) => ({ ...m, [f.name]: { text: out.message, bad: !out.option } }))
+  }
+
   // A checklist's Scan: tick the entry with that code, then the camera again —
   // until the person is done, or a code nothing here has (said, and stopped).
   const scanInto = async (f) => {
@@ -95,7 +106,7 @@ function AskSheet({ button, busy, error, onCancel, onConfirm, upload, readFile, 
       let code
       try { code = await host.scanCode({ title: f.label, note, many: true }) } catch (err) { setScanned((m) => ({ ...m, [f.name]: { text: err.message || 'Could not open the camera', bad: true } })); return }
       if (!code || !String(code).trim()) return
-      const out = tickByCode(list, givenRef.current[f.name], code)
+      const out = tickByCode(list, givenRef.current[f.name], code, f.scanMiss)
       if (!out.option) { setScanned((m) => ({ ...m, [f.name]: { text: out.message, bad: true } })); return }
       set(f.name, out.ticked)
       note = out.message
@@ -196,6 +207,12 @@ function AskSheet({ button, busy, error, onCancel, onConfirm, upload, readFile, 
                          style={[styles.input, { borderColor: err ? t.danger : t.border, backgroundColor: t.field, justifyContent: 'center' }]}>
                 <Text style={{ color: pick ? t.ink : t.muted, fontSize: 16 }}>{pick ? pick.name : fed && fed.loading ? 'Loading…' : 'Choose…'}</Text>
               </Pressable>
+              {f.scan && fed && host && host.scanCode && fed.list.length ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                  <Btn label="Scan" small onPress={() => scanChoice(f)} disabled={busy} accessibilityLabel={`Scan ${f.label}`} />
+                  {scanned[f.name] ? <Text style={[styles.small, { flex: 1, color: scanned[f.name].bad ? t.danger : t.muted }]} accessibilityRole={scanned[f.name].bad ? 'alert' : 'text'}>{scanned[f.name].text}</Text> : null}
+                </View>
+              ) : null}
               <PickList visible={choosing === f.name} title={f.label} items={items} value={given[f.name]} loading={fed && fed.loading}
                         onClose={() => setChoosing(null)} onPick={(o) => { set(f.name, String(o.id)); setChoosing(null) }} />
             </Field>

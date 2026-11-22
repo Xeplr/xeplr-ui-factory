@@ -34,7 +34,7 @@
 // record the screen is about. Every rule must match.
 
 import { matches, OPERATORS } from '@xeplr/rules'
-import { SUGGEST_EVENT as SUGGEST, MAX_CODE, sameCode } from './suggest.js'
+import { SUGGEST_EVENT as SUGGEST, MAX_CODE, sameCode, missMessage } from './suggest.js'
 import { FEED_EVENT } from './feed.js'
 import { DETAILS_EVENT } from './details.js'
 
@@ -190,15 +190,33 @@ export const MAX_OPTION_CODES = 10
  * The entry whose codes hold it is ticked — `message` says what happened
  * (ticked, already ticked, or no entry has that code), `option` is the entry.
  */
-export function tickByCode(options, ticked, code) {
+export function tickByCode(options, ticked, code, scanMiss) {
   const list = Array.isArray(options) ? options : []
   const now = Array.isArray(ticked) ? ticked : []
   const c = String(code === undefined || code === null ? '' : code).trim()
   if (!c) return { ticked: now, option: null, message: null }
-  const option = list.find((o) => o && Array.isArray(o.codes) && o.codes.some((x) => sameCode(x, c))) || null
-  if (!option) return { ticked: now, option: null, message: `Nothing here has the code ${c}` }
+  const option = optionWithCode(list, c)
+  if (!option) return { ticked: now, option: null, message: missMessage(scanMiss, c, 'Nothing here has the code {code}') }
   if (now.includes(option.id)) return { ticked: now, option, message: `${option.label} is ticked already` }
   return { ticked: [...now, option.id], option, message: `Ticked ${option.label}` }
+}
+
+/** The entry whose codes hold `code`, or null. */
+function optionWithCode(list, code) {
+  return (Array.isArray(list) ? list : []).find((o) => o && Array.isArray(o.codes) && o.codes.some((x) => sameCode(x, code))) || null
+}
+
+/**
+ * A code scanned (or typed) into a CHOICE its function lists (`optionsFrom`,
+ * `scan: true`) — a rack by its label: { value, option, message }. The entry
+ * whose codes hold it is chosen; none, and `message` says so (scanMiss).
+ */
+export function chooseByCode(options, code, scanMiss) {
+  const c = String(code === undefined || code === null ? '' : code).trim()
+  if (!c) return { value: null, option: null, message: null }
+  const option = optionWithCode(options, c)
+  if (!option) return { value: null, option: null, message: missMessage(scanMiss, c, 'Nothing here has the code {code}') }
+  return { value: option.id, option, message: `Chose ${option.label}` }
 }
 
 export function checklistOptionsOf(out) {

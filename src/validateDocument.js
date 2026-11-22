@@ -192,6 +192,7 @@ export function validateDocument(doc, controls = CONTROLS) {
       else if (props.maxTags !== undefined && !props.multiple) err(`${at}.props.maxTags`, 'is for several values — set "multiple" too')
       if (props.multiple && props.default !== undefined) err(`${at}.props.default`, 'several values start empty — remove the default')
       if (props.scan !== undefined && typeof props.scan !== 'boolean') err(`${at}.props.scan`, 'must be true or false — a Scan button on a phone, the code searched as if typed')
+      checkScanMiss(props.scanMiss, props.scan, `${at}.props.scanMiss`, err)
     }
     if (node.type === 'stepper') checkSteps(props, at, err)
     checkStep(node, doc, at, err)
@@ -649,12 +650,19 @@ const ASK_KEYS = ['title', 'message', 'note']
 // A button's `ask.file`: the file a press takes — a file field's rules, plus its label and required.
 const ASK_FILE_KEYS = ['label', 'required', 'accept', 'maxSize', 'multiple', 'maxFiles', 'source']
 
+/** A scan field's own message for a code nothing has: text, with scan. */
+function checkScanMiss(scanMiss, scan, at, err) {
+  if (scanMiss === undefined) return
+  if (!(typeof scanMiss === 'string' && scanMiss.trim() && scanMiss.length <= 200)) err(at, 'must be a short text — what a code nothing has says, {code} the code')
+  else if (scan !== true) err(at, 'is for a field that scans — set "scan": true too')
+}
+
 /**
  * A panel of buttons. Each names a function and the values it is given; the
  * server checks the names against what is registered when the screen is
  * published (functionProblems). Here: the shape.
  */
-const ASK_FIELD_KEYS = ['name', 'label', 'type', 'unit', 'required', 'min', 'max', 'fill', 'optionsFrom', 'options', 'newRow', 'fields', 'rowLabel', 'addLabel', 'startFrom', 'scan']
+const ASK_FIELD_KEYS = ['name', 'label', 'type', 'unit', 'required', 'min', 'max', 'fill', 'optionsFrom', 'options', 'newRow', 'fields', 'rowLabel', 'addLabel', 'startFrom', 'scan', 'scanMiss']
 // How the popup is laid out: wider, and how many fields to a line.
 const ASK_LAYOUT_KEYS = ['wide', 'columns']
 export const MAX_ASK_COLUMNS = 4
@@ -678,14 +686,15 @@ function checkAskFields(fields, params, at, err, inRow) {
     if (f.unit !== undefined && !(typeof f.unit === 'string' && f.unit.length <= 12)) err(`${p}.unit`, 'must be a short text, e.g. "in" or "kg"')
     if (f.required !== undefined && typeof f.required !== 'boolean') err(`${p}.required`, 'must be true or false')
     if (f.newRow !== undefined && typeof f.newRow !== 'boolean') err(`${p}.newRow`, 'must be true or false — starts a new line of fields')
-    if (f.scan !== undefined && f.type !== 'checklist') err(`${p}.scan`, 'is for a checklist — it ticks by code')
+    if (f.scan !== undefined && f.type !== 'checklist' && !(f.type === 'choice' && f.optionsFrom !== undefined)) err(`${p}.scan`, 'is for a checklist, or a choice its function lists (optionsFrom) — it ticks or chooses by code')
+    else if (f.scan !== undefined && typeof f.scan !== 'boolean') err(`${p}.scan`, 'must be true or false — ticks or chooses the entry whose codes hold the code scanned')
+    checkScanMiss(f.scanMiss, f.scan, `${p}.scanMiss`, err)
     if (f.type === 'checklist') {
       if (!(nonEmptyString(f.optionsFrom) && FUNCTION_NAME.test(f.optionsFrom))) err(`${p}.optionsFrom`, 'must be the name of a registered function (event "buttonOptions") that lists what to tick, e.g. "movementItemsOut"')
       ;['min', 'max'].forEach((k) => { if (f[k] !== undefined && !(Number.isInteger(f[k]) && f[k] >= 0)) err(`${p}.${k}`, 'must be how many, a whole number') })
       if (Number.isInteger(f.min) && Number.isInteger(f.max) && f.min > f.max) err(`${p}.min`, 'is more than max')
       if (f.unit !== undefined) err(`${p}.unit`, 'is for a number or text field')
       if (f.fill !== undefined) err(`${p}.fill`, 'is for a number, text or date field — a checklist starts empty')
-      if (f.scan !== undefined && typeof f.scan !== 'boolean') err(`${p}.scan`, 'must be true or false — ticks the entry whose codes hold the code scanned')
       return
     }
     if (f.type === 'rows') {
