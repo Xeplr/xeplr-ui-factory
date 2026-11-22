@@ -12,13 +12,13 @@ import { useState } from 'react'
 // Edit and New open the list's edit screen in a popup (`editScreen`), or, for a
 // list on a form, load the row into the form's own fields. Delete removes it.
 
-export default function ListView({ node, doc, design, list, onEdit, onDelete, onNew, currentId, recordKey = 'id', canDelete, fieldNodes, optionsFor, extraActions = [], query, rowDetails, onOpen, bulk }) {
+export default function ListView({ node, doc, design, list, onEdit, onDelete, onNew, currentId, recordKey = 'id', canDelete, fieldNodes, optionsFor, extraActions = [], query, rowDetails, onOpen, bulk, rowPanel }) {
   const p = node.props || {}
   // Add several (bulkAdd): a grid of the edit screen's fields, saved in one go.
   const [bulkOpen, setBulkOpen] = useState(false)
   // Rows a function works out: their own view — search, chips, the server's text.
   if (!design && p.rowsFrom && list) {
-    return <FedList node={node} list={list} query={query || { q: '', filter: '', setQ: () => {}, setFilter: () => {} }} onOpen={onOpen || onEdit} onNew={onNew} rowDetails={rowDetails} recordKey={recordKey} extraActions={extraActions} />
+    return <FedList node={node} list={list} query={query || { q: '', filter: '', setQ: () => {}, setFilter: () => {} }} onOpen={onOpen || onEdit} onNew={onNew} rowDetails={rowDetails} recordKey={recordKey} extraActions={extraActions} rowPanel={rowPanel} />
   }
   // The rows are passed in because a list of ANOTHER table has no other
   // description of itself — see listColumns.

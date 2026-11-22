@@ -34,7 +34,7 @@ export function Steps({ value, marker, notYet }) {
 }
 
 /** The "…" at the end of a row: its menu's entries this row has. Opening it never opens the row. */
-export function RowMenu({ row, menu, onOpen }) {
+export function RowMenu({ row, menu, onOpen, onRun }) {
   const btn = useRef(null)
   const [at, setAt] = useState(null)
   const [copied, setCopied] = useState(null)
@@ -59,6 +59,7 @@ export function RowMenu({ row, menu, onOpen }) {
   function choose(e, m) {
     e.stopPropagation()
     if (m.action === 'open') { setAt(null); onOpen(row); return }
+    if (m.action === 'run') { setAt(null); if (onRun) onRun(m); return }
     if (m.action === 'link') { setAt(null); window.open(String(row[m.field]), '_blank', 'noopener,noreferrer'); return }
     const done = () => { setCopied(m.label); setTimeout(() => { setCopied(null); setAt(null) }, 900) }
     if (navigator.clipboard) navigator.clipboard.writeText(String(row[m.field])).then(done, done)

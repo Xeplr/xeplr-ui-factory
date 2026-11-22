@@ -14,11 +14,20 @@ import { toneOf, useNativeTheme } from './theme.js'
 import { rangePresets } from '../listRange.js'
 import { BADGE_TONES } from '../tones.js'
 import { readableWhen } from './inputs.jsx'
+import { NativeRunButton } from './NativeButtons.jsx'
+import { menuItemsFor, rowMenuButton } from '../listRows.js'
+
+/** A row's "…" entries that run a function, as its `when` allows. */
+function runEntries(p, row) {
+  return menuItemsFor(row, p.rowMenu, false).filter((m) => m.action === 'run')
+}
 
 const text = (v) => (v === undefined || v === null ? '' : typeof v === 'object' ? '' : String(v))
 const isNothing = (v) => v === null || v === undefined || v === '' || v === 0 || v === '0'
 
-export default function NativeList({ node, list, query, onOpen, onNew, host }) {
+export default function NativeList({ node, list, query, onOpen, onNew, host, rowPanel }) {
+  const [menuFor, setMenuFor] = useState(null)     // the row whose "…" is open
+  const [running, setRunning] = useState(null)     // { row, button } — a "…" entry being asked or pressed
   const t = useNativeTheme()
   const p = node.props || {}
   const columns = Array.isArray(p.columns) ? p.columns : []
@@ -74,7 +83,19 @@ export default function NativeList({ node, list, query, onOpen, onNew, host }) {
       {list.error ? <Text style={{ color: t.danger, marginBottom: 8 }} accessibilityRole="alert">{list.error}</Text> : null}
       {rows.length === 0 && !list.loading && !list.error
         ? <Text style={{ color: t.muted, paddingVertical: 16, textAlign: 'center' }}>{query.q || query.kpi || (range && range.from) ? 'Nothing matches.' : p.empty || 'Nothing here yet.'}</Text>
-        : <Cards rows={rows} columns={columns} pageSize={pageSize} open={open} highlight={p.highlight} dim={p.dim} host={host} />}
+        : <Cards rows={rows} columns={columns} pageSize={pageSize} open={open} highlight={p.highlight} dim={p.dim} host={host}
+                 menu={rowPanel ? (row) => runEntries(p, row) : null} onMenu={setMenuFor} />}
+      {menuFor ? (
+        <PickList visible title={text(menuFor[(columns[0] || {}).field]) || 'Actions'} items={runEntries(p, menuFor).map((m) => ({ id: m.id, name: m.label }))}
+                  onClose={() => setMenuFor(null)}
+                  onPick={(item) => { const m = runEntries(p, menuFor).find((x) => x.id === item.id); setRunning({ row: menuFor, button: rowMenuButton(m) }); setMenuFor(null) }} />
+      ) : null}
+      {running && rowPanel ? <NativeRunButton button={running.button} panel={rowPanel(running.row)} host={host} onClose={() => setRunning(null)} /> : null}
+      {rowPanel && rowPanel(null).note && !running ? (
+        <Pressable onPress={rowPanel(null).clearNote} accessibilityHint="Tap to dismiss" style={{ marginTop: 8, padding: 10, borderRadius: RADIUS, backgroundColor: toneOf(t, rowPanel(null).note.kind === 'error' ? 'danger' : 'success').bg }}>
+          <Text style={{ color: toneOf(t, rowPanel(null).note.kind === 'error' ? 'danger' : 'success').fg }}>{rowPanel(null).note.text}  ×</Text>
+        </Pressable>
+      ) : null}
     </View>
   )
 }
@@ -113,7 +134,7 @@ function picture(src, host) {
   return /^\//.test(src) && host && host.baseUrl ? host.baseUrl + src : src
 }
 
-function Cards({ rows, columns, pageSize, open, highlight, dim, host }) {
+function Cards({ rows, columns, pageSize, open, highlight, dim, host, menu, onMenu }) {
   const t = useNativeTheme()
   const [shown, setShown] = useState(pageSize)
   const [head, ...rest] = columns
@@ -129,6 +150,7 @@ function Cards({ rows, columns, pageSize, open, highlight, dim, host }) {
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
               <Text style={{ color: open ? t.accent : toneColor(t, headTone), fontSize: 17, fontWeight: '700' }}>{title}</Text>
               {badges.map((b) => <Pill key={b.field} text={b.label} tone={b.tone || 'accent'} />)}
+              {menu && menu(row).length ? <View style={{ marginLeft: 'auto' }}><Btn label="⋯" small variant="plain" accessibilityLabel={`More for ${title}`} onPress={() => onMenu(row)} /></View> : null}
             </View>
             {sub ? <Text style={{ color: t.muted, marginTop: 2 }}>{sub}</Text> : null}
             {rest.map((c) => <CardPart key={c.field} column={c} row={row} host={host} />)}

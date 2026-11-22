@@ -17,7 +17,7 @@ import { DATE_PRESET_VALUES } from './listRange.js'
 import { RESERVED_COLUMNS, MAX_IDENTIFIER } from './tableSchema.js'
 import { FIELD_PRESETS, INPUT_TYPES, presetFor } from './presets.js'
 import { isBinding } from './values.js'
-import { ROW_MENU_ACTIONS } from './listRows.js'
+import { ROW_MENU_ACTIONS, ROW_RUN_KEYS, rowMenuButton } from './listRows.js'
 import { feedProblems, FEED_EVENT } from './feed.js'
 import { detailsProblems, DETAILS_EVENT } from './details.js'
 import { BUTTON_VARIANTS, COLUMN_DISPLAYS, LIST_LAYOUTS, BADGE_TONES, COLUMN_ICONS, CONDITION_OPERATORS, ASK_FIELD_TYPES, ROW_FIELD_TYPES, MAX_ASK_ROWS, NOTE_INPUT, FILES_INPUT, isAskDayLimit } from './buttons.js'
@@ -196,7 +196,7 @@ export function validateDocument(doc, controls = CONTROLS) {
     }
     if (node.type === 'stepper') checkSteps(props, at, err)
     checkStep(node, doc, at, err)
-    if (node.type === 'list') checkList(props, doc, at, err)
+    if (node.type === 'list') checkList(props, doc, at, err, buttonIds)
     if (node.type === 'buttons') checkButtons(props, at, err, buttonIds)
     if (node.type === 'subform') checkSubform(props, doc, at, err)
     if (node.type === 'feed') checkFeed(props, doc, at, err)
@@ -446,7 +446,7 @@ function checkStyle(style, allowed, at, err, owner) {
  * With no `source` it reads the table the screen saves to, so one of the two
  * must be set.
  */
-function checkList(props, doc, at, err) {
+function checkList(props, doc, at, err, buttonIds) {
   if (props.openIn !== undefined && props.openIn !== 'popup' && props.openIn !== 'page') {
     err(`${at}.props.openIn`, 'must be "popup" or "page"')
   }
@@ -458,7 +458,7 @@ function checkList(props, doc, at, err) {
   const fed = props.rowsFrom !== undefined
   if (fed && !(nonEmptyString(props.rowsFrom) && FUNCTION_NAME.test(props.rowsFrom))) err(`${at}.props.rowsFrom`, 'must be the name of a registered function (event "listRows"), e.g. "orderList"')
   if (!fed && props.source === undefined && doc.source === undefined) err(`${at}.props.source`, 'is required when the screen has no "source" — which table should the list read? (or "rowsFrom": a function that works the rows out)')
-  checkFedList(props, fed, at, err)
+  checkFedList(props, fed, at, err, buttonIds)
   if (props.grow !== undefined && typeof props.grow !== 'boolean') err(`${at}.props.grow`, 'must be true or false')
   // The page grows with it, so nothing can be placed beside or under it.
   if (props.grow && doc.nodes.length !== 1) err(`${at}.props.grow`, 'only for a list that is the screen\'s one control — the page grows with it, so nothing else has a place')
@@ -510,7 +510,7 @@ const DETAILS_AS = ['list', 'steps']
 const FED_COLUMN_KEYS = ['field', 'label', 'text', 'sub', 'display', 'badges', 'more', 'details', 'detailsAs', 'sortable', 'toneFrom', 'tone', 'icon', 'bold', 'iconFrom']
 
 /** The settings only a function-fed list has. */
-function checkFedList(props, fed, at, err) {
+function checkFedList(props, fed, at, err, buttonIds) {
   const need = (key, what) => { if (props[key] !== undefined && !fed) err(`${at}.props.${key}`, `${what} needs "rowsFrom" — a table's records have no function to ask`) }
   need('search', 'a search box')
   need('filters', 'filter chips')
@@ -601,6 +601,16 @@ function checkFedList(props, fed, at, err) {
       if (!m || typeof m !== 'object') { err(mp, 'must be { label, action, field? }'); return }
       if (!nonEmptyString(m.label)) err(`${mp}.label`, 'must be the entry\'s text, e.g. "Open in Shopify"')
       if (!ROW_MENU_ACTIONS.includes(m.action)) err(`${mp}.action`, `must be one of: ${ROW_MENU_ACTIONS.join(', ')}`)
+      // A button on the row's record: checked as a buttons panel's are, its id unique on the screen.
+      if (m.action === 'run') {
+        if (!props.rowsFrom) err(`${mp}.action`, '"run" is for rows a function works out (rowsFrom) — each row\'s id is the record it runs on')
+        const extra = Object.keys(m).filter((x) => !['label', 'action', 'id', ...ROW_RUN_KEYS].includes(x))
+        if (extra.length) err(mp, `only "label", "action", "id", ${ROW_RUN_KEYS.map((x) => `"${x}"`).join(', ')} are used — remove: ${extra.join(', ')}`)
+        if (m.field !== undefined) err(`${mp}.field`, 'is for link and copy')
+        const asButton = rowMenuButton(m)
+        checkButtons({ buttons: [asButton] }, `${mp}`, (path, msg) => err(path.replace(`${mp}.props.buttons[0]`, mp).replace(/\.action$/, '.run'), msg), buttonIds)
+        return
+      }
       if ((m.action === 'link' || m.action === 'copy') && !(nonEmptyString(m.field) && FIELD_NAME.test(m.field))) err(`${mp}.field`, `must be a field of the row — the ${m.action === 'link' ? 'address it opens' : 'text it copies'}`)
       if (m.action === 'open' && !props.rowOpen && !(Array.isArray(props.actions) && props.actions.includes('edit'))) err(`${mp}.action`, '"open" needs rows that open (rowOpen)')
       const extra = Object.keys(m).filter((x) => !['label', 'action', 'field'].includes(x))

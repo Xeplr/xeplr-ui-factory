@@ -165,6 +165,7 @@ function Control({ node, ctrl, host }) {
     case 'list': {
       const list = ctrl.listFor(node)
       return <NativeList node={node} list={node.props && node.props.rowsFrom ? list : { ...list, rows: tableRows(node, list.rows, ctrl) }} query={ctrl.listQuery} host={host}
+                         rowPanel={ctrl.rowButtonsFor ? (row) => ctrl.rowButtonsFor(node, row) : null}
                          onOpen={(rec, where) => ctrl.openEditor(node, rec && rec.__record ? rec.__record : rec, where)}
                          onNew={() => ctrl.openEditor(node, null)} />
     }

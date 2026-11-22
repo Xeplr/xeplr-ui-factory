@@ -246,6 +246,8 @@ export default function ScreenSample({ ctrl, className, style, renderPopup, rend
                 // cell's hover box, and a row opened at one part of it.
                 query: ctrl.listQuery,
                 rowDetails: ctrl.rowDetails,
+                // A row's "…" entries that run a function, pressed on that row.
+                rowPanel: ctrl.rowButtonsFor ? (row) => ctrl.rowButtonsFor(node, row) : null,
                 onOpen: (rec, where) => ctrl.openEditor(node, rec, where),
                 // A list with an edit screen opens it in a popup; one on a form
                 // opens the row in the form's own fields.

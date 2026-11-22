@@ -55,6 +55,35 @@ export default function NativeButtons({ node, panel, host }) {
   )
 }
 
+/**
+ * ONE button pressed on its own — a list row's "…" entry: its sheet when it
+ * asks first, else pressed at once. `onClose` when it is done or cancelled.
+ */
+export function NativeRunButton({ button, panel, host, onClose }) {
+  const started = useRef(false)
+  useEffect(() => {
+    if (button.ask || started.current) return
+    started.current = true
+    Promise.resolve(panel.press(button)).finally(onClose)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  if (!button.ask) return null
+  const note = panel.note
+  return (
+    <AskSheet
+      button={button}
+      busy={panel.pressing === button.id}
+      error={note && note.kind === 'error' && note.button === button.id ? note.text : null}
+      onCancel={() => { panel.clearNote(); onClose() }}
+      upload={(file) => panel.upload(file, button)}
+      options={panel.options ? (field) => panel.options(button, field) : null}
+      readFile={panel.readFile}
+      record={panel.record}
+      host={host}
+      onConfirm={async (typed, files, values) => { if (await panel.press(button, typed, files, values)) onClose() }}
+    />
+  )
+}
+
 function AskSheet({ button, busy, error, onCancel, onConfirm, upload, readFile, record, options, host }) {
   const t = useNativeTheme()
   const ask = button.ask || {}

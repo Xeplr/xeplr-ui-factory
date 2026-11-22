@@ -7,6 +7,7 @@ import { hookMethod } from './hooks.js'
 import { useUrlSteps, useUrlListQuery, useUrlOpen } from './useUrlPlaces.js'
 import { openableScreens } from './urlState.js'
 import { buttonShown, buttonDisabled, buttonPressed } from './buttons.js'
+import { rowMenuButtons } from './listRows.js'
 import { resolveRange, rangePresets, dayOf } from './listRange.js'
 import { suggestionsOf, shouldSuggest, pickValues, MAX_SUGGEST_QUERY, isTagField } from './suggest.js'
 import { useFeeds } from './useFeeds.js'
@@ -1019,17 +1020,19 @@ export function useFactoryScreen({
   const { detailsFor } = useRecordDetails({ doc, recordId, fetchDetails, reloadKey: `${reloadKey ?? ''}:${listVersion}` })
 
   const buttonRecord = useMemo(() => ({ ...(record || {}), ...values, [recordKey]: recordId }), [record, values, recordKey, recordId])
-  const buttonsFor = useCallback((node) => ({
-    record: buttonRecord,
-    buttons: ((node.props && node.props.buttons) || [])
-      .filter((b) => buttonShown(b, buttonRecord))
-      .map((b) => ({ ...b, pressed: buttonPressed(b, buttonRecord), disabled: buttonDisabled(b, buttonRecord) || recordId === null || recordId === undefined })),
+  // A panel of buttons on ONE record: this screen's (a buttons control), or a
+  // row's (a list's run entries in its "…" menu — the row's id is the record).
+  const panelFor = useCallback((list, rec, id) => ({
+    record: rec,
+    buttons: (list || [])
+      .filter((b) => buttonShown(b, rec))
+      .map((b) => ({ ...b, pressed: buttonPressed(b, rec), disabled: buttonDisabled(b, rec) || id === null || id === undefined })),
     pressing,
     note: buttonNote,
     clearNote: () => setButtonNote(null),
     readFile: readFile || null,
     // What a checklist in the button's popup offers, for this record — asked on the server.
-    options: buttonOptions ? (b, field) => buttonOptionsRef.current({ screen: doc.id, button: b.id, id: recordId, field }) : null,
+    options: buttonOptions ? (b, field) => buttonOptionsRef.current({ screen: doc.id, button: b.id, id, field }) : null,
     // A file the button's ask.file takes: stored first, its path sent with the press.
     upload: async (file, b) => {
       if (!buttonUploadRef.current) throw new Error('No uploadButtonFile was provided, so this button cannot take a file')
@@ -1039,15 +1042,15 @@ export function useFactoryScreen({
     },
     press: async (b, typed, files, values) => {
       // A button that OPENS a screen on this record (Edit → its form): the popup, as a list's Edit opens it.
-      if (b.opens) { setButtonNote(null); openPopup({ screenId: b.opens, id: recordId, label: b.label }); return true }
+      if (b.opens) { setButtonNote(null); openPopup({ screenId: b.opens, id, label: b.label }); return true }
       if (!pressRef.current) { setButtonNote({ kind: 'error', text: 'No pressButton was provided', button: b.id }); return false }
       setPressing(b.id)
       setButtonNote(null)
       try {
-        const result = await pressRef.current({ screen: doc.id, button: b.id, id: recordId, note: typed, files, values })
+        const result = await pressRef.current({ screen: doc.id, button: b.id, id, note: typed, files, values })
         setButtonNote({ kind: 'done', text: (result && result.message) || `${b.label} — done`, button: b.id })
         setListVersion((v) => v + 1)
-        if (buttonDoneRef.current) buttonDoneRef.current({ button: b, result, record: buttonRecord })
+        if (buttonDoneRef.current) buttonDoneRef.current({ button: b, result, record: rec })
         return true
       } catch (err) {
         setButtonNote({ kind: 'error', text: err.message || `Could not ${b.label}`, button: b.id })
@@ -1056,7 +1059,10 @@ export function useFactoryScreen({
         setPressing(null)
       }
     }
-  }), [buttonRecord, pressing, buttonNote, doc, recordId, readFile, buttonOptions, openPopup])
+  }), [pressing, buttonNote, doc, readFile, buttonOptions, openPopup])
+  const buttonsFor = useCallback((node) => panelFor((node.props && node.props.buttons) || [], buttonRecord, recordId), [panelFor, buttonRecord, recordId])
+  /** A row's "…" buttons (a list's rowMenu run entries), pressed on that row's record. */
+  const rowButtonsFor = useCallback((node, row) => panelFor(rowMenuButtons(node), row || {}, row ? row[recordKey] : undefined), [panelFor, recordKey])
 
   return {
     document: doc,
@@ -1102,6 +1108,7 @@ export function useFactoryScreen({
     listQuery,
     rowDetails,
     buttonsFor,
+    rowButtonsFor,
     feedFor,
     detailsFor,
     deleteRecord,

@@ -509,6 +509,14 @@ button.xeplr-factory-activity-item:hover, button.xeplr-factory-activity-item:foc
 }
 .xeplr-factory-buttons-note--error { color: var(--xf-danger); background: color-mix(in srgb, var(--xf-danger) 10%, transparent); }
 .xeplr-factory-buttons-note-close { font: inherit; font-size: 1.1em; line-height: 1; color: inherit; background: none; border: none; cursor: pointer; padding: 2px 4px; }
+/* What a row's "…" button said, under its list. */
+.xeplr-factory-list-note {
+  display: inline-flex; align-items: center; gap: 6px; font-size: .9em; padding: 4px 6px 4px 10px; border-radius: 6px;
+  color: var(--xf-good); background: color-mix(in srgb, var(--xf-good) 10%, transparent);
+}
+.xeplr-factory-list-note--error { color: var(--xf-danger); background: color-mix(in srgb, var(--xf-danger) 10%, transparent); }
+.xeplr-factory-list-note-close { font: inherit; font-size: 1.1em; line-height: 1; color: inherit; background: none; border: none; cursor: pointer; padding: 2px 4px; }
+.xeplr-factory-list-note { margin-top: 8px; }
 .xeplr-factory-ask { --xf-modal-w: min(440px, 96vw); }
 .xeplr-factory-ask-wide { --xf-modal-w: min(720px, 96vw); }
 /* A cell that runs one of the row's actions (a column's "action"): reads as a link. */

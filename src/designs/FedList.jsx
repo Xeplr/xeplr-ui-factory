@@ -6,6 +6,8 @@ import { rangePresets, customRange, isDay } from '../listRange.js'
 import { BADGE_TONES } from '../buttons.js'
 import { Icon } from './icons.jsx'
 import { Steps, RowMenu } from './listExtras.jsx'
+import { RunButton } from './ButtonsView.jsx'
+import { rowMenuButton } from '../listRows.js'
 import { COLUMN_ICONS } from '../buttons.js'
 
 // A LIST WHOSE ROWS A FUNCTION WORKS OUT (rowsFrom) — live, in @xeplr/ui-table.
@@ -33,7 +35,9 @@ const STEPS_BOX_WIDTH = 760
 const BOX_MAX_HEIGHT = 360
 const MIN_BELOW = 200
 
-export default function FedList({ node, list, query, onOpen, onNew, rowDetails, recordKey = 'id', extraActions = [] }) {
+export default function FedList({ node, list, query, onOpen, onNew, rowDetails, recordKey = 'id', extraActions = [], rowPanel }) {
+  // A row's "…" entry that runs a function: the row and the button, while it is asked or pressed.
+  const [running, setRunning] = useState(null)
   const p = node.props || {}
   const columns = Array.isArray(p.columns) ? p.columns : []
   const rows = list.rows || []
@@ -70,7 +74,7 @@ export default function FedList({ node, list, query, onOpen, onNew, rowDetails, 
       })).concat(Array.isArray(p.rowMenu) && p.rowMenu.length ? [{
         // The "…" at the end of each row: the screen's rowMenu.
         accessor: '__menu', header: '', headerText: '', enableSorting: false,
-        cell: ({ row }) => <RowMenu row={row.original} menu={p.rowMenu} onOpen={open} />
+        cell: ({ row }) => <RowMenu row={row.original} menu={p.rowMenu} onOpen={open} onRun={rowPanel ? (m) => setRunning({ row: row.original, button: rowMenuButton(m) }) : null} />
       }] : [])
     }
   }
@@ -87,6 +91,9 @@ export default function FedList({ node, list, query, onOpen, onNew, rowDetails, 
   const kpis = Array.isArray(p.kpis) ? p.kpis : []
   const kpiCounts = list.kpis || {}
   const range = query.rangeFor ? query.rangeFor(node) : null
+  // What the last row button said ("MV-0002: 2 received"), under the list.
+  const rowPanelNow = rowPanel ? rowPanel(null) : null
+  const rowNote = rowPanelNow ? rowPanelNow.note : null
 
   return (
     <div className="xeplr-factory-list xeplr-factory-list--fed" style={style}>
@@ -171,6 +178,13 @@ export default function FedList({ node, list, query, onOpen, onNew, rowDetails, 
             />
           </div>
         )}
+      {running && rowPanel && <RunButton button={running.button} panel={rowPanel(running.row)} onClose={() => setRunning(null)} />}
+      {rowNote && !running && (
+        <span className={`xeplr-factory-list-note xeplr-factory-list-note--${rowNote.kind}`} role={rowNote.kind === 'error' ? 'alert' : 'status'}>
+          {rowNote.text}
+          <button type="button" className="xeplr-factory-list-note-close" aria-label="Dismiss" onClick={rowPanelNow.clearNote}>×</button>
+        </span>
+      )}
     </div>
   )
 }
