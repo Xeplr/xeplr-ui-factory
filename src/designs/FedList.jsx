@@ -73,7 +73,8 @@ export default function FedList({ node, list, query, onOpen, onNew, rowDetails, 
         )
       })).concat(Array.isArray(p.rowMenu) && p.rowMenu.length ? [{
         // The "…" at the end of each row: the screen's rowMenu.
-        accessor: '__menu', header: '', headerText: '', enableSorting: false,
+        // Nothing seen over the …: an empty header would fall back to the accessor's name.
+        accessor: '__menu', header: () => <span aria-label="More" />, headerText: 'More', enableSorting: false,
         cell: ({ row }) => <RowMenu row={row.original} menu={p.rowMenu} onOpen={open} onRun={rowPanel ? (m) => setRunning({ row: row.original, button: rowMenuButton(m) }) : null} />
       }] : [])
     }
