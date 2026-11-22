@@ -622,6 +622,12 @@ actions.register({ name: 'receiveMovementItems', event: 'button',
   for the next — until the person is done, or a code nothing here has (said).
   On a computer a box takes the code a handheld scanner types, with Enter.
   `tickByCode(options, ticked, code)` is the rule both use.
+- **A choice its function lists** (`optionsFrom`) takes `"scan": true` too:
+  Scan chooses the entry whose `codes` hold the code read (`chooseByCode`) —
+  a rack by the label on it.
+- **`scanMiss`** (with `scan`, on a checklist, a fed choice or an autocomplete)
+  is what a code nothing has says, `{code}` the code: `"Not a rack — {code}
+  is a product's barcode. Scan the label on the rack."`
 
 ### A button that takes files — `ask.file`
 

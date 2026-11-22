@@ -18,10 +18,10 @@ export { SCREEN_EVENTS, SCREEN_EVENT_KEYS, DECIDE_EVENT, FUNCTION_NAME, screenFu
 // Buttons and lists whose rows a function works out — names and values only.
 export {
   BUTTON_EVENT, LIST_ROWS_EVENT, ROW_DETAILS_EVENT, BUTTON_VARIANTS, COLUMN_DISPLAYS, LIST_LAYOUTS, BADGE_TONES, COLUMN_ICONS, NOTE_INPUT, FILES_INPUT, CONDITION_OPERATORS,
-  conditionMet, buttonShown, buttonDisabled, buttonPressed, screenButtons, buttonById, buttonInput, askFile, askFileProblem, askFields, askFieldStart, askFieldValues, askChoiceOptions, askDayLimit, ASK_FIELD_TYPES, ROW_FIELD_TYPES, MAX_ASK_ROWS, emptyRow, startRowsOf, startedRowsFields, BUTTON_OPTIONS_EVENT, MAX_CHECKLIST_OPTIONS, MAX_OPTION_CODES, checklistOptionsOf, tickByCode, checklistFields, isFedChoice, nodeFunctions, paramProblems, optionValues
+  conditionMet, buttonShown, buttonDisabled, buttonPressed, screenButtons, buttonById, buttonInput, askFile, askFileProblem, askFields, askFieldStart, askFieldValues, askChoiceOptions, askDayLimit, ASK_FIELD_TYPES, ROW_FIELD_TYPES, MAX_ASK_ROWS, emptyRow, startRowsOf, startedRowsFields, BUTTON_OPTIONS_EVENT, MAX_CHECKLIST_OPTIONS, MAX_OPTION_CODES, checklistOptionsOf, tickByCode, chooseByCode, checklistFields, isFedChoice, nodeFunctions, paramProblems, optionValues
 } from './buttons.js'
 // An autocomplete field's suggestions — what a suggest function may answer, and what picking one writes.
-export { SUGGEST_EVENT, MAX_SUGGESTIONS, DEFAULT_MIN_CHARS, MAX_SUGGEST_QUERY, suggestionsOf, shouldSuggest, pickValues, MAX_CODE, sameCode, suggestionForCode, MAX_TAGS, MAX_TAG_QTY, isTagField, tagLimit, addTag, setTagQty, removeTag, tagsOf } from './suggest.js'
+export { SUGGEST_EVENT, MAX_SUGGESTIONS, DEFAULT_MIN_CHARS, MAX_SUGGEST_QUERY, suggestionsOf, shouldSuggest, pickValues, MAX_CODE, MAX_SCAN_MISS, sameCode, suggestionForCode, missMessage, MAX_TAGS, MAX_TAG_QTY, isTagField, tagLimit, addTag, setTagQty, removeTag, tagsOf } from './suggest.js'
 // A record's feed: comments and its history, from a function (event "feedEntries").
 export { FEED_EVENT, FEED_KINDS, FEED_ORDERS, MAX_FEED_ENTRIES, MAX_ENTRY_TEXT, MIN_FEED_REFRESH, entriesOf, shownEntries, initials, composeValues, convertParams, feedProblems } from './feed.js'
 // A record's details: read-only sections from a function (event "recordDetails").

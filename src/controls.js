@@ -276,7 +276,7 @@ export const CONTROLS = {
     valueType: 'string',
     defaultSize: { w: 0.44, h: 0.08 },
     defaults: { label: 'Search', placeholder: 'Type to search…' },
-    props: ['name', 'label', 'preset', 'placeholder', 'required', 'default', 'validation', 'suggestFrom', 'minChars', 'multiple', 'quantity', 'maxTags', 'scan', 'style'],
+    props: ['name', 'label', 'preset', 'placeholder', 'required', 'default', 'validation', 'suggestFrom', 'minChars', 'multiple', 'quantity', 'maxTags', 'scan', 'scanMiss', 'style'],
     validation: ['minLength', 'maxLength'],
     styles: INPUT_STYLES,
     properties: [
@@ -292,7 +292,8 @@ export const CONTROLS = {
             help: 'Each pick adds a chip. Chips are handed to this screen\'s events and not saved as a column — the app keeps them.' },
           { path: 'props.quantity', label: 'A quantity on each chip', type: 'checkbox', help: 'With several: how many of each' },
           { path: 'props.maxTags', label: 'Most chips', type: 'number', help: 'With several. Blank → 100' },
-          { path: 'props.scan', label: 'Scan a code', type: 'checkbox', help: 'A Scan button on the phone: the suggestion with that code is picked' }
+          { path: 'props.scan', label: 'Scan a code', type: 'checkbox', help: 'A Scan button on the phone: the suggestion with that code is picked' },
+          { path: 'props.scanMiss', label: 'A code nothing has says', type: 'text', help: 'With Scan. {code} is the code — "Not a rack: scan the rack\'s label"' }
         ]
       },
       {

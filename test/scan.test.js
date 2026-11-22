@@ -6,7 +6,7 @@
 // Plain script: prints its checks, exits non-zero on failure. No framework.
 import {
   validateDocument, createScreen, addControl, setNodeProperty, screenFromSpec,
-  suggestionsOf, suggestionForCode, sameCode, checklistOptionsOf, tickByCode, MAX_OPTION_CODES, MAX_CODE
+  suggestionsOf, suggestionForCode, sameCode, checklistOptionsOf, tickByCode, chooseByCode, missMessage, MAX_OPTION_CODES, MAX_CODE
 } from '../src/model.js'
 
 const results = []
@@ -46,7 +46,7 @@ console.log('a screen saying scan')
   check('an entity spec carries scan to the field', node && node.props.scan === true)
   let threw = null
   try { screenFromSpec({ name: 'X', fields: [{ label: 'Name', scan: true }] }) } catch (e) { threw = e.message }
-  check('scan on a plain text field in a spec: refused', /scan only apply to an autocomplete/.test(threw || ''), threw)
+  check('scan on a plain text field in a spec: refused', /scan\/scanMiss only apply to an autocomplete/.test(threw || ''), threw)
 }
 
 console.log('a suggestion\'s code')
@@ -84,6 +84,32 @@ console.log('a checklist entry\'s codes')
   check('a code nothing has: said, nothing ticked', same(out.ticked, ['a']) && out.option === null && out.message === 'Nothing here has the code 999')
   out = tickByCode(opts, undefined, '  ')
   check('nothing scanned: nothing happens', same(out.ticked, []) && out.message === null)
+}
+
+console.log('a choice its function lists, by code — a rack by its label')
+{
+  const place = (field) => {
+    let doc = createScreen({ id: 'movement_edit', name: 'Movement', source: 'movements' })
+    const added = addControl(doc, 'buttons')
+    return setNodeProperty(added.document, added.node.id, 'props.buttons', [{ id: 'place', label: 'Place in rack', action: 'placeMovementItems',
+      ask: { fields: [{ name: 'rackId', label: 'Rack', type: 'choice', optionsFrom: 'rackOptions', ...field }] } }])
+  }
+  check('a fed choice with scan and scanMiss is a screen', errs(place({ scan: true, scanMiss: 'Not a rack: {code}' })).length === 0, errs(place({ scan: true, scanMiss: 'x' })).join('; '))
+  let doc = createScreen({ id: 'x', name: 'X', source: 'xs' })
+  const b = addControl(doc, 'buttons')
+  doc = setNodeProperty(b.document, b.node.id, 'props.buttons', [{ id: 'b', label: 'B', action: 'doIt', ask: { fields: [{ name: 'c', label: 'C', type: 'choice', options: ['a'], scan: true }] } }])
+  check('scan on a choice of fixed options: refused', errs(doc).some((e) => /scan: is for a checklist, or a choice its function lists/.test(e)))
+  check('scanMiss without scan: refused', errs(place({ scanMiss: 'Not a rack' })).some((e) => /scanMiss: is for a field that scans/.test(e)))
+  check('scanMiss on an autocomplete without scan: refused', errs(products({ scanMiss: 'x' })).some((e) => /props\.scanMiss: is for a field that scans/.test(e)))
+  check('scanMiss on an autocomplete with scan: a screen', errs(products({ scan: true, scanMiss: 'Not a product: {code}' })).length === 0)
+  const racks = checklistOptionsOf([{ id: 'r1', label: 'Shelf A1', codes: ['RK-7K3QF9'] }, { id: 'r2', label: 'Shelf B2', codes: ['RK-22AB4C'] }])
+  let out = chooseByCode(racks, 'rk-22ab4c')
+  check('the rack with that code is chosen', out.value === 'r2' && out.message === 'Chose Shelf B2')
+  out = chooseByCode(racks, '22292500', 'Not a rack — {code} is not on any rack\'s label')
+  check('a code no rack has: the field\'s own words, with the code', out.value === null && out.message === 'Not a rack — 22292500 is not on any rack\'s label')
+  check('…or the general words', chooseByCode(racks, '9').message === 'Nothing here has the code 9')
+  check('a checklist takes scanMiss too', tickByCode(racks, [], 'X1', 'Not here: {code}').message === 'Not here: X1')
+  check('missMessage: own words, else the fallback, else the default', missMessage('A {code} B {code}', 'Z') === 'A Z B Z' && missMessage('', 'Z', 'F {code}') === 'F Z' && missMessage(null, ' Z ') === 'Nothing has the code Z')
 }
 
 const failed = results.filter(([, ok]) => !ok)

@@ -47,7 +47,7 @@ export const SPEC_HEIGHTS = {
  */
 export const ROW_GAP = 0.04
 
-const FIELD_KEYS = ['type', 'preset', 'label', 'name', 'required', 'hidden', 'placeholder', 'default', 'validation', 'data', 'options', 'table', 'layout', 'accept', 'maxSize', 'multiple', 'maxFiles', 'suggestFrom', 'minChars', 'quantity', 'maxTags', 'scan', 'step', 'steps', 'showNumbers', 'display', 'width', 'text', 'variant', 'style']
+const FIELD_KEYS = ['type', 'preset', 'label', 'name', 'required', 'hidden', 'placeholder', 'default', 'validation', 'data', 'options', 'table', 'layout', 'accept', 'maxSize', 'multiple', 'maxFiles', 'suggestFrom', 'minChars', 'quantity', 'maxTags', 'scan', 'scanMiss', 'step', 'steps', 'showNumbers', 'display', 'width', 'text', 'variant', 'style']
 const SPEC_KEYS = ['name', 'id', 'source', 'columns', 'heading', 'fields', 'list', 'aspect', 'width', 'layout', 'style']
 const LIST_KEYS = ['title', 'source', 'columns', 'pageSize', 'actions', 'style']
 
@@ -222,9 +222,9 @@ function propsFromField(type, field, at, fromPreset) {
   else if (field.options || field.table || field.data) throw new Error(`screenFromSpec: ${at} — options/table/data only apply to ${CHOICE_TYPES.join(', ')}`)
   if (type === 'autocomplete') {
     if (!field.suggestFrom) throw new Error(`screenFromSpec: ${at} is an autocomplete — give it suggestFrom: "<a function registered for \"suggest\">"`)
-    ;['suggestFrom', 'minChars', 'multiple', 'quantity', 'maxTags', 'scan'].forEach((k) => { if (field[k] !== undefined) props[k] = field[k] })
-  } else if (field.suggestFrom !== undefined || field.minChars !== undefined || field.quantity !== undefined || field.maxTags !== undefined || field.scan !== undefined) {
-    throw new Error(`screenFromSpec: ${at} — suggestFrom/minChars/quantity/maxTags/scan only apply to an autocomplete`)
+    ;['suggestFrom', 'minChars', 'multiple', 'quantity', 'maxTags', 'scan', 'scanMiss'].forEach((k) => { if (field[k] !== undefined) props[k] = field[k] })
+  } else if (field.suggestFrom !== undefined || field.minChars !== undefined || field.quantity !== undefined || field.maxTags !== undefined || field.scan !== undefined || field.scanMiss !== undefined) {
+    throw new Error(`screenFromSpec: ${at} — suggestFrom/minChars/quantity/maxTags/scan/scanMiss only apply to an autocomplete`)
   }
   if (type === 'file') {
     ;['accept', 'maxSize', 'multiple', 'maxFiles'].forEach((k) => { if (field[k] !== undefined) props[k] = field[k] })

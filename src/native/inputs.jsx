@@ -15,7 +15,7 @@ import { Btn, Field, PickList, styles, GAP } from './parts.jsx'
 import { useNativeTheme } from './theme.js'
 import { fileLabel, isMultiFile } from '../values.js'
 import { isImageFile } from '../controls.js'
-import { addTag, removeTag, setTagQty, tagLimit, suggestionForCode } from '../suggest.js'
+import { addTag, removeTag, setTagQty, tagLimit, suggestionForCode, missMessage } from '../suggest.js'
 
 const KEYBOARD = { email: 'email-address', tel: 'phone-pad', url: 'url' }
 
@@ -297,7 +297,7 @@ function Autocomplete({ node, value, onChange, onBlur, invalid, suggest, onPick,
       setScanning(true)
       let hit
       try { hit = suggestionForCode(await suggestRef.current(code), code) } catch (err) { setSaid({ text: err.message || 'Could not look the code up', bad: true }); return } finally { setScanning(false) }
-      if (!hit) { setSaid({ text: `Nothing has the code ${code}`, bad: true }); return }
+      if (!hit) { setSaid({ text: missMessage(p.scanMiss, code), bad: true }); return }
       const name = hit.label || hit.value
       if (!multiple) { take(hit); setSaid({ text: `Picked ${name}`, bad: false }); return }
       const before = tagsRef.current

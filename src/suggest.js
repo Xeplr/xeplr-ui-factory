@@ -79,6 +79,20 @@ export function sameCode(a, b) {
   return Boolean(x) && x === text(b).trim().toLowerCase()
 }
 
+/** Longest scanMiss message a field may give. */
+export const MAX_SCAN_MISS = 200
+
+/**
+ * What a code nothing has says: the field's own `scanMiss` ("Not a rack —
+ * scan the label on the rack", {code} the code read), or "Nothing has the code …".
+ */
+export function missMessage(scanMiss, code, fallback) {
+  const c = text(code).trim()
+  const own = text(scanMiss).trim()
+  if (own) return own.split('{code}').join(c)
+  return fallback ? fallback.split('{code}').join(c) : `Nothing has the code ${c}`
+}
+
 /** The suggestion a scanned (or typed) code means: the one whose `code` it is, or null. */
 export function suggestionForCode(list, code) {
   return (Array.isArray(list) ? list : []).find((s) => s && sameCode(s.code, code)) || null
