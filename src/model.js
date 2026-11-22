@@ -52,3 +52,5 @@ export {
 } from './flow.js'
 // A function-fed list's date range: presets → days, and what a day is.
 export { DATE_PRESETS, DATE_PRESET_VALUES, resolveRange, customRange, isDay, dayOf } from './listRange.js'
+
+export { MAX_TILES, tilesOf } from './tiles.js'

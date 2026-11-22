@@ -8,6 +8,7 @@ import { useUrlSteps, useUrlListQuery, useUrlOpen } from './useUrlPlaces.js'
 import { openableScreens } from './urlState.js'
 import { buttonShown, buttonDisabled, buttonPressed } from './buttons.js'
 import { rowMenuButtons } from './listRows.js'
+import { tilesOf } from './tiles.js'
 import { resolveRange, rangePresets, dayOf } from './listRange.js'
 import { suggestionsOf, shouldSuggest, pickValues, MAX_SUGGEST_QUERY, isTagField } from './suggest.js'
 import { useFeeds } from './useFeeds.js'
@@ -98,6 +99,7 @@ export function useFactoryScreen({
   onOpenRecord, onDone, onDirtyChange, params, urlKey, previous,
   fetchRows, fetchRowDetails, pressButton, uploadButtonFile, buttonOptions, onButtonDone, reloadKey,
   suggest, link, onReady, fetchFeed, fetchDetails,
+  menu, onNavigate,
   controls = CONTROLS
 } = {}) {
   const check = useMemo(() => validateDocument(doc, controls), [doc, controls])
@@ -1064,8 +1066,17 @@ export function useFactoryScreen({
   /** A row's "…" buttons (a list's rowMenu run entries), pressed on that row's record. */
   const rowButtonsFor = useCallback((node, row) => panelFor(rowMenuButtons(node), row || {}, row ? row[recordKey] : undefined), [panelFor, recordKey])
 
+  // MENU TILES (tiles.js): the app's menu, handed in, without the keys the
+  // control leaves out; a tile pressed is the app's to go to.
+  const navigateRef = useRef(onNavigate); navigateRef.current = onNavigate
+  const tilesFor = useCallback((node) => ({
+    items: tilesOf(menu, node && node.props && node.props.exclude),
+    open: navigateRef.current ? (item) => navigateRef.current(item) : null
+  }), [menu])
+
   return {
     document: doc,
+    tilesFor,
     documentErrors: linkError ? [...check.errors, linkError] : check.errors,
     embedded,
     subformFor,
