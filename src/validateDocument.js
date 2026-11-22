@@ -645,7 +645,7 @@ function checkFedColumn(c, p, err) {
   }
 }
 
-const BUTTON_KEYS = ['id', 'label', 'action', 'params', 'ask', 'when', 'disabledWhen', 'pressedWhen', 'variant']
+const BUTTON_KEYS = ['id', 'label', 'action', 'opens', 'params', 'ask', 'when', 'disabledWhen', 'pressedWhen', 'variant']
 const ASK_KEYS = ['title', 'message', 'note']
 // A button's `ask.file`: the file a press takes — a file field's rules, plus its label and required.
 const ASK_FILE_KEYS = ['label', 'required', 'accept', 'maxSize', 'multiple', 'maxFiles', 'source']
@@ -774,7 +774,12 @@ function checkButtons(props, at, err, ids) {
     else if (ids.has(b.id)) err(`${p}.id`, `"${b.id}" is already the id of ${ids.get(b.id)} — every button on a screen needs its own`)
     else ids.set(b.id, p)
     if (!nonEmptyString(b.label)) err(`${p}.label`, 'must be the button\'s text, e.g. "Packed"')
-    if (!(nonEmptyString(b.action) && FUNCTION_NAME.test(b.action))) err(`${p}.action`, 'must be the name of a registered function (event "button"), e.g. "setOrderStatus"')
+    // A button runs a function — or OPENS another screen on this record (Edit opens its form).
+    if (b.opens !== undefined) {
+      if (!(nonEmptyString(b.opens) && /^[A-Za-z0-9_-]{1,120}$/.test(b.opens))) err(`${p}.opens`, 'must be the key of a screen, e.g. "movement_edit" — it opens on this record')
+      if (b.action !== undefined) err(`${p}.opens`, 'a button opens a screen or runs a function — not both')
+      ;['params', 'ask'].forEach((k) => { if (b[k] !== undefined) err(`${p}.${k}`, 'is for a button that runs a function — this one opens a screen') })
+    } else if (!(nonEmptyString(b.action) && FUNCTION_NAME.test(b.action))) err(`${p}.action`, 'must be the name of a registered function (event "button"), e.g. "setOrderStatus" — or give "opens": a screen to open on this record')
     if (b.params !== undefined) {
       if (!b.params || typeof b.params !== 'object' || Array.isArray(b.params)) err(`${p}.params`, 'must be { name: value } — what the function is given')
       else Object.keys(b.params).forEach((k) => {

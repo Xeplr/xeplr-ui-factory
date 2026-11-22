@@ -717,8 +717,11 @@ export function useFactoryScreen({
             // — which is nothing until it has been saved, and the server
             // answers with no rows rather than with everybody's.
             var link = node.props && node.props.belongsTo
+            // A list of ANOTHER table is read through that table's own form
+            // (its editScreen) — this screen's would read this screen's table.
+            var through = node.props && node.props.source && node.props.source !== doc.source && node.props.editScreen ? node.props.editScreen : doc.id
             return fetchRecordsRef.current({
-              source: src, screen: doc.id, node,
+              source: src, screen: through, node,
               belongsTo: link || undefined,
               belongsToId: link ? live.current.recordId : undefined
             })
@@ -791,6 +794,7 @@ export function useFactoryScreen({
 
   // ── popup: a list's Edit / New in its edit screen ─────────────────────
   const [popup, setPopup] = useState(null)   // { node, screenId, record, document, loading, error, label, place }
+  const popupRef = useRef(popup); popupRef.current = popup
   // The RECORD open in it lives in the URL (`<urlKey>Open`): a refresh, Back,
   // or a link from a notification lands on it. A new record's form does not.
   const [openPlace, setOpenPlaceNow] = useUrlOpen(urlKey)
@@ -975,6 +979,8 @@ export function useFactoryScreen({
   const popupSave = useCallback(async (vals, meta) => {
     const saved = onSaveRef.current ? await onSaveRef.current(vals, meta) : undefined
     setListVersion((v) => v + 1)
+    // The record behind it may have changed (a view's Edit saved): the host reads it again.
+    if (buttonDoneRef.current) buttonDoneRef.current({ button: null, result: saved, record: null })
     return saved
   }, [])
 
@@ -992,6 +998,15 @@ export function useFactoryScreen({
   const popupPressed = useCallback((result) => {
     setListVersion((v) => v + 1)
     if (buttonDoneRef.current) buttonDoneRef.current(result)
+    // The record in the popup is read again: what the press changed (a status)
+    // decides which of its buttons show now.
+    const p = popupRef.current
+    const id = p && p.record ? p.record[live.current.recordKey] : undefined
+    if (!p || !p.document || id === undefined || id === null || !fetchRecordRef.current) return
+    const screenId = p.screenId
+    Promise.resolve(fetchRecordRef.current({ screen: screenId, id }))
+      .then((fresh) => { if (fresh) setPopup((q) => (q && q.screenId === screenId && q.record && q.record[live.current.recordKey] === id ? { ...q, record: fresh } : q)) })
+      .catch(() => {})
   }, [])
   const [pressing, setPressing] = useState(null)        // button id on the wire
   const [buttonNote, setButtonNote] = useState(null)    // { kind: 'done' | 'error', text, button }
@@ -1001,7 +1016,7 @@ export function useFactoryScreen({
   // the task it became.
   const { feedFor } = useFeeds({ doc, recordId, fetchFeed, onSave, uploadFile, loadScreen, reloadKey: `${reloadKey ?? ''}:${listVersion}`, openPopup })
   // What is known about the record (details panels) — useRecordDetails.js.
-  const { detailsFor } = useRecordDetails({ doc, recordId, fetchDetails, reloadKey })
+  const { detailsFor } = useRecordDetails({ doc, recordId, fetchDetails, reloadKey: `${reloadKey ?? ''}:${listVersion}` })
 
   const buttonRecord = useMemo(() => ({ ...(record || {}), ...values, [recordKey]: recordId }), [record, values, recordKey, recordId])
   const buttonsFor = useCallback((node) => ({
@@ -1023,6 +1038,8 @@ export function useFactoryScreen({
       return out
     },
     press: async (b, typed, files, values) => {
+      // A button that OPENS a screen on this record (Edit → its form): the popup, as a list's Edit opens it.
+      if (b.opens) { setButtonNote(null); openPopup({ screenId: b.opens, id: recordId, label: b.label }); return true }
       if (!pressRef.current) { setButtonNote({ kind: 'error', text: 'No pressButton was provided', button: b.id }); return false }
       setPressing(b.id)
       setButtonNote(null)
@@ -1039,7 +1056,7 @@ export function useFactoryScreen({
         setPressing(null)
       }
     }
-  }), [buttonRecord, pressing, buttonNote, doc, recordId, readFile, buttonOptions])
+  }), [buttonRecord, pressing, buttonNote, doc, recordId, readFile, buttonOptions, openPopup])
 
   return {
     document: doc,
