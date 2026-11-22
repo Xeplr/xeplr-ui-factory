@@ -294,6 +294,9 @@ Records from   material_characteristics   [ New table… ]
 Belonging to   materialId
 ```
 
+**It is read through its own form** — the list's `editScreen` — never the
+screen it sits on, whose table is another.
+
 **The link is what makes it a sub-table.** Without it, a list of another
 table shows every row in the app and **New** saves a row belonging to
 nothing. With it:
@@ -490,6 +493,20 @@ Rules are [`@xeplr/rules`](https://www.npmjs.com/package/@xeplr/rules) rules —
 - **The record decides.** The server reads the record (this company, active rows) and checks `when` / `disabledWhen` again, so a hidden or greyed-out button cannot be pressed by sending the request — "does not apply to this record now" (409) when it changed underneath.
 - **What happens next is the host's.** The panel shows the function's `message`; `onButtonDone({ button, result, record })` lets the page reload what it shows. Lists on the same screen reload by themselves.
 - **In the builder**, picking a function lists the parameters it takes — a dropdown where it names the values allowed — so nobody types a status by hand. Functions come from `listFunctions` (`createFactoryApi`'s `builderProps` has it).
+
+### A button that opens a screen — `opens`
+
+A record's view (its details, its lists, its buttons) and its form are two
+screens. **Edit** on the view opens the form, on this record, in the popup —
+nothing runs on the server, so it names a screen instead of a function:
+
+```json
+{ "id": "edit", "label": "Edit", "opens": "movement_edit" }
+```
+
+- `opens` or `action`, never both; no `params` or `ask`. `when` and the rest apply as to any button.
+- Saving in it reads the view again: its details, its lists, and `onButtonDone` for the host.
+- A button pressed inside a popup reads the popup's record again, so its own buttons follow (Close → Reopen).
 
 ### A button that asks for values — `ask.fields`
 
