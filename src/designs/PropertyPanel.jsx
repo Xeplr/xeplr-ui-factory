@@ -889,23 +889,30 @@ function FunctionEditor({ id, field, value, onChange, functions }) {
 }
 
 /** A list's filter chips: key (what the function is asked for) and the chip's text. */
-function FiltersEditor({ value, onChange }) {
+function FiltersEditor({ value, onChange, field }) {
+  // The same editor draws a list's filter chips and its KPI cards — each
+  // under its own heading, with its own word for one entry.
+  const cards = Boolean(field && field.path === 'props.kpis')
+  const one = cards ? 'Card' : 'Chip'
   const chips = Array.isArray(value) ? value : []
   const set = (next) => onChange(next.length ? next : undefined)
   const edit = (i, patch) => set(chips.map((c, j) => (j === i ? { ...c, ...patch } : c)))
+  const fresh = () => cards
+    ? { key: '', label: '' }
+    : { key: chips.length ? `chip-${chips.length + 1}` : 'all', label: chips.length ? '' : 'All' }
   return (
     <div className="xeplr-factory-rows-editor">
-      <div className="xeplr-factory-prop-label">Filter chips</div>
+      <div className="xeplr-factory-prop-label">{(field && field.label) || 'Filter chips'}</div>
       {chips.map((c, i) => (
         <div key={i} className="xeplr-factory-rows-editor-row">
-          <input className="xeplr-factory-prop-input" aria-label={`Chip ${i + 1} text`} placeholder="Packed" value={c.label || ''}
+          <input className="xeplr-factory-prop-input" aria-label={`${one} ${i + 1} text`} placeholder={cards ? 'Out now' : 'Packed'} value={c.label || ''}
                  onChange={(e) => edit(i, { label: e.target.value, ...(c.key && c.key !== slugify(c.label || '', '-') ? {} : { key: slugify(e.target.value, '-') }) })} />
-          <input className="xeplr-factory-prop-input xeplr-factory-prop-input--key" aria-label={`Chip ${i + 1} key`} placeholder="packed" value={c.key || ''}
+          <input className="xeplr-factory-prop-input xeplr-factory-prop-input--key" aria-label={`${one} ${i + 1} key`} placeholder={cards ? 'out-now' : 'packed'} value={c.key || ''}
                  onChange={(e) => edit(i, { key: e.target.value.trim() })} />
           <RowTools i={i} count={chips.length} onMove={(to) => set(move(chips, i, to))} onRemove={() => set(chips.filter((_, j) => j !== i))} />
         </div>
       ))}
-      <button type="button" className="xeplr-factory-secondary" onClick={() => set([...chips, { key: chips.length ? `chip-${chips.length + 1}` : 'all', label: chips.length ? '' : 'All' }])}>+ Chip</button>
+      <button type="button" className="xeplr-factory-secondary" onClick={() => set([...chips, fresh()])}>+ {one}</button>
     </div>
   )
 }
