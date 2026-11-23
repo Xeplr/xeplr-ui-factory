@@ -13,6 +13,7 @@
 // Props are FactoryScreen's (@xeplr/ui-factory's createFactoryApi(...).screenProps,
 // record, onOpenRecord, onDone, onButtonDone, reloadKey, params), plus:
 //   host  { pickFile, pickDate, scanCode, baseUrl } — what only the app can do (inputs.jsx)
+//   menu, onNavigate  the app's places for a tiles control (tiles.js), and going to one
 //   header  an element drawn above the screen, inside its scroll (a page title)
 //   scroll  false when the app scrolls the screen itself
 import { useRef } from 'react'
@@ -26,6 +27,7 @@ import NativeList from './NativeList.jsx'
 import NativeButtons from './NativeButtons.jsx'
 import NativeDetails from './NativeDetails.jsx'
 import NativeFeed from './NativeFeed.jsx'
+import NativeTiles from './NativeTiles.jsx'
 import { Btn, Sheet, GAP } from './parts.jsx'
 import { useNativeTheme } from './theme.js'
 
@@ -173,6 +175,8 @@ function Control({ node, ctrl, host }) {
       return <NativeButtons node={node} panel={ctrl.buttonsFor ? ctrl.buttonsFor(node) : null} host={host} />
     case 'details':
       return <NativeDetails node={node} details={ctrl.detailsFor ? ctrl.detailsFor(node) : null} host={host} />
+    case 'tiles':
+      return <NativeTiles node={node} tiles={ctrl.tilesFor ? ctrl.tilesFor(node) : null} />
     case 'feed':
       return <NativeFeed node={node} feed={ctrl.feedFor ? { ...ctrl.feedFor(node), readFile: ctrl.readFile } : null} host={host} />
     case 'stepper':

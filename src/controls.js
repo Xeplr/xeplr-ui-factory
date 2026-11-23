@@ -918,6 +918,32 @@ CONTROLS.details = {
   ]
 }
 
+// A grid of large tiles, each a place in the app to go to — the app's own
+// menu, handed in by the host (tiles.js). For a Home page.
+CONTROLS.tiles = {
+  type: 'tiles',
+  label: 'Menu tiles',
+  group: 'Data',
+  input: false,
+  defaultSize: { w: 0.92, h: 0.3 },
+  defaults: { title: '' },
+  props: ['title', 'exclude', 'style'],
+  validation: [],
+  styles: ['fontFamily', 'fontSize', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'],
+  properties: [
+    {
+      key: 'tiles',
+      title: 'Menu tiles',
+      fields: [
+        { path: 'props.title', label: 'Title', type: 'text', help: 'Shown above them. Blank → none' },
+        { path: 'props.exclude', label: 'Leave out', type: 'text',
+          help: 'Menu keys not to show, comma separated — the page itself (Home). The tiles are the app\'s menu: each person sees what they may open' }
+      ]
+    },
+    ...styleGroups(['fontFamily', 'fontSize', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'])
+  ]
+}
+
 export const LABEL_VARIANTS = ['heading', 'subheading', 'text']
 
 /** The sizes a label preset starts from, in px at the design width. */

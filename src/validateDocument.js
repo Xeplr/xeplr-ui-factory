@@ -200,6 +200,12 @@ export function validateDocument(doc, controls = CONTROLS) {
     if (node.type === 'buttons') checkButtons(props, at, err, buttonIds)
     if (node.type === 'subform') checkSubform(props, doc, at, err)
     if (node.type === 'feed') checkFeed(props, doc, at, err)
+    if (node.type === 'tiles') {
+      if (props.title !== undefined && typeof props.title !== 'string') err(`${at}.props.title`, 'must be a string')
+      if (props.exclude !== undefined && !(Array.isArray(props.exclude) && props.exclude.every((k) => nonEmptyString(k)))) {
+        err(`${at}.props.exclude`, 'must be a list of menu keys, e.g. ["Home"]')
+      }
+    }
     if (node.type === 'details') checkDetails(props, doc, at, err)
     if (node.type === 'label') {
       if (typeof props.text !== 'string') err(`${at}.props.text`, 'must be a string')

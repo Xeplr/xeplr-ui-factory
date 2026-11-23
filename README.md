@@ -920,6 +920,30 @@ title to write a comment. Palette: **Data → Comments & history**.
   convert: { label, can(entry), start(entry), canOpen(entry), open(entry) } | null }` — so a phone
   renderer draws the same feed from the same calls.
 
+## A way to every place — menu `tiles`
+
+A grid of large tiles, each a place in the app to go to — a Home page's way to
+everything. Palette: **Data → Menu tiles**.
+
+```json
+{ "id": "go", "type": "tiles", "props": { "title": "Go to", "exclude": ["Home"] } }
+```
+
+```jsx
+<FactoryScreen document={home} {...factory.screenProps}
+  menu={[{ key: 'Orders', label: 'Orders', icon: <Icon name="cart" />, path: '/orders' }, …]}
+  onNavigate={(item) => navigate(item.path)} />
+```
+
+- **The tiles are the app's menu, handed in** (`menu`), never written in the
+  document: who may open what is decided per person. Each `{ key, label, icon?,
+  path?, description? }`, in the menu's order; `exclude` leaves keys out (the
+  page itself).
+- A tile with a `path` is a real link (⌘/ctrl-click opens a tab); a press is
+  `onNavigate(item)`. No menu handed in: nothing is drawn.
+- On a phone (`NativeScreen`, the same `menu` / `onNavigate`): two to a row; an
+  icon may be text (an emoji).
+
 ## What is known about a record — `details`
 
 A read-only panel of one record's facts, in sections side by side: an order's

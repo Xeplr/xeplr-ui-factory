@@ -1338,3 +1338,21 @@ button.xeplr-factory-feed-converted:hover { border-color: var(--xf-accent); }
   .xeplr-factory-ask-row-name { grid-column: 1; grid-row: 1; }
   .xeplr-factory-ask-row-remove { grid-column: 2; grid-row: 1; justify-self: end; width: 40px; height: 40px; }
 }
+
+/* ── menu tiles (tiles.js): the app's places, as large tiles ─────────────── */
+.xeplr-factory-tiles { display: flex; flex-direction: column; gap: 10px; }
+.xeplr-factory-tiles-title { font-weight: 700; font-size: 1.05em; color: var(--xf-ink, #111827); }
+.xeplr-factory-tiles-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.xeplr-factory-tile {
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 6px; min-height: 92px;
+  padding: 14px 16px; border-radius: 12px; border: 1px solid var(--xf-border, #e5e7eb);
+  background: var(--xf-surface, #fff); color: var(--xf-ink, #111827); text-decoration: none; font: inherit; text-align: left; cursor: pointer;
+  transition: border-color .12s, box-shadow .12s, transform .12s;
+}
+.xeplr-factory-tile:hover, .xeplr-factory-tile:focus-visible { border-color: var(--xf-accent, #4f46e5); box-shadow: 0 2px 10px color-mix(in srgb, var(--xf-accent, #4f46e5) 18%, transparent); transform: translateY(-1px); outline: none; }
+.xeplr-factory-tile:disabled { cursor: default; opacity: .6; transform: none; }
+.xeplr-factory-tile-icon { display: inline-flex; color: var(--xf-accent, #4f46e5); }
+.xeplr-factory-tile-icon svg { width: 26px; height: 26px; }
+.xeplr-factory-tile-label { font-weight: 600; font-size: 1em; }
+.xeplr-factory-tile-sub { font-size: .82em; color: var(--xf-muted, #6b7280); }
+@media (max-width: 640px) { .xeplr-factory-tiles-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

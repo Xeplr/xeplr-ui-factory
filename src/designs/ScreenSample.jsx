@@ -264,6 +264,7 @@ export default function ScreenSample({ ctrl, className, style, renderPopup, rend
               subform={node.type === 'subform' ? { sub: ctrl.subformFor(node), render: renderSubform } : undefined}
               buttons={node.type === 'buttons' && ctrl.buttonsFor ? ctrl.buttonsFor(node) : undefined}
               details={node.type === 'details' && ctrl.detailsFor ? ctrl.detailsFor(node) : undefined}
+              tiles={node.type === 'tiles' && ctrl.tilesFor ? ctrl.tilesFor(node) : undefined}
               feed={node.type === 'feed' && ctrl.feedFor ? { ...ctrl.feedFor(node), readFile: ctrl.readFile } : undefined}
             />
           </div>
