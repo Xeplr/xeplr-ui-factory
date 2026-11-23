@@ -28,6 +28,7 @@ import NativeButtons from './NativeButtons.jsx'
 import NativeDetails from './NativeDetails.jsx'
 import NativeFeed from './NativeFeed.jsx'
 import NativeTiles from './NativeTiles.jsx'
+import NativeTable from './NativeTable.jsx'
 import { Btn, Sheet, GAP } from './parts.jsx'
 import { useNativeTheme } from './theme.js'
 
@@ -71,7 +72,7 @@ export function NativeScreenView({ ctrl, props }) {
   const body = (
     <>
       {props.header || null}
-      {shown.map((node) => <Control key={node.id} node={node} ctrl={ctrl} host={host} />)}
+      {shown.map((node) => <Control key={node.id} node={node} ctrl={ctrl} host={host} props={props} />)}
       {footer ? (
         <View style={{ marginTop: GAP }}>
           {ctrl.status === 'error' ? <Text style={{ color: t.danger, marginBottom: 8 }} accessibilityRole="alert">Not saved — {ctrl.saveError}</Text>
@@ -164,7 +165,7 @@ function tableRows(node, rows, ctrl) {
 }
 
 /** One control of the screen, as a phone draws it. */
-function Control({ node, ctrl, host }) {
+function Control({ node, ctrl, host, props }) {
   const t = useNativeTheme()
   switch (node.type) {
     case 'label':
@@ -186,9 +187,37 @@ function Control({ node, ctrl, host }) {
       return <NativeFeed node={node} feed={ctrl.feedFor ? { ...ctrl.feedFor(node), readFile: ctrl.readFile } : null} host={host} />
     case 'stepper':
       return <Steps node={node} ctrl={ctrl} />
-    case 'subform':
     case 'table':
-      return <Text style={{ color: t.muted, marginBottom: GAP }}>{(node.props && (node.props.title || node.props.label)) || 'This part'} is not on the phone yet — open it on a computer.</Text>
+      return <NativeTable node={node} rows={ctrl.rowsFor ? ctrl.rowsFor(node) : []}
+                          value={node.props && node.props.name ? ctrl.values[node.props.name] : undefined}
+                          error={node.props && node.props.name ? ctrl.errors[node.props.name] : undefined}
+                          onChange={(rows) => ctrl.setValue(node, rows)} />
+    case 'subform': {
+      // A form inside this one, saving into its own table — the same screen
+      // again, handed to this one's controller (registerSubform), so this
+      // screen's Save checks and saves it too, as on the web.
+      const sub = ctrl.subformFor(node)
+      const title = node.props && node.props.title
+      if (sub.error) return <Text style={{ color: t.danger, marginBottom: GAP }}>{sub.error}</Text>
+      if (sub.loading || !sub.document) return <Text style={{ color: t.muted, marginBottom: GAP }}>Loading…</Text>
+      return (
+        <View style={{ marginBottom: GAP, borderRadius: 12, borderWidth: 1, borderColor: t.border, overflow: 'hidden' }}>
+          {title ? <Text style={{ color: t.ink, fontWeight: '700', fontSize: 16, paddingHorizontal: 16, paddingTop: 14 }}>{title}</Text> : null}
+          <NativeScreen
+            key={`${node.id}:${sub.document.id}`}
+            {...popupProps(props)}
+            onSave={props.onSave}
+            document={sub.document}
+            record={sub.record || undefined}
+            link={node.props.belongsTo}
+            onReady={(api) => ctrl.registerSubform(node.id, api)}
+            onDirtyChange={(d) => ctrl.subformDirty(node.id, d)}
+            scroll={false}
+            host={host}
+          />
+        </View>
+      )
+    }
     default:
       return (
         <NativeInput
