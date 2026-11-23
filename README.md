@@ -397,6 +397,7 @@ to one of these); the screen only names it:
 - **Every event runs on the server** (`@xeplr/factory` 2+). A rule that runs in the browser is one a person can skip.
 - **Checked twice.** Here, that each name could be a function and each event exists. On the server, at publish and when it runs, that the function is registered *for that event* — a missing one refuses with its name (`missingFunctions(doc, registry)`).
 - `SCREEN_EVENTS` carries each event's contract (`when`, `gets`, `returns`) — what the designer shows beside each picker.
+- **Picked in the form designer:** with nothing selected, the screen panel's **Server rules** has a dropdown per event, listing only the functions registered for it (`listFunctions`), each with its description. A list's panel has none — a list runs the events of the form it opens. The flow designer's Events & navigation sets the same `events`, so both show the same choice.
 
 ## Screens and buttons — the rules
 

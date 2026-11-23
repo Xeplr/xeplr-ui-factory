@@ -4,6 +4,7 @@ import { FIELD_PRESETS, presetFor } from '../presets.js'
 import { slugify, inputNodes, paramsText, screenParams } from '../document.js'
 import { isBinding, previousBinding } from '../values.js'
 import { FONT_FAMILIES, STYLE_KEYS, SCREEN_STYLE_KEYS, LIST_ACTIONS, FILE_KINDS, FILE_SOURCES, MAX_FILES } from '../controls.js'
+import { SCREEN_EVENTS } from '../events.js'
 import { BUTTON_VARIANTS, COLUMN_DISPLAYS, BADGE_TONES, CONDITION_OPERATORS, NOTE_INPUT, FILES_INPUT, optionValues } from '../buttons.js'
 
 // The selected control's properties, GENERATED from its entry in controls.js:
@@ -70,7 +71,7 @@ export default function PropertyPanel({ doc, node, control, controls, errors, ta
     )
   }
   if (!node || !control) {
-    return <ScreenPanel doc={doc} errors={errors || []} tables={tables} onChange={onScreenChange} />
+    return <ScreenPanel doc={doc} errors={errors || []} tables={tables} functions={functions} onChange={onScreenChange} />
   }
 
   const nodeErrors = errors || []
@@ -149,7 +150,7 @@ export default function PropertyPanel({ doc, node, control, controls, errors, ta
  * Nothing selected: the SCREEN's own properties — where records are saved,
  * how wide it is designed, and the font and colours every control inherits.
  */
-function ScreenPanel({ doc, errors, tables, onChange }) {
+function ScreenPanel({ doc, errors, tables, functions, onChange }) {
   const errorFor = (path) => errors.filter((e) => e.path === path || e.path.startsWith(path + '.')).map((e) => e.message)[0]
   const styleFields = SCREEN_STYLE_KEYS.map((k) => ({ path: `style.${k}`, label: k === 'fontSize' ? 'Base font size (px)' : STYLE_KEYS[k].label, ...STYLE_KEYS[k] }))
   const row = (field, Editor, extra) => {
@@ -220,6 +221,27 @@ function ScreenPanel({ doc, errors, tables, onChange }) {
           type: 'text',
           help: 'Names, comma separated. A field takes one with {params.name} as its default.'
         }, ListLineEditor)}
+      </fieldset>
+      {/* WHAT RUNS ON THE SERVER around this form's records — a rule on
+          save, an email after, rows narrowed to the person's own. Picked from
+          the functions the app registered for each event; the code is the
+          app's. Only a form has them: a list runs the events of the form it
+          edits in, so a list's panel says so instead of offering pickers that
+          would never run. */}
+      <fieldset className="xeplr-factory-group">
+        <legend>Server rules</legend>
+        {inputNodes(doc).length ? (
+          <>
+            <p className="xeplr-factory-prop-help">Functions written in the app's API (registered with @xeplr/actions under each event). They run on the server, wherever this form is used.</p>
+            {SCREEN_EVENTS.map((e) => row(
+              { path: `events.${e.key}`, label: e.label, type: 'function', event: e.key, help: e.when },
+              FunctionEditor,
+              { functions }
+            ))}
+          </>
+        ) : (
+          <p className="xeplr-factory-prop-help">A list runs the server rules of the form it opens — pick them on that form.</p>
+        )}
       </fieldset>
       <fieldset className="xeplr-factory-group">
         <legend>Size</legend>
