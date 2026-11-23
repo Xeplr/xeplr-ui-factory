@@ -70,7 +70,9 @@ export function masterForms(screens) {
     if (!sc || !sc.key) return
     var form = formKeyOf(sc.key)
     var entry = byForm[form] || (byForm[form] = { key: form, name: null, labelField: null, edit: null, list: null, source: null })
-    if (/_list$/.test(sc.key)) entry.list = sc.key
+    // The list's name is the master's ("Categories"); the edit screen's is
+    // what the popup says ("Add / edit category"), wrong for a heading.
+    if (/_list$/.test(sc.key)) { entry.list = sc.key; if (sc.name) entry.listName = sc.name }
     else entry.edit = sc.key
     if (sc.master) {
       entry.master = true
@@ -83,7 +85,7 @@ export function masterForms(screens) {
   })
 
   return Object.keys(byForm)
-    .map(function (k) { return byForm[k] })
+    .map(function (k) { var f = byForm[k]; if (f.listName) f.name = f.listName; delete f.listName; return f })
     .filter(function (f) { return f.master })
     .sort(function (a, b) { return String(a.name).localeCompare(String(b.name)) })
 }

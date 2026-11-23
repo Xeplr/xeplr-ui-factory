@@ -74,6 +74,8 @@ console.log('\nmasters — the lists other forms point at')
   check('...known by the form key', masters[0].key === 'department')
   check('...carrying both halves', masters[0].edit === 'department_edit' && masters[0].list === 'department_list')
   check('...and what to show', masters[0].labelField === 'name')
+  check('...named by its list ("Departments"), not its edit popup', masterForms([{ ...d, name: 'Add / edit department' }, describeScreen({ id: 'department_list', name: 'Departments', nodes: [] })])[0].name === 'Departments')
+  check('...or by its edit screen when the list is not there', masterForms([d])[0].name === d.name)
   check('a form nobody marked is not in the list', !masters.some((m) => m.key === 'task'))
   check('nothing at all is an empty list, not a crash', masterForms(null).length === 0)
 
