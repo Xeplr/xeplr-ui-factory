@@ -1057,7 +1057,7 @@ const screen = useScreenDocument(factory.loadScreen, 'orders_board')
   table's values read as its web table shows them (a dropdown's name, Yes /
   No, a readable date), and a tap opens the record.
 - **Not on the phone yet:** a `table` control and a `subform` say so and point
-  to a computer.
+  to a computer. Journeys are (`NativeFlowRunner`, below).
 - **No URL.** Open steps, a list's search and the open popup are kept in memory.
   `@xeplr/ui-utils`' URL state imports `react-router-dom`, which does not
   compile for Hermes, so the app points it at `@xeplr/ui-factory/native/noRouter`
@@ -1076,7 +1076,26 @@ const screen = useScreenDocument(factory.loadScreen, 'orders_board')
 - `react-native` is an **optional peer**: a web-only app installs nothing new.
   `useScreenDocument(loadScreen, key)` is exported from the main entry too.
 
-Taskie's phone app (`taskie/mobile`, Expo) is the worked example.
+### A whole phone app, from what the server holds
+
+An app built in Configure UI needs **no screen code** on the phone. These pages
+draw what the server holds, and know no router — where a tap goes is the
+app's:
+
+| | |
+|---|---|
+| `<NativeFormRecords factory form onOpen reloadKey />` | a form's records — its `<form>_list` screen: cards, + New, search / chips / KPI cards / date range when the list has them |
+| `<NativeRecord factory form id onDone />` | one record in `<form>_edit` (`id` `'new'` for a new one); its buttons read it again after a press |
+| `<NativeMenu items onOpen header footer />` | the menu as tiles |
+| `phoneMenu(access, { flows, pages })` | the menu's items from `@xeplr/ui-account`'s access: every form added to the menu in Configure UI (`form:<key>`), in its order and under its labels, **Flows**, and the app's own pages by key — never Configure UI or the admin screens, nothing hidden, nothing the person may not open |
+| `<NativeFlows flows onStart />` | the published journeys, each with Start (`flows` is `createFlowsApi(…)`) |
+| `<NativeFlowRunner {...flows.runnerProps} {...factory.screenProps} flowKey renderDone />` | a journey, walked: the web's `useFlowRun` and `useFactoryScreen`, the screen's Save renamed **Next** (or the step's own buttons) |
+| `<NativeHostProvider modules baseUrl appName>` / `useNativeHost()` | the `host` every screen takes — the camera, gallery and files, the phone's date picker, barcode scanning. The Expo modules are **handed in** (`{ ImagePicker, DocumentPicker, DateTimePicker, DateTimePickerAndroid, CameraView, Camera }`), so this package depends on none of them; any left out, that ability is left out |
+
+`@xeplr/cli` writes a phone app made of these (`mobile/`, a few files) into
+every app whose data is not split by company; sign-in is
+`@xeplr/ui-account/native`'s. Taskie's phone app (`taskie/mobile`, Expo) is the
+worked example of a hand-made one.
 
 ## The flow designer, as a list — `<FlowDesigner>`
 

@@ -47,7 +47,8 @@ export function NativeScreen(props) {
   return <NativeScreenView ctrl={ctrl} props={props} />
 }
 
-function NativeScreenView({ ctrl, props }) {
+/** The view alone, for a controller made elsewhere (a journey's — NativeFlowRunner). */
+export function NativeScreenView({ ctrl, props }) {
   const t = useNativeTheme()
   const host = props.host || null
   const doc = ctrl.document
@@ -77,8 +78,12 @@ function NativeScreenView({ ctrl, props }) {
             : STATUS[ctrl.status] && doc.source ? <Text style={{ color: t.muted, marginBottom: 8 }} accessibilityLiveRegion="polite">{STATUS[ctrl.status]}</Text> : null}
           <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10 }}>
             {ctrl.done && !ctrl.doneLabel ? <Btn label="Cancel" disabled={saving} onPress={() => askDiscard(ctrl, () => ctrl.done())} /> : null}
-            {ctrl.doneLabel
-              ? <Btn label={ctrl.doneLabel} variant="primary" busy={saving} onPress={() => ctrl.flush().then((r) => { if (r && r.ok) ctrl.done(r) })} />
+            {ctrl.doneButtons
+              // A journey step with its own ways on (Approve / Send back): each saves, then says which.
+              ? ctrl.doneButtons.map((b, i) => <Btn key={b.key} label={b.label} variant={i === 0 ? 'primary' : undefined} busy={saving || ctrl.sending}
+                                                     onPress={() => ctrl.flush().then((r) => { if (r && r.ok) ctrl.done(r, b.key) })} />)
+              : ctrl.doneLabel
+              ? <Btn label={ctrl.doneLabel} variant="primary" busy={saving || ctrl.sending} onPress={() => ctrl.flush().then((r) => { if (r && r.ok) ctrl.done(r) })} />
               : <Btn label="Save" variant="primary" busy={saving} onPress={() => ctrl.save().then((r) => { if (r && r.ok && ctrl.done) ctrl.done() })} />}
           </View>
         </View>

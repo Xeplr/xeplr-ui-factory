@@ -6,7 +6,12 @@
 //   <NativeScreen document={doc} {...factory.screenProps} record={rec} host={{ pickFile, pickDate, baseUrl }} />
 //
 // Needs react-native (a peer, optional for web-only apps). See README → "On a phone".
-export { NativeScreen } from './NativeScreen.jsx'
+export { NativeScreen, NativeScreenView } from './NativeScreen.jsx'
+// A whole phone app from what the server holds: a form's records, one record, the menu, the journeys.
+export { NativeFormRecords, NativeRecord, NativeMenu, NativeFlows } from './pages.jsx'
+export { NativeFlowRunner } from './NativeFlowRunner.jsx'
+export { NativeHostProvider, useNativeHost } from './host.jsx'
+export { phoneMenu, FORM_PREFIX } from '../phoneMenu.js'
 export { NativeTheme, useNativeTheme, DARK, LIGHT, toneOf } from './theme.js'
 export { NativeInsets } from './safeArea.js'
 export { readableWhen } from './inputs.jsx'
