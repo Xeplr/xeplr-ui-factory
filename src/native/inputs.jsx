@@ -69,7 +69,8 @@ export function NativeInput({ node, value, error, onChange, onBlur, options, upl
     case 'label':
       return <Label node={node} />
     default:
-      return field(<Text style={{ color: t.muted }}>This field is not on the phone yet — open it on a computer.</Text>)
+      // Every control of this package is drawn above; only a type it does not know reaches here.
+      return field(<Text style={{ color: t.danger }}>Unknown control "{node.type}".</Text>)
   }
 }
 

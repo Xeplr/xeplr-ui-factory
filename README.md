@@ -1056,8 +1056,10 @@ const screen = useScreenDocument(factory.loadScreen, 'orders_board')
 - **Lists** — a table's records or rows a function works out — are cards; a
   table's values read as its web table shows them (a dropdown's name, Yes /
   No, a readable date), and a tap opens the record.
-- **Not on the phone yet:** a `table` control and a `subform` say so and point
-  to a computer. Journeys are (`NativeFlowRunner`, below).
+- **Every control is on the phone.** A `table` is a card per row with a tick
+  ("Tick every row", "2 of 5 ticked"); a `subform` is the other form drawn
+  inside this one and saved by this one's Save, into its own table, linked by
+  `belongsTo` — as on the web. Journeys are walked with `NativeFlowRunner` (below).
 - **No URL.** Open steps, a list's search and the open popup are kept in memory.
   `@xeplr/ui-utils`' URL state imports `react-router-dom`, which does not
   compile for Hermes, so the app points it at `@xeplr/ui-factory/native/noRouter`
@@ -1093,8 +1095,8 @@ app's:
 | `<NativeHostProvider modules baseUrl appName>` / `useNativeHost()` | the `host` every screen takes — the camera, gallery and files, the phone's date picker, barcode scanning. The Expo modules are **handed in** (`{ ImagePicker, DocumentPicker, DateTimePicker, DateTimePickerAndroid, CameraView, Camera }`), so this package depends on none of them; any left out, that ability is left out |
 
 `@xeplr/cli` writes a phone app made of these (`mobile/`, a few files) into
-every app whose data is not split by company; sign-in is
-`@xeplr/ui-account/native`'s. Taskie's phone app (`taskie/mobile`, Expo) is the
+every app; sign-in, and choosing the company (and workspace) an app's data
+belongs to, are `@xeplr/ui-account/native`'s. Taskie's phone app (`taskie/mobile`, Expo) is the
 worked example of a hand-made one.
 
 ## The flow designer, as a list — `<FlowDesigner>`
