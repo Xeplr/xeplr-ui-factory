@@ -963,8 +963,7 @@ function FedColumnsEditor({ value, onChange, functions }) {
             </MiniField>
           )}
           <MiniField label="Badges" help="field:Text:tone, … — shown where the field is true. Tones: accent, success, warning, danger, muted">
-            <input className="xeplr-factory-prop-input" value={badgesText(c.badges)} placeholder="isNew:New, cancelled:Cancelled:danger"
-                   onChange={(e) => edit(i, { badges: parseBadges(e.target.value) })} />
+            <BadgesInput value={c.badges} onChange={(badges) => edit(i, { badges })} />
           </MiniField>
           <label className="xeplr-factory-toggle">
             <input type="checkbox" checked={c.sortable !== false} onChange={(e) => edit(i, { sortable: e.target.checked ? undefined : false })} />
@@ -978,6 +977,26 @@ function FedColumnsEditor({ value, onChange, functions }) {
 }
 
 const DISPLAY_LABELS = { text: 'Text', images: 'Pictures', activity: 'Latest activity (with hover box)', items: 'Items — picture, name, detail, how many' }
+
+/**
+ * A COLUMN'S BADGES, TYPED AS A LINE. What is stored is a list and what is
+ * shown is that list written out again — so redrawing the box from the list
+ * on every keystroke rewrote what was being typed ("o" became "o:o", the
+ * cursor jumped, and "overdue:Overdue:danger" came out mangled). The text is
+ * kept here while the box is being typed in, and the list is sent on every
+ * keystroke — the same shape as ListLineEditor, for the same reason.
+ */
+function BadgesInput({ value, onChange }) {
+  const [text, setText] = useState(badgesText(value))
+  const [typing, setTyping] = useState(false)
+  useEffect(() => { if (!typing) setText(badgesText(value)) }, [value, typing])
+  return (
+    <input className="xeplr-factory-prop-input" value={text} placeholder="isNew:New, cancelled:Cancelled:danger"
+           onFocus={() => setTyping(true)}
+           onChange={(e) => { setText(e.target.value); onChange(parseBadges(e.target.value)) }}
+           onBlur={(e) => { setTyping(false); onChange(parseBadges(e.target.value)) }} />
+  )
+}
 
 function badgesText(badges) {
   return (Array.isArray(badges) ? badges : []).map((b) => [b.field, b.label, b.tone].filter(Boolean).join(':')).join(', ')
