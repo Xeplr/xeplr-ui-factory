@@ -1,7 +1,7 @@
 // SMALL PIECES THE PHONE'S CONTROLS ARE MADE OF — a field's label and its
 // error, a button, a pill, a sheet that slides up, a list to pick from.
 // Presentation only, in React Native.
-import { useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useSafeAreaInsets } from './safeArea.js'
 import { toneOf, useNativeTheme } from './theme.js'
@@ -64,14 +64,56 @@ export function toneColor(t, tone) {
 }
 
 /**
+ * THE APP'S OWN LAYER — what the app shows over everything (its date picker,
+ * its camera), drawn where iOS can show it. iOS presents one popup at a time
+ * from where it is declared: a popup declared at the app's root, while a
+ * sheet is open, is never shown — the date never opens, the camera never
+ * comes up. So the layer is drawn INSIDE the topmost open sheet, or at the
+ * root when none is open. Android shows it either way.
+ *
+ *   <NativeLayer layer={dateSheetOrCamera}>{the app}</NativeLayer>
+ *
+ * `layer` is an element (a <Modal> of the app's) or null.
+ */
+const LayerContext = createContext(null)   // { layer, opened(delta) }
+
+function useLayerSlot() {
+  const [open, setOpen] = useState(0)   // sheets open inside this one
+  const opened = useCallback((d) => setOpen((n) => Math.max(0, n + d)), [])
+  return [open, opened]
+}
+
+export function NativeLayer({ layer, children }) {
+  const [open, opened] = useLayerSlot()
+  const value = useMemo(() => ({ layer: layer || null, opened }), [layer, opened])
+  return (
+    <LayerContext.Provider value={value}>
+      {children}
+      {open === 0 ? layer || null : null}
+    </LayerContext.Provider>
+  )
+}
+
+/**
  * A SHEET — a full-height popup with a title and ×, its content scrolling.
  * Android's back button closes it as × does (onClose), unless it is busy.
+ * While open it holds the app's layer (NativeLayer), unless a sheet inside
+ * it is open — then that one does.
  */
 export function Sheet({ visible, title, onClose, busy, children, footer }) {
   const t = useNativeTheme()
   const inset = useSafeAreaInsets()
+  const outer = useContext(LayerContext)
+  const [open, opened] = useLayerSlot()
+  useEffect(() => {
+    if (!visible || !outer) return undefined
+    outer.opened(1)
+    return () => outer.opened(-1)
+  }, [visible, outer && outer.opened])   // eslint-disable-line react-hooks/exhaustive-deps
+  const inner = useMemo(() => (outer ? { layer: outer.layer, opened } : null), [outer && outer.layer, opened])   // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={() => { if (!busy) onClose() }} presentationStyle="fullScreen">
+      <LayerContext.Provider value={inner}>
       <View style={[styles.sheet, { backgroundColor: t.plane, paddingTop: inset.top, paddingBottom: inset.bottom }]}>
         <View style={[styles.sheetHead, { borderBottomColor: t.border, backgroundColor: t.surface }]}>
           <Text style={[styles.sheetTitle, { color: t.ink }]} numberOfLines={2} accessibilityRole="header">{title}</Text>
@@ -82,6 +124,8 @@ export function Sheet({ visible, title, onClose, busy, children, footer }) {
         <ScrollView contentContainerStyle={styles.sheetBody} keyboardShouldPersistTaps="handled">{children}</ScrollView>
         {footer ? <View style={[styles.sheetFoot, { borderTopColor: t.border, backgroundColor: t.surface }]}>{footer}</View> : null}
       </View>
+      {visible && inner && open === 0 ? inner.layer : null}
+      </LayerContext.Provider>
     </Modal>
   )
 }
