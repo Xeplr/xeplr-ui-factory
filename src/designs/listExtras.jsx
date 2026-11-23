@@ -2,6 +2,7 @@
 // each row (the list's rowMenu). What they hold is listRows.js's.
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { portalHost } from '../portalHost.js'
 import { journeyOf, menuItemsFor } from '../listRows.js'
 
 /**
@@ -79,7 +80,7 @@ export function RowMenu({ row, menu, onOpen, onRun }) {
             </button>
           ))}
         </div>,
-        document.body
+        portalHost()
       )}
     </>
   )

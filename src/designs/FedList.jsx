@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { portalHost } from '../portalHost.js'
 import { XeplrTable } from '@xeplr/ui-table'
 import { boxStyle, fieldStyle } from './styles.js'
 import { rangePresets, customRange, isDay } from '../listRange.js'
@@ -470,7 +471,7 @@ function Activity({ text: line, details, detailsAs, onOpenAt, marker }) {
               : <div key={i} className="xeplr-factory-activity-item">{body}</div>
           })}
         </div>,
-        document.body
+        portalHost()
       )}
     </span>
   )
