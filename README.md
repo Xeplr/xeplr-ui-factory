@@ -1596,6 +1596,8 @@ The control whose properties are open, the step a stepper is open at, and the fl
 
 Styles are namespaced `.xeplr-factory-*` and read `@xeplr/ui-account`'s theme variables (theme.css), each with a light fallback: `--xeplr-accent`, `--xeplr-accent-text`, `--xeplr-text-primary`, `--xeplr-text-secondary`, `--xeplr-border-primary`, `--xeplr-bg-primary` (the builder's plane), `--xeplr-bg-tertiary` (sheets, panels, popups), `--xeplr-bg-hover`, `--xeplr-bg-overlay`, `--xeplr-input-bg`, `--xeplr-input-border`, `--xeplr-success`, `--xeplr-warning`, `--xeplr-danger`. The screen, builder and popup follow the app's light or dark theme with the @xeplr/ui-table inside them — never a white sheet in a dark app.
 
+Popups that leave the screen's box — a button's ask-first dialog, a list cell's hover box, a row's ⋯ menu — are portaled into the app's theme wrapper (`xeplr-theme-<name>`, where @xeplr/ui-account's ThemeProvider sets the variables), not straight into `<body>`, so they stay in the theme too; `<body>` only when there is no wrapper (`portalHost()`).
+
 Every dropdown the factory draws — on a screen, in the builder's panels, in the flow designer — has the factory's own ∨ arrow, set in from the right edge with room kept for it, in `--xeplr-text-secondary`. It is styled here, inside the factory's own containers, so an app gets it without adding CSS of its own. A dropdown's **Background** is applied as a background colour, so it never removes the arrow.
 
 Buttons, steps and list actions all show hover, a visible press, and a keyboard-only focus ring.

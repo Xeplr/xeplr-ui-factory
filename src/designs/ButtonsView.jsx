@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { portalHost } from '../portalHost.js'
 import { boxStyle, fieldStyle } from './styles.js'
 import FileField from './FileField.jsx'
 import { askFields, askFieldStart, askFieldValues, askDayLimit, checklistOptionsOf, askChoiceOptions, isFedChoice, emptyRow, startRowsOf, MAX_ASK_ROWS, tickByCode, chooseByCode } from '../buttons.js'
@@ -395,6 +396,6 @@ function AskDialog({ button, busy, error, onCancel, onConfirm, upload, readFile,
         </footer>
       </div>
     </div>,
-    document.body
+    portalHost()
   )
 }
