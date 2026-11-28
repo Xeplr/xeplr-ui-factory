@@ -8,7 +8,7 @@ import { BADGE_TONES } from '../buttons.js'
 import { Icon } from './icons.jsx'
 import { Steps, RowMenu } from './listExtras.jsx'
 import { RunButton } from './ButtonsView.jsx'
-import { rowMenuButton } from '../listRows.js'
+import { pickOf, rowMenuButton } from '../listRows.js'
 import { COLUMN_ICONS } from '../buttons.js'
 
 // A LIST WHOSE ROWS A FUNCTION WORKS OUT (rowsFrom) — live, in @xeplr/ui-table.
@@ -93,6 +93,7 @@ export default function FedList({ node, list, query, onOpen, onNew, rowDetails, 
   const kpis = Array.isArray(p.kpis) ? p.kpis : []
   const kpiCounts = list.kpis || {}
   const range = query.rangeFor ? query.rangeFor(node) : null
+  const { options: pickOptions, value: pickValue } = pickOf(p, list, query)
   // What the last row button said ("MV-0002: 2 received"), under the list.
   const rowPanelNow = rowPanel ? rowPanel(null) : null
   const rowNote = rowPanelNow ? rowPanelNow.note : null
@@ -126,6 +127,16 @@ export default function FedList({ node, list, query, onOpen, onNew, rowDetails, 
       )}
       <div className="xeplr-factory-list-tools">
         {p.title && <span className="xeplr-factory-list-title">{p.title}</span>}
+        {/* The list's dropdown (pick): its options and the one in use are the function's. */}
+        {pickOptions.length > 0 && (
+          <label className="xeplr-factory-list-pick">
+            {p.pick.label && <span className="xeplr-factory-range-label">{p.pick.label}</span>}
+            <select className="xeplr-factory-range-preset" aria-label={p.pick.label || 'Choose'} value={pickValue}
+                    onChange={(e) => query.setPick(e.target.value)}>
+              {pickOptions.map((o) => <option key={o.key} value={o.key}>{o.label}</option>)}
+            </select>
+          </label>
+        )}
         {/* New: the list's edit (or newScreen) form, called with the record
             these rows belong to (belongsTo) — this order's new task. */}
         {onNew && (p.actions || []).includes('new') && (p.newScreen || p.editScreen) && (

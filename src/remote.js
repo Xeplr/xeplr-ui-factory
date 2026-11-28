@@ -133,7 +133,7 @@ export function createFactoryApi({ fetch: doFetch, fetchFile, base = '' } = {}) 
     // ROWS A FUNCTION WORKS OUT, for a list with rowsFrom: { rows, counts }.
     // Only what the person typed goes with it — the function is the screen's.
     // `id`: the record the screen is about, when it is about one — this order's tasks.
-    fetchRows: async ({ screen, node, q, filter, kpi, from, to, id }) => one(await call('GET', `/rows/${enc(screen)}${query({ node, q, filter, kpi, from, to, id })}`)),
+    fetchRows: async ({ screen, node, q, filter, pick, kpi, from, to, id }) => one(await call('GET', `/rows/${enc(screen)}${query({ node, q, filter, pick, kpi, from, to, id })}`)),
     // A RECORD'S FEED: its comments and history, for a feed control: { entries }.
     fetchFeed: async ({ screen, node, id }) => one(await call('GET', `/feed/${enc(screen)}${query({ node, id })}`)),
     // A RECORD'S DETAILS, for a details panel: { sections, more }; `more` asks for the rest.

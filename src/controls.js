@@ -650,7 +650,7 @@ CONTROLS.list = {
   // rowsFrom: rows a registered function works out (event "listRows") —
   // with its search box, filter chips and their counts — instead of one
   // table's records. See buttons.js.
-  props: ['title', 'source', 'belongsTo', 'editScreen', 'newScreen', 'openIn', 'columns', 'pageSize', 'actions', 'rowsFrom', 'search', 'filters', 'kpis', 'dateRange', 'refreshEvery', 'rowOpen', 'rowMenu', 'highlight', 'dim', 'grow', 'layout', 'bulkAdd', 'empty', 'style'],
+  props: ['title', 'source', 'belongsTo', 'editScreen', 'newScreen', 'openIn', 'columns', 'pageSize', 'actions', 'rowsFrom', 'search', 'filters', 'pick', 'kpis', 'dateRange', 'refreshEvery', 'rowOpen', 'rowMenu', 'highlight', 'dim', 'grow', 'layout', 'bulkAdd', 'empty', 'style'],
   validation: [],
   styles: ['fontFamily', 'fontSize', 'color', 'background', 'borderColor', 'borderWidth', 'borderRadius'],
   properties: [

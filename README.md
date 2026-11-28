@@ -752,6 +752,15 @@ actions.register({ name: 'orderActivity', event: 'rowDetails', execute: async (c
            { "key": "delivered", "label": "Delivered", "tone": "success" }, { "key": "total", "label": "Total orders", "tone": "muted" }]
   ```
   A From–To range (presets: `today`, `yesterday`, `last2`, `last3`, `last4`, `last5`, `last7`, `last30`, `thisMonth`, `lastMonth`, `all`, or two days typed — "Between…" is always offered). `presets` picks which the picker offers, in that order (left out: all of them); `default` must be one of them, and an old link to one it no longer offers opens the default. The designer's Date range box ticks them and a card per KPI showing the count the function returned in `kpis`. **Clicking a card shows its rows** (`ctx.query.kpi`); clicking it again lets go. The range and the card live in the URL (`<urlKey>Dates` — `last30` or `2026-10-01..2026-10-31` — and `<urlKey>Kpi`), and a preset is turned into days on the day it is asked, so "last 30 days" stays the last 30 days. What a card counts, and which date the range is about, are the function's to decide; every count should be for the range. On a phone the cards are two to a row. Both need `rowsFrom`.
+- **A dropdown over the rows** — `"pick": { "label": "Year" }`: one choice above the list (the year a holiday list shows) whose **options the function gives**, with the rows. It reads `ctx.query.pick` (what was chosen, `''` at first) and answers `pick: { options: [{ key, label }], value }` beside `rows` — `value` the option it used, shown when nothing (or an option it no longer offers) was asked for:
+  ```js
+  execute: async (ctx) => {
+    const years = ['2026', '2027']
+    const year = years.includes(ctx.query.pick) ? ctx.query.pick : '2026'
+    return { rows: await holidaysOf(year), pick: { options: years.map((y) => ({ key: y, label: y })), value: year } }
+  }
+  ```
+  A `<select>` on the web, a button and a list to choose from on a phone. In the URL as `<urlKey>Pick`. Needs `rowsFrom`.
 - **Cards instead of a table** — `"layout": "cards"`, for people who look rather than compare (packers on a phone):
   ```json
   { "title": "Ready to pack", "layout": "cards", "rowsFrom": "packingList", "editScreen": "packing_actions", "rowOpen": true,
