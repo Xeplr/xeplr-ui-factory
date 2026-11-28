@@ -56,3 +56,14 @@ export function menuItemsFor(row, menu, canOpen) {
     return v !== undefined && v !== null && v !== ''
   })
 }
+
+/** A list's dropdown (props.pick): the options the function gave, and the one shown — asked for, else the function's. */
+export function pickOf(p, list, query) {
+  const out = p.pick && list && list.pick && typeof list.pick === 'object' ? list.pick : null
+  const options = out && Array.isArray(out.options)
+    ? out.options.filter((o) => o && o.key !== undefined && o.key !== null && String(o.key) !== '').map((o) => ({ key: String(o.key), label: o.label === undefined || o.label === null || o.label === '' ? String(o.key) : String(o.label) }))
+    : []
+  const asked = query && query.pick ? String(query.pick) : ''
+  const value = options.some((o) => o.key === asked) ? asked : out && out.value !== undefined && out.value !== null ? String(out.value) : (options[0] ? options[0].key : '')
+  return { options, value }
+}

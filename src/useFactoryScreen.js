@@ -66,7 +66,7 @@ import { useRecordDetails } from './useRecordDetails.js'
  * @param onDirtyChange (dirty) → void — whether there are unsaved changes, as that changes
  * @param controls      the control registry (default: the built-ins)
  * @param hooks         a FactoryHooks (or an object with some of its methods) — get / save / delete / actions
- * @param fetchRows     async ({ screen, node, q, filter, kpi, from, to, id }) → { rows, counts, kpis } — a list whose rows a function works out (rowsFrom)
+ * @param fetchRows     async ({ screen, node, q, filter, pick, kpi, from, to, id }) → { rows, counts, kpis, pick } — a list whose rows a function works out (rowsFrom)
  * @param suggest       async ({ screen, node, q }) → [{ value, label, sub?, image?, fill? }] — an autocomplete's suggestions (suggestFrom)
  * @param fetchDetails  async ({ screen, node, id, more }) → { sections, more } — a details panel's sections for this record (detailsFrom)
  * @param fetchFeed     async ({ screen, node, id }) → { entries } — a feed's comments and history for this record (entriesFrom)
@@ -661,6 +661,8 @@ export function useFactoryScreen({
   // rows. The search waits for a pause in typing before it asks.
   const [listQ, setListQ] = useUrlListQuery(urlKey, 'q')
   const [listFilter, setListFilter] = useUrlListQuery(urlKey, 'filter')
+  // A list's dropdown (props.pick) — the year, say: its options are the function's.
+  const [listPick, setListPick] = useUrlListQuery(urlKey, 'pick')
   // A dashboard's KPI card (clicked: its rows) and date range (a preset, or
   // "from..to"), in the URL too. The range is turned into days when asked.
   const [listKpi, setListKpi] = useUrlListQuery(urlKey, 'kpi')
@@ -694,7 +696,7 @@ export function useFactoryScreen({
       const run = Promise.resolve().then(() => hook('get')({
         many: true, id: null, screen: doc.id, source: src, node, document: doc,
         steps: live.current.steps,
-        query: fed ? { q: askedQ, filter: listFilter, kpi: listKpi, ...(rangeFor(node) || {}) } : undefined,
+        query: fed ? { q: askedQ, filter: listFilter, pick: listPick, kpi: listKpi, ...(rangeFor(node) || {}) } : undefined,
         defaults: {
           get: () => {
             // ROWS A FUNCTION WORKS OUT: the server runs the list's rowsFrom
@@ -708,6 +710,7 @@ export function useFactoryScreen({
               const about = doc.source && live.current.recordId !== null && live.current.recordId !== undefined ? live.current.recordId : undefined
               return fetchRowsRef.current({
                 screen: doc.id, node: node.id, q: askedQ, filter: listFilter || undefined,
+                pick: node.props.pick && listPick ? listPick : undefined,
                 kpi: kpis.some((k) => k.key === listKpi) ? listKpi : undefined,
                 from: range && range.from ? range.from : undefined,
                 to: range && range.to ? range.to : undefined,
@@ -737,20 +740,22 @@ export function useFactoryScreen({
           const rows = Array.isArray(out) ? out : out && Array.isArray(out.rows) ? out.rows : []
           const counts = out && !Array.isArray(out) && out.counts ? out.counts : {}
           const kpis = out && !Array.isArray(out) && out.kpis ? out.kpis : {}
-          setLists((l) => ({ ...l, [node.id]: { rows, counts, kpis, loading: false, error: null } }))
+          const pick = out && !Array.isArray(out) && out.pick ? out.pick : null
+          setLists((l) => ({ ...l, [node.id]: { rows, counts, kpis, pick, loading: false, error: null } }))
         })
         .catch((err) => { if (!cancelled) setLists((l) => ({ ...l, [node.id]: { rows: l[node.id]?.rows || [], counts: l[node.id]?.counts || {}, loading: false, error: err.message || 'Could not load records' } })) })
     })
     return () => { cancelled = true }
-  }, [listNodes, listVersion, doc, askedQ, listFilter, listKpi, rangeFor, reloadKey, recordId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [listNodes, listVersion, doc, askedQ, listFilter, listPick, listKpi, rangeFor, reloadKey, recordId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   /** What a function-fed list is narrowed to, and how to change it. */
   const listQuery = useMemo(() => ({
     q: listQ, filter: listFilter, setQ: setListQ, setFilter: setListFilter,
+    pick: listPick, setPick: setListPick,
     kpi: listKpi, setKpi: setListKpi,
     // The range a list shows (its own default until one is chosen), and choosing one.
     rangeFor, setDates: setListDates
-  }), [listQ, listFilter, setListQ, setListFilter, listKpi, setListKpi, rangeFor, setListDates])
+  }), [listQ, listFilter, setListQ, setListFilter, listPick, setListPick, listKpi, setListKpi, rangeFor, setListDates])
 
   /** An activity cell's hover box: the column's function, for one row. */
   const fetchRowDetailsRef = useRef(fetchRowDetails); fetchRowDetailsRef.current = fetchRowDetails

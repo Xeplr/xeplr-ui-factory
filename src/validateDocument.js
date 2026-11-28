@@ -521,6 +521,16 @@ function checkFedList(props, fed, at, err, buttonIds) {
   need('search', 'a search box')
   need('filters', 'filter chips')
   need('refreshEvery', 'refreshing')
+  need('pick', 'a dropdown')
+  if (props.pick !== undefined) {
+    const pk = props.pick
+    if (!pk || typeof pk !== 'object' || Array.isArray(pk)) err(`${at}.props.pick`, 'must be { label } — a dropdown above the rows whose options the function gives')
+    else {
+      const extra = Object.keys(pk).filter((k) => k !== 'label')
+      if (extra.length) err(`${at}.props.pick`, `only "label" is used — remove: ${extra.join(', ')}`)
+      if (pk.label !== undefined && typeof pk.label !== 'string') err(`${at}.props.pick.label`, 'must be a string, e.g. "Year"')
+    }
+  }
   if (props.search !== undefined) {
     const sp = props.search
     if (!sp || typeof sp !== 'object' || Array.isArray(sp)) err(`${at}.props.search`, 'must be { placeholder } — the hint in the search box')

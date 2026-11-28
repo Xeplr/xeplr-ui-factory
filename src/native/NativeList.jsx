@@ -15,7 +15,7 @@ import { rangePresets } from '../listRange.js'
 import { BADGE_TONES } from '../tones.js'
 import { readableWhen } from './inputs.jsx'
 import { NativeRunButton } from './NativeButtons.jsx'
-import { menuItemsFor, rowMenuButton } from '../listRows.js'
+import { menuItemsFor, pickOf, rowMenuButton } from '../listRows.js'
 
 /** A row's "…" entries that run a function, as its `when` allows. */
 function runEntries(p, row) {
@@ -38,6 +38,7 @@ export default function NativeList({ node, list, query, onOpen, onNew, host, row
   const kpis = Array.isArray(p.kpis) ? p.kpis : []
   const kpiCounts = list.kpis || {}
   const range = query.rangeFor ? query.rangeFor(node) : null
+  const pick = pickOf(p, list, query)
   const pageSize = p.pageSize || 10
   const open = p.rowOpen || (p.actions || []).includes('edit') ? onOpen : null
 
@@ -63,6 +64,7 @@ export default function NativeList({ node, list, query, onOpen, onNew, host, row
         {p.title ? <Text style={{ color: t.ink, fontSize: 18, fontWeight: '700', flex: 1 }} accessibilityRole="header">{p.title}</Text> : <View style={{ flex: 1 }} />}
         {onNew && (p.actions || []).includes('new') && (p.newScreen || p.editScreen) ? <Btn label="+ New" variant="primary" small onPress={onNew} /> : null}
       </View>
+      {pick.options.length ? <Pick label={p.pick.label} options={pick.options} value={pick.value} onChange={query.setPick} /> : null}
       {p.search && p.search.placeholder ? <Search placeholder={p.search.placeholder} q={query.q} onChange={query.setQ} /> : null}
       {chips.length ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: GAP }}>
@@ -124,6 +126,21 @@ function Range({ label, presets, range, onChange }) {
       <Btn label={`${shown} ▾`} small onPress={() => setOpen(true)} />
       <PickList visible={open} title={label ? `${label}: when` : 'When'} items={presets.map((x) => ({ id: x.value, name: x.label }))}
                 value={range.preset} onClose={() => setOpen(false)} onPick={(o) => { onChange(o.id); setOpen(false) }} />
+    </View>
+  )
+}
+
+/** A list's dropdown (props.pick) — the year, say: a button, then the list to choose from. */
+function Pick({ label, options, value, onChange }) {
+  const t = useNativeTheme()
+  const [open, setOpen] = useState(false)
+  const current = options.find((o) => o.key === value)
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: GAP }}>
+      {label ? <Text style={{ color: t.muted, fontWeight: '600' }}>{label}</Text> : null}
+      <Btn label={`${current ? current.label : 'Choose'} ▾`} small onPress={() => setOpen(true)} />
+      <PickList visible={open} title={label || 'Choose'} items={options.map((o) => ({ id: o.key, name: o.label }))}
+                value={value} onClose={() => setOpen(false)} onPick={(o) => { onChange(o.id); setOpen(false) }} />
     </View>
   )
 }
